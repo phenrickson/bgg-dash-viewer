@@ -18,24 +18,24 @@ def create_home_layout() -> html.Div:
             create_header(),
             dbc.Container(
                 [
-                    create_page_header(
-                        "BoardGameGeek Data Explorer",
-                        "Explore and analyze board game data from BoardGameGeek",
-                    ),
+                    # create_page_header(
+                    #     "BoardGameGeek Data Explorer",
+                    #     "Explore and analyze board game data from BoardGameGeek",
+                    # ),
                     dbc.Row(
                         [
                             dbc.Col(
                                 [
                                     html.Div(
                                         [
-                                            html.H2("Welcome to BGG Dash Viewer"),
+                                            # html.H2("Welcome to BGG Dash Viewer"),
                                             html.P(
                                                 "This application provides an interactive interface for exploring and analyzing board game data from BoardGameGeek.",
                                                 className="lead",
                                             ),
-                                            html.P(
-                                                "Use the navigation menu to access different features of the application."
-                                            ),
+                                            # html.P(
+                                            #     "Use the navigation menu to access different features of the application."
+                                            # ),
                                         ],
                                         className="mb-4",
                                     ),

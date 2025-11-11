@@ -3,7 +3,6 @@
 /* Global styles */
 body {
     font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-    color: #333;
 }
 
 /* Make sure footer stays at the bottom */
@@ -18,13 +17,12 @@ body {
 
 /* Card styles */
 .card {
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     border: none;
 }
 
 .card-title {
     font-weight: 600;
-    color: #2c3e50;
 }
 
 /* Badge styles */
@@ -33,83 +31,148 @@ body {
     padding: 0.5em 0.8em;
 }
 
-/* Button styles */
-.btn-primary {
-    background-color: #3498db;
-    border-color: #3498db;
-}
-
+/* Button styles - using Bootstrap's built-in styling */
 .btn-primary:hover {
-    background-color: #2980b9;
-    border-color: #2980b9;
-}
-
-.btn-secondary {
-    background-color: #95a5a6;
-    border-color: #95a5a6;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .btn-secondary:hover {
-    background-color: #7f8c8d;
-    border-color: #7f8c8d;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-/* Table styles */
+/* Table styles - specific for Dash DataTable in dark mode */
 .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner th {
-    background-color: #f8f9fa;
-    color: #2c3e50;
-    font-weight: 600;
+    background-color: var(--bs-dark) !important;
+    color: var(--bs-primary) !important;
+    font-weight: 600 !important;
+    border-color: var(--bs-gray-700) !important;
 }
 
 .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td {
-    font-size: 0.9rem;
+    font-size: 0.9rem !important;
+    background-color: var(--bs-gray-900) !important;
+    color: var(--bs-light) !important;
+    border-color: var(--bs-gray-700) !important;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner tr:hover td {
+    background-color: var(--bs-gray-800) !important;
+}
+
+/* Additional table styling for dark mode */
+.dash-spreadsheet-container {
+    background-color: var(--bs-gray-900) !important;
+    color: var(--bs-light) !important;
+}
+
+.dash-spreadsheet-inner input {
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-light) !important;
+    border-color: var(--bs-gray-700) !important;
+}
+
+.dash-spreadsheet-inner .dash-filter input {
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-light) !important;
+}
+
+.dash-spreadsheet-inner .dash-filter--case {
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-light) !important;
+}
+
+.dash-table-container .previous-next-container .page-number {
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-light) !important;
+}
+
+.dash-table-container .previous-next-container button {
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-primary) !important;
+    border-color: var(--bs-gray-700) !important;
 }
 
 /* Filter styles */
 .rc-slider-track {
-    background-color: #3498db;
+    background-color: var(--bs-primary);
+}
+
+.rc-slider-rail {
+    background-color: var(--bs-gray-600);
 }
 
 .rc-slider-handle {
-    border-color: #3498db;
+    border-color: var(--bs-primary);
+    background-color: var(--bs-light);
 }
 
 .rc-slider-handle:hover {
-    border-color: #2980b9;
+    border-color: var(--bs-primary);
 }
 
 .rc-slider-handle:active {
-    border-color: #2980b9;
-    box-shadow: 0 0 5px #2980b9;
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 5px var(--bs-primary);
 }
 
-/* Dropdown styles */
+/* Dropdown styles for dark mode */
 .Select-control {
-    border-color: #ddd;
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-light) !important;
+    border-color: var(--bs-gray-700) !important;
 }
 
 .Select-control:hover {
-    border-color: #bbb;
+    border-color: var(--bs-gray-600);
 }
 
 .Select.is-focused > .Select-control {
-    border-color: #3498db;
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 1px var(--bs-primary);
 }
 
 .Select-menu-outer {
-    border-color: #ddd;
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-light) !important;
+    border-color: var(--bs-gray-700) !important;
+}
+
+.Select-option {
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-light) !important;
+}
+
+.Select-option.is-focused {
+    background-color: var(--bs-gray-700) !important;
+}
+
+.Select-option.is-selected {
+    background-color: var(--bs-primary) !important;
+    color: var(--bs-light) !important;
+}
+
+.Select-value-label {
+    color: var(--bs-light) !important;
+}
+
+.Select-placeholder {
+    color: var(--bs-gray-500) !important;
 }
 
 /* Loading spinner */
 ._dash-loading {
     margin: auto;
-    color: #3498db;
+    color: var(--bs-primary);
 }
 
 /* Game details page */
 .game-image {
     max-height: 300px;
     object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 /* Responsive adjustments */

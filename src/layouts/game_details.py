@@ -56,7 +56,7 @@ def create_game_details_layout(game_id: int) -> html.Div:
         player_count_fig = None
 
         if not player_counts.empty:
-            player_count_fig = go.Figure()
+            player_count_fig = go.Figure(layout=dict(template="plotly_dark"))
             player_count_fig.add_trace(
                 go.Bar(
                     x=player_counts["player_count"],
@@ -79,6 +79,9 @@ def create_game_details_layout(game_id: int) -> html.Div:
                 yaxis_title="Percentage of Votes",
                 barmode="group",
                 margin=dict(l=40, r=40, t=40, b=40),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="white"),
             )
 
         # Create game details layout

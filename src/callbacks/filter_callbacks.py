@@ -251,11 +251,15 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
             y="game_count",
             title="Rating Distribution",
             labels={"rating_bin": "Rating", "game_count": "Number of Games"},
+            template="plotly_dark",
         )
         rating_fig.update_layout(
             xaxis_title="Rating",
             yaxis_title="Number of Games",
             margin=dict(l=40, r=40, t=40, b=40),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="white"),
         )
 
         # Create year distribution chart
@@ -266,11 +270,15 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
             y="game_count",
             title="Games Published by Year",
             labels={"year_published": "Year", "game_count": "Number of Games"},
+            template="plotly_dark",
         )
         year_fig.update_layout(
             xaxis_title="Year",
             yaxis_title="Number of Games",
             margin=dict(l=40, r=40, t=40, b=40),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="white"),
         )
 
         # Create summary container
@@ -291,7 +299,7 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
                             dbc.Card(
                                 dbc.CardBody(
                                     [
-                                        html.H5("Rating Distribution", className="card-title"),
+                                        # html.H5("Rating Distribution", className="card-title"),
                                         dcc.Graph(figure=rating_fig),
                                     ]
                                 )
@@ -302,7 +310,7 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
                             dbc.Card(
                                 dbc.CardBody(
                                     [
-                                        html.H5("Games Published by Year", className="card-title"),
+                                        # html.H5("Games Published by Year", className="card-title"),
                                         dcc.Graph(figure=year_fig),
                                     ]
                                 )

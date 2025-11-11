@@ -24,11 +24,23 @@ app_config = get_app_config()
 # Initialize Dash app
 app = dash.Dash(
     __name__,
-    external_stylesheets=[dbc.themes.BOOTSTRAP],
+    external_stylesheets=[dbc.themes.CERULEAN, dbc.icons.FONT_AWESOME],
     meta_tags=[
         {"name": "viewport", "content": "width=device-width, initial-scale=1"},
     ],
     suppress_callback_exceptions=True,
+)
+
+# Add clientside callback to set dark mode by default
+app.clientside_callback(
+    """
+    function(trigger) {
+        document.documentElement.setAttribute("data-bs-theme", "dark");
+        return window.dash_clientside.no_update;
+    }
+    """,
+    dash.Output("_", "children"),
+    dash.Input("_", "children"),
 )
 
 # Set app title
@@ -47,6 +59,7 @@ cache = Cache(
 # Define app layout with URL routing
 app.layout = html.Div(
     [
+        html.Div(id="_", style={"display": "none"}),  # Hidden div for clientside callback
         dcc.Location(id="url", refresh=False),
         html.Div(id="page-content"),
     ]
