@@ -58,3 +58,7 @@ htmlcov/
 
 # ignore credentials
 credentials/
+
+# ignore cached data
+.cache-data/
+.cache/
