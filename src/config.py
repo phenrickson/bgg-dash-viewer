@@ -1,0 +1,73 @@
+"""Configuration module for the BGG Dash Viewer."""
+
+import logging
+import os
+from typing import Dict, Optional
+
+import yaml
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Get logger
+logger = logging.getLogger(__name__)
+
+
+def get_bigquery_config(environment: Optional[str] = None) -> Dict:
+    """Get BigQuery configuration.
+
+    Args:
+        environment: Optional environment name (dev/test/prod). If not provided,
+                    uses ENVIRONMENT from .env file or default_environment from config.
+
+    Returns:
+        Dictionary containing BigQuery configuration
+    """
+    # Load environment from .env if not provided
+    if not environment:
+        environment = os.getenv("ENVIRONMENT")
+
+    # Get the absolute path to the config directory
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    config_path = os.path.join(base_dir, "config", "bigquery.yaml")
+
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+
+    # Get environment
+    env = environment or config.get("default_environment", "dev")
+    logger.info(f"Using environment: {env}")
+    if env not in config["environments"]:
+        raise ValueError(f"Invalid environment: {env}")
+
+    # Build config with environment-specific values
+    env_config = config["environments"][env]
+    return {
+        "project": {
+            "id": env_config["project_id"],
+            "dataset": env_config["dataset"],
+            "location": env_config["location"],
+        },
+        "storage": config["storage"],
+        "datasets": {
+            "raw": env_config["raw"],  # Use environment-specific raw dataset
+        },
+        "tables": config["tables"],
+        "raw_tables": config.get("raw_tables", {}),
+        "environments": config["environments"],  # Include environments in config
+    }
+
+
+def get_app_config() -> Dict:
+    """Get application configuration.
+
+    Returns:
+        Dictionary containing application configuration
+    """
+    return {
+        "debug": os.getenv("DEBUG", "False").lower() in ("true", "1", "t"),
+        "port": int(os.getenv("PORT", "8050")),
+        "host": os.getenv("HOST", "0.0.0.0"),
+        "cache_timeout": int(os.getenv("CACHE_TIMEOUT", "3600")),
+    }

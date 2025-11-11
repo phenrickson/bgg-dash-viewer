@@ -1,0 +1,315 @@
+"""Filter callbacks for the BGG Dash Viewer."""
+
+import logging
+from typing import Dict, List, Any, Optional, Tuple
+
+import dash
+from dash import html, dcc
+from dash.dependencies import Input, Output, State
+import dash_bootstrap_components as dbc
+from flask_caching import Cache
+import plotly.express as px
+import plotly.graph_objects as go
+import pandas as pd
+
+from ..data.bigquery_client import BigQueryClient
+
+logger = logging.getLogger(__name__)
+
+
+def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
+    """Register filter-related callbacks.
+
+    Args:
+        app: Dash application instance
+        cache: Flask-Caching instance
+    """
+    # Initialize BigQuery client
+    bq_client = BigQueryClient()
+
+    @app.callback(
+        Output("year-range-output", "children"),
+        [Input("year-range-slider", "value")],
+    )
+    def update_year_range_output(value: List[int]) -> str:
+        """Update the year range output text.
+
+        Args:
+            value: Min and max year values
+
+        Returns:
+            Text displaying the selected year range
+        """
+        if not value:
+            return "All years"
+        return f"Years: {value[0]} to {value[1]}"
+
+    @app.callback(
+        Output("rating-range-output", "children"),
+        [Input("rating-range-slider", "value")],
+    )
+    def update_rating_range_output(value: List[float]) -> str:
+        """Update the rating range output text.
+
+        Args:
+            value: Min and max rating values
+
+        Returns:
+            Text displaying the selected rating range
+        """
+        if not value:
+            return "All ratings"
+        return f"Ratings: {value[0]:.1f} to {value[1]:.1f}"
+
+    @app.callback(
+        Output("complexity-range-output", "children"),
+        [Input("complexity-range-slider", "value")],
+    )
+    def update_complexity_range_output(value: List[float]) -> str:
+        """Update the complexity range output text.
+
+        Args:
+            value: Min and max complexity values
+
+        Returns:
+            Text displaying the selected complexity range
+        """
+        if not value:
+            return "All complexity levels"
+        return f"Complexity: {value[0]:.1f} to {value[1]:.1f}"
+
+    @app.callback(
+        Output("player-count-range-output", "children"),
+        [Input("player-count-range-slider", "value")],
+    )
+    def update_player_count_range_output(value: List[int]) -> str:
+        """Update the player count range output text.
+
+        Args:
+            value: Min and max player count values
+
+        Returns:
+            Text displaying the selected player count range
+        """
+        if not value:
+            return "All player counts"
+        return f"Players: {value[0]} to {value[1]}"
+
+    @app.callback(
+        Output("reset-filters-container", "style"),
+        [
+            Input("publisher-dropdown", "value"),
+            Input("designer-dropdown", "value"),
+            Input("category-dropdown", "value"),
+            Input("mechanic-dropdown", "value"),
+            Input("year-range-slider", "value"),
+            Input("rating-range-slider", "value"),
+            Input("complexity-range-slider", "value"),
+            Input("player-count-range-slider", "value"),
+        ],
+    )
+    def show_reset_button(
+        publishers: Optional[List[int]],
+        designers: Optional[List[int]],
+        categories: Optional[List[int]],
+        mechanics: Optional[List[int]],
+        year_range: List[int],
+        rating_range: List[float],
+        complexity_range: List[float],
+        player_count_range: List[int],
+    ) -> Dict[str, str]:
+        """Show the reset button if any filters are applied.
+
+        Args:
+            publishers: Selected publisher IDs
+            designers: Selected designer IDs
+            categories: Selected category IDs
+            mechanics: Selected mechanic IDs
+            year_range: Min and max year published
+            rating_range: Min and max rating
+            complexity_range: Min and max complexity
+            player_count_range: Min and max player count
+
+        Returns:
+            Style dictionary for the reset button container
+        """
+        # Check if any filters are applied
+        any_filters = (
+            (publishers and len(publishers) > 0)
+            or (designers and len(designers) > 0)
+            or (categories and len(categories) > 0)
+            or (mechanics and len(mechanics) > 0)
+            or (year_range is not None and len(year_range) == 2)
+            or (rating_range is not None and len(rating_range) == 2)
+            or (complexity_range is not None and len(complexity_range) == 2)
+            or (player_count_range is not None and len(player_count_range) == 2)
+        )
+
+        # Show the reset button if any filters are applied
+        if any_filters:
+            return {"display": "block", "margin-top": "20px"}
+        else:
+            return {"display": "none"}
+
+    @app.callback(
+        [
+            Output("publisher-dropdown", "value"),
+            Output("designer-dropdown", "value"),
+            Output("category-dropdown", "value"),
+            Output("mechanic-dropdown", "value"),
+            Output("year-range-slider", "value"),
+            Output("rating-range-slider", "value"),
+            Output("complexity-range-slider", "value"),
+            Output("player-count-range-slider", "value"),
+        ],
+        [Input("reset-filters-button", "n_clicks")],
+        prevent_initial_call=True,
+    )
+    def reset_filters(n_clicks: int) -> Tuple:
+        """Reset all filters to their default values.
+
+        Args:
+            n_clicks: Number of times the reset button has been clicked
+
+        Returns:
+            Tuple of default values for all filters
+        """
+        return None, None, None, None, None, None, None, None
+
+    @cache.memoize()
+    def get_summary_stats() -> Dict[str, Any]:
+        """Get summary statistics for the dashboard.
+
+        Returns:
+            Dictionary with summary statistics
+        """
+        logger.info("Fetching summary statistics from BigQuery")
+        return bq_client.get_summary_stats()
+
+    @app.callback(
+        Output("summary-stats-container", "children"),
+        [Input("refresh-stats-button", "n_clicks")],
+    )
+    def update_summary_stats(n_clicks: Optional[int]) -> html.Div:
+        """Update the summary statistics.
+
+        Args:
+            n_clicks: Number of times the refresh button has been clicked
+
+        Returns:
+            Div containing summary statistics
+        """
+        # Get summary statistics
+        stats = get_summary_stats()
+
+        # Create summary cards
+        total_games_card = dbc.Card(
+            dbc.CardBody(
+                [
+                    html.H5("Total Games", className="card-title"),
+                    html.H2(f"{stats['total_games']:,}", className="card-text"),
+                ]
+            ),
+            className="mb-4",
+        )
+
+        rated_games_card = dbc.Card(
+            dbc.CardBody(
+                [
+                    html.H5("Rated Games", className="card-title"),
+                    html.H2(f"{stats['rated_games']:,}", className="card-text"),
+                ]
+            ),
+            className="mb-4",
+        )
+
+        categories_card = dbc.Card(
+            dbc.CardBody(
+                [
+                    html.H5("Categories", className="card-title"),
+                    html.H2(f"{stats['entity_counts']['category_count']:,}", className="card-text"),
+                ]
+            ),
+            className="mb-4",
+        )
+
+        mechanics_card = dbc.Card(
+            dbc.CardBody(
+                [
+                    html.H5("Mechanics", className="card-title"),
+                    html.H2(f"{stats['entity_counts']['mechanic_count']:,}", className="card-text"),
+                ]
+            ),
+            className="mb-4",
+        )
+
+        # Create rating distribution chart
+        rating_df = pd.DataFrame(stats["rating_distribution"])
+        rating_fig = px.bar(
+            rating_df,
+            x="rating_bin",
+            y="game_count",
+            title="Rating Distribution",
+            labels={"rating_bin": "Rating", "game_count": "Number of Games"},
+        )
+        rating_fig.update_layout(
+            xaxis_title="Rating",
+            yaxis_title="Number of Games",
+            margin=dict(l=40, r=40, t=40, b=40),
+        )
+
+        # Create year distribution chart
+        year_df = pd.DataFrame(stats["year_distribution"])
+        year_fig = px.line(
+            year_df,
+            x="year_published",
+            y="game_count",
+            title="Games Published by Year",
+            labels={"year_published": "Year", "game_count": "Number of Games"},
+        )
+        year_fig.update_layout(
+            xaxis_title="Year",
+            yaxis_title="Number of Games",
+            margin=dict(l=40, r=40, t=40, b=40),
+        )
+
+        # Create summary container
+        return html.Div(
+            [
+                dbc.Row(
+                    [
+                        dbc.Col(total_games_card, width=3),
+                        dbc.Col(rated_games_card, width=3),
+                        dbc.Col(categories_card, width=3),
+                        dbc.Col(mechanics_card, width=3),
+                    ],
+                    className="mb-4",
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dbc.Card(
+                                dbc.CardBody(
+                                    [
+                                        html.H5("Rating Distribution", className="card-title"),
+                                        dcc.Graph(figure=rating_fig),
+                                    ]
+                                )
+                            ),
+                            width=6,
+                        ),
+                        dbc.Col(
+                            dbc.Card(
+                                dbc.CardBody(
+                                    [
+                                        html.H5("Games Published by Year", className="card-title"),
+                                        dcc.Graph(figure=year_fig),
+                                    ]
+                                )
+                            ),
+                            width=6,
+                        ),
+                    ]
+                ),
+            ]
+        )

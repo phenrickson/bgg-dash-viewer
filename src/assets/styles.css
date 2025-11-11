@@ -1,0 +1,125 @@
+/* Custom styles for BGG Dash Viewer */
+
+/* Global styles */
+body {
+    font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    color: #333;
+}
+
+/* Make sure footer stays at the bottom */
+.min-vh-100 {
+    min-height: 100vh;
+}
+
+/* Header styles */
+.navbar-brand {
+    font-weight: 700;
+}
+
+/* Card styles */
+.card {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    border: none;
+}
+
+.card-title {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* Badge styles */
+.badge {
+    font-weight: 500;
+    padding: 0.5em 0.8em;
+}
+
+/* Button styles */
+.btn-primary {
+    background-color: #3498db;
+    border-color: #3498db;
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+    border-color: #2980b9;
+}
+
+.btn-secondary {
+    background-color: #95a5a6;
+    border-color: #95a5a6;
+}
+
+.btn-secondary:hover {
+    background-color: #7f8c8d;
+    border-color: #7f8c8d;
+}
+
+/* Table styles */
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner th {
+    background-color: #f8f9fa;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td {
+    font-size: 0.9rem;
+}
+
+/* Filter styles */
+.rc-slider-track {
+    background-color: #3498db;
+}
+
+.rc-slider-handle {
+    border-color: #3498db;
+}
+
+.rc-slider-handle:hover {
+    border-color: #2980b9;
+}
+
+.rc-slider-handle:active {
+    border-color: #2980b9;
+    box-shadow: 0 0 5px #2980b9;
+}
+
+/* Dropdown styles */
+.Select-control {
+    border-color: #ddd;
+}
+
+.Select-control:hover {
+    border-color: #bbb;
+}
+
+.Select.is-focused > .Select-control {
+    border-color: #3498db;
+}
+
+.Select-menu-outer {
+    border-color: #ddd;
+}
+
+/* Loading spinner */
+._dash-loading {
+    margin: auto;
+    color: #3498db;
+}
+
+/* Game details page */
+.game-image {
+    max-height: 300px;
+    object-fit: contain;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    
+    .card {
+        margin-bottom: 20px;
+    }
+}

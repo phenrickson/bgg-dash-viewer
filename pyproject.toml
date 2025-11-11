@@ -24,7 +24,7 @@ dependencies = [
     "google-cloud-bigquery-storage>=2.32.0",
     "google-auth>=2.40.3",
     "flask-caching>=2.1.0",
-    "gunicorn>=21.2.0",  # For production deployment
+    "gunicorn>=21.2.0", # For production deployment
 ]
 
 [project.optional-dependencies]
