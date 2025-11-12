@@ -33,11 +33,16 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
             Dictionary with filter options
         """
         logger.info("Fetching filter options from BigQuery")
+
+        # Get player counts separately
+        player_counts = bq_client.get_player_counts()
+
         return {
             "publishers": bq_client.get_publishers(),
             "designers": bq_client.get_designers(),
             "categories": bq_client.get_categories(),
             "mechanics": bq_client.get_mechanics(),
+            "player_counts": player_counts,
         }
 
     @app.callback(
@@ -46,6 +51,7 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
             Output("designer-dropdown", "options"),
             Output("category-dropdown", "options"),
             Output("mechanic-dropdown", "options"),
+            Output("player-count-dropdown", "options"),
         ],
         [Input("filter-options-container", "children")],
     )
@@ -80,7 +86,18 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
             for m in filter_options["mechanics"]
         ]
 
-        return publisher_options, designer_options, category_options, mechanic_options
+        player_count_options = [
+            {"label": str(pc["player_count"]), "value": pc["player_count"]}
+            for pc in filter_options["player_counts"]
+        ]
+
+        return (
+            publisher_options,
+            designer_options,
+            category_options,
+            mechanic_options,
+            player_count_options,
+        )
 
     @app.callback(
         [
@@ -95,9 +112,9 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
             State("category-dropdown", "value"),
             State("mechanic-dropdown", "value"),
             State("year-range-slider", "value"),
-            State("rating-range-slider", "value"),
             State("complexity-range-slider", "value"),
-            State("player-count-range-slider", "value"),
+            State("player-count-dropdown", "value"),
+            State("player-count-type-store", "children"),
             State("results-per-page", "value"),
         ],
     )
@@ -108,9 +125,9 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
         categories: Optional[List[int]],
         mechanics: Optional[List[int]],
         year_range: List[int],
-        rating_range: List[float],
         complexity_range: List[float],
-        player_count_range: List[int],
+        player_count: Optional[int],
+        player_count_type: str,
         results_per_page: int,
     ) -> tuple:
         """Search for games based on filter criteria.
@@ -122,7 +139,6 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
             categories: Selected category IDs
             mechanics: Selected mechanic IDs
             year_range: Min and max year published
-            rating_range: Min and max rating
             complexity_range: Min and max complexity
             player_count_range: Min and max player count
             results_per_page: Number of results to display per page
@@ -143,14 +159,18 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                 designers=designers,
                 categories=categories,
                 mechanics=mechanics,
-                min_year=year_range[0] if year_range else None,
-                max_year=year_range[1] if year_range else None,
-                min_rating=rating_range[0] if rating_range else None,
-                max_rating=rating_range[1] if rating_range else None,
-                min_complexity=complexity_range[0] if complexity_range else None,
-                max_complexity=complexity_range[1] if complexity_range else None,
-                min_player_count=player_count_range[0] if player_count_range else None,
-                max_player_count=player_count_range[1] if player_count_range else None,
+                min_year=year_range[0] if year_range and len(year_range) == 2 else None,
+                max_year=year_range[1] if year_range and len(year_range) == 2 else None,
+                min_rating=None,
+                max_rating=None,
+                min_complexity=(
+                    complexity_range[0] if complexity_range and len(complexity_range) == 2 else None
+                ),
+                max_complexity=(
+                    complexity_range[1] if complexity_range and len(complexity_range) == 2 else None
+                ),
+                player_count=player_count,
+                player_count_type=player_count_type if player_count is not None else None,
             )
 
             # Create results count text

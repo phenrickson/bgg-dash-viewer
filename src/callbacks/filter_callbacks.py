@@ -45,23 +45,6 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
         return f"Years: {value[0]} to {value[1]}"
 
     @app.callback(
-        Output("rating-range-output", "children"),
-        [Input("rating-range-slider", "value")],
-    )
-    def update_rating_range_output(value: List[float]) -> str:
-        """Update the rating range output text.
-
-        Args:
-            value: Min and max rating values
-
-        Returns:
-            Text displaying the selected rating range
-        """
-        if not value:
-            return "All ratings"
-        return f"Ratings: {value[0]:.1f} to {value[1]:.1f}"
-
-    @app.callback(
         Output("complexity-range-output", "children"),
         [Input("complexity-range-slider", "value")],
     )
@@ -79,21 +62,84 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
         return f"Complexity: {value[0]:.1f} to {value[1]:.1f}"
 
     @app.callback(
-        Output("player-count-range-output", "children"),
-        [Input("player-count-range-slider", "value")],
+        Output("player-count-output", "children"),
+        [Input("filter-options-container", "children")],
     )
-    def update_player_count_range_output(value: List[int]) -> str:
-        """Update the player count range output text.
+    def init_player_count_output(_: Any) -> str:
+        """Initialize the player count output text.
 
         Args:
-            value: Min and max player count values
+            _: Dummy input to trigger the callback
 
         Returns:
-            Text displaying the selected player count range
+            Initial player count output text
         """
-        if not value:
+        return "All player counts"
+
+    @app.callback(
+        [
+            Output("player-count-best-button", "outline"),
+            Output("player-count-recommended-button", "outline"),
+            Output("player-count-type-store", "children"),
+        ],
+        [
+            Input("player-count-best-button", "n_clicks"),
+            Input("player-count-recommended-button", "n_clicks"),
+        ],
+        [State("player-count-type-store", "children")],
+    )
+    def toggle_player_count_type(
+        best_clicks: Optional[int], recommended_clicks: Optional[int], current_type: str
+    ) -> Tuple[bool, bool, str]:
+        """Toggle between Best and Recommended player count types.
+
+        Args:
+            best_clicks: Number of clicks on the Best button
+            recommended_clicks: Number of clicks on the Recommended button
+            current_type: Current player count type
+
+        Returns:
+            Tuple of (best_button_outline, recommended_button_outline, player_count_type)
+        """
+        ctx = dash.callback_context
+
+        if not ctx.triggered:
+            # Default to "best" if no button has been clicked
+            return False, True, "best"
+
+        button_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+        if button_id == "player-count-best-button":
+            return False, True, "best"
+        elif button_id == "player-count-recommended-button":
+            return True, False, "recommended"
+
+        # Fallback to current state if something unexpected happens
+        return current_type == "recommended", current_type == "best", current_type
+
+    @app.callback(
+        Output("player-count-output", "children", allow_duplicate=True),
+        [
+            Input("player-count-dropdown", "value"),
+            Input("player-count-type-store", "children"),
+        ],
+        prevent_initial_call=True,
+    )
+    def update_player_count_output(player_count: Optional[int], player_count_type: str) -> str:
+        """Update the player count output text.
+
+        Args:
+            player_count: Selected player count
+            player_count_type: Type of player count (best or recommended)
+
+        Returns:
+            Text displaying the selected player count
+        """
+        if not player_count:
             return "All player counts"
-        return f"Players: {value[0]} to {value[1]}"
+
+        type_display = "Best" if player_count_type == "best" else "Recommended"
+        return f"{type_display} for {player_count} players"
 
     @app.callback(
         Output("reset-filters-container", "style"),
@@ -103,9 +149,8 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
             Input("category-dropdown", "value"),
             Input("mechanic-dropdown", "value"),
             Input("year-range-slider", "value"),
-            Input("rating-range-slider", "value"),
             Input("complexity-range-slider", "value"),
-            Input("player-count-range-slider", "value"),
+            Input("player-count-dropdown", "value"),
         ],
     )
     def show_reset_button(
@@ -114,9 +159,8 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
         categories: Optional[List[int]],
         mechanics: Optional[List[int]],
         year_range: List[int],
-        rating_range: List[float],
         complexity_range: List[float],
-        player_count_range: List[int],
+        player_count: Optional[int],
     ) -> Dict[str, str]:
         """Show the reset button if any filters are applied.
 
@@ -126,7 +170,6 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
             categories: Selected category IDs
             mechanics: Selected mechanic IDs
             year_range: Min and max year published
-            rating_range: Min and max rating
             complexity_range: Min and max complexity
             player_count_range: Min and max player count
 
@@ -140,9 +183,8 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
             or (categories and len(categories) > 0)
             or (mechanics and len(mechanics) > 0)
             or (year_range is not None and len(year_range) == 2)
-            or (rating_range is not None and len(rating_range) == 2)
             or (complexity_range is not None and len(complexity_range) == 2)
-            or (player_count_range is not None and len(player_count_range) == 2)
+            or (player_count is not None)
         )
 
         # Show the reset button if any filters are applied
@@ -158,9 +200,11 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
             Output("category-dropdown", "value"),
             Output("mechanic-dropdown", "value"),
             Output("year-range-slider", "value"),
-            Output("rating-range-slider", "value"),
             Output("complexity-range-slider", "value"),
-            Output("player-count-range-slider", "value"),
+            Output("player-count-dropdown", "value"),
+            Output("player-count-best-button", "outline", allow_duplicate=True),
+            Output("player-count-recommended-button", "outline", allow_duplicate=True),
+            Output("player-count-type-store", "children", allow_duplicate=True),
         ],
         [Input("reset-filters-button", "n_clicks")],
         prevent_initial_call=True,
@@ -174,7 +218,7 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
         Returns:
             Tuple of default values for all filters
         """
-        return None, None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, False, True, "best"
 
     @cache.memoize()
     def get_summary_stats() -> Dict[str, Any]:

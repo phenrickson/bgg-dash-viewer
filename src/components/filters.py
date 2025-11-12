@@ -33,36 +33,11 @@ def create_filters() -> html.Div:
                                         2000: "2000",
                                         2025: "2025",
                                     },
-                                    value=None,
+                                    value=[1950, 2020],
                                     allowCross=False,
                                     tooltip={"placement": "bottom", "always_visible": False},
                                 ),
                                 html.Div(id="year-range-output", className="mt-2 text-muted"),
-                            ],
-                            className="mb-4",
-                        ),
-                        # Rating Range Filter
-                        html.Div(
-                            [
-                                html.Label("Geek Rating"),
-                                dcc.RangeSlider(
-                                    id="rating-range-slider",
-                                    min=5.0,
-                                    max=10.0,
-                                    step=0.1,
-                                    marks={
-                                        5.0: "5.0",
-                                        6.0: "6.0",
-                                        7.0: "7.0",
-                                        8.0: "8.0",
-                                        9.0: "9.0",
-                                        10.0: "10.0",
-                                    },
-                                    value=None,
-                                    allowCross=False,
-                                    tooltip={"placement": "bottom", "always_visible": False},
-                                ),
-                                html.Div(id="rating-range-output", className="mt-2 text-muted"),
                             ],
                             className="mb-4",
                         ),
@@ -82,7 +57,7 @@ def create_filters() -> html.Div:
                                         4.0: "4.0",
                                         5.0: "5.0",
                                     },
-                                    value=None,
+                                    value=[1.0, 5.0],
                                     allowCross=False,
                                     tooltip={"placement": "bottom", "always_visible": False},
                                 ),
@@ -90,22 +65,53 @@ def create_filters() -> html.Div:
                             ],
                             className="mb-4",
                         ),
-                        # Player Count Range Filter
+                        # Player Count Filter
                         html.Div(
                             [
                                 html.Label("Player Count"),
-                                dcc.RangeSlider(
-                                    id="player-count-range-slider",
-                                    min=1,
-                                    max=10,
-                                    step=1,
-                                    marks={i: str(i) for i in range(1, 11)},
-                                    value=None,
-                                    allowCross=False,
-                                    tooltip={"placement": "bottom", "always_visible": False},
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            dcc.Dropdown(
+                                                id="player-count-dropdown",
+                                                options=[],  # Will be populated by callback
+                                                placeholder="Select player count...",
+                                                clearable=True,
+                                            ),
+                                            width=8,
+                                        ),
+                                        dbc.Col(
+                                            dbc.ButtonGroup(
+                                                [
+                                                    dbc.Button(
+                                                        "Best",
+                                                        id="player-count-best-button",
+                                                        color="primary",
+                                                        outline=False,
+                                                        size="sm",
+                                                        className="me-1",
+                                                    ),
+                                                    dbc.Button(
+                                                        "Recommended",
+                                                        id="player-count-recommended-button",
+                                                        color="primary",
+                                                        outline=True,
+                                                        size="sm",
+                                                    ),
+                                                ],
+                                                className="mt-1",
+                                            ),
+                                            width=4,
+                                        ),
+                                    ],
+                                    className="mb-2",
                                 ),
+                                html.Div(id="player-count-output", className="mt-2 text-muted"),
+                                # Hidden div to store the current player count type
                                 html.Div(
-                                    id="player-count-range-output", className="mt-2 text-muted"
+                                    id="player-count-type-store",
+                                    style={"display": "none"},
+                                    children="best",
                                 ),
                             ],
                             className="mb-4",
@@ -169,14 +175,15 @@ def create_filters() -> html.Div:
                                 dcc.Slider(
                                     id="results-per-page",
                                     min=10,
-                                    max=100,
+                                    max=1000,
                                     step=10,
                                     marks={
                                         10: "10",
-                                        50: "50",
                                         100: "100",
+                                        500: "500",
+                                        1000: "1000",
                                     },
-                                    value=50,
+                                    value=1000,
                                     tooltip={"placement": "bottom", "always_visible": False},
                                 ),
                             ],
