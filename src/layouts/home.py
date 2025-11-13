@@ -100,7 +100,7 @@ def create_home_layout() -> html.Div:
                                     ),
                                     html.Div(
                                         [
-                                            html.H3("Dashboard"),
+                                            html.H3("Overview"),
                                             dbc.Spinner(
                                                 html.Div(id="summary-stats-container"),
                                                 color="primary",

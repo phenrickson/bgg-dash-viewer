@@ -26,21 +26,17 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
     bq_client = BigQueryClient()
 
     # Cache filter options to improve performance
-    @cache.memoize(timeout=3600)  # Cache for 1 hour
+    @cache.memoize(timeout=14400)  # Cache for 4 hours (data changes infrequently)
     def get_filter_options() -> Dict[str, List[Dict[str, Any]]]:
         """Get options for filter dropdowns.
 
         Returns:
             Dictionary with filter options
         """
-        logger.info("Fetching filter options from BigQuery")
+        logger.info("Fetching filter options from BigQuery using optimized combined table")
 
-        return {
-            "publishers": bq_client.get_publishers(),
-            "designers": bq_client.get_designers(),
-            "categories": bq_client.get_categories(),
-            "mechanics": bq_client.get_mechanics(),
-        }
+        # Use the new optimized method that queries the pre-computed combined table
+        return bq_client.get_all_filter_options()
 
     @app.callback(
         [

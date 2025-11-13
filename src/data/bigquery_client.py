@@ -416,8 +416,7 @@ class BigQueryClient:
         Returns:
             List of publisher dictionaries with id and name
         """
-        query = f"""
-        WITH publisher_counts AS (
+        query = f"""        WITH publisher_counts AS (
             SELECT 
                 p.publisher_id, 
                 p.name, 
@@ -432,6 +431,7 @@ class BigQueryClient:
         FROM publisher_counts
         WHERE rank <= {limit}
         ORDER BY name
+
         """
         return self.execute_query(query).to_dict("records")
 
@@ -519,6 +519,81 @@ class BigQueryClient:
         """
         return self.execute_query(query).to_dict("records")
 
+    def get_all_filter_options(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Get all filter options from pre-computed combined table.
+
+        This method replaces the need to call get_publishers(), get_categories(),
+        get_mechanics(), and get_designers() separately, providing significant
+        performance improvement by using a single query.
+
+        Returns:
+            Dictionary with filter options for all entity types
+        """
+        query = """
+        SELECT entity_type, entity_id, name, game_count
+        FROM `${project_id}.${dataset}.filter_options_combined`
+        ORDER BY entity_type, game_count DESC, name ASC
+        """
+
+        df = self.execute_query(query)
+
+        # Initialize result dictionary
+        result = {"publishers": [], "categories": [], "mechanics": [], "designers": []}
+
+        # Map entity_type to correct ID field name and plural key
+        entity_mapping = {
+            "publisher": {"key": "publishers", "id_field": "publisher_id"},
+            "category": {"key": "categories", "id_field": "category_id"},
+            "mechanic": {"key": "mechanics", "id_field": "mechanic_id"},
+            "designer": {"key": "designers", "id_field": "designer_id"},
+        }
+
+        # Group results by entity type
+        for _, row in df.iterrows():
+            entity_type = row["entity_type"]
+
+            if entity_type in entity_mapping:
+                mapping = entity_mapping[entity_type]
+                result[mapping["key"]].append(
+                    {
+                        mapping["id_field"]: row["entity_id"],
+                        "name": row["name"],
+                        "game_count": row["game_count"],
+                    }
+                )
+
+        return result
+
+    def test_filter_options_combined(self) -> Dict[str, Any]:
+        """Test method to debug the filter_options_combined table.
+
+        Returns:
+            Dictionary with debug information
+        """
+        query = """
+        SELECT entity_type, COUNT(*) as count
+        FROM `${project_id}.${dataset}.filter_options_combined`
+        GROUP BY entity_type
+        ORDER BY entity_type
+        """
+
+        df = self.execute_query(query)
+
+        # Also get a sample of the data
+        sample_query = """
+        SELECT entity_type, entity_id, name, game_count
+        FROM `${project_id}.${dataset}.filter_options_combined`
+        ORDER BY entity_type, game_count DESC
+        LIMIT 10
+        """
+
+        sample_df = self.execute_query(sample_query)
+
+        return {
+            "counts_by_type": df.to_dict("records"),
+            "sample_data": sample_df.to_dict("records"),
+        }
+
     def get_player_counts(self) -> List[Dict[str, Any]]:
         """Get list of player counts from best_player_counts table.
 
@@ -572,7 +647,7 @@ class BigQueryClient:
         # Rating distribution
         rating_dist_query = """
         SELECT 
-            FLOOR(bayes_average * 2) / 2 as rating_bin,
+            FLOOR(bayes_average * 4) / 4 as rating_bin,
             COUNT(*) as game_count
         FROM `${project_id}.${dataset}.games_active_table`
         WHERE bayes_average IS NOT NULL AND bayes_average > 0

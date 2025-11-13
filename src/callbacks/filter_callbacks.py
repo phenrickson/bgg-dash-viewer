@@ -293,8 +293,8 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
             rating_df,
             x="rating_bin",
             y="game_count",
-            title="Rating Distribution",
-            labels={"rating_bin": "Rating", "game_count": "Number of Games"},
+            title="Geek Rating Distribution",
+            labels={"rating_bin": "Geek Rating", "game_count": "Number of Games"},
             template="plotly_dark",
         )
         rating_fig.update_layout(
