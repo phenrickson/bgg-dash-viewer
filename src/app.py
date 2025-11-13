@@ -43,6 +43,20 @@ app.clientside_callback(
     dash.Input("_", "children"),
 )
 
+# Add clientside callback to trigger filter options loading on page load
+app.clientside_callback(
+    """
+    function(pathname) {
+        if (pathname === "/game-search") {
+            return "load";
+        }
+        return "init";
+    }
+    """,
+    dash.Output("filter-options-container", "children"),
+    dash.Input("url", "pathname"),
+)
+
 # Set app title
 app.title = "BGG Dash Viewer"
 

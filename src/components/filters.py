@@ -12,7 +12,16 @@ def create_filters() -> html.Div:
     """
     return html.Div(
         [
-            html.Div(id="filter-options-container"),  # Hidden div to trigger filter options loading
+            html.Div(
+                id="filter-options-container", children="init", style={"display": "none"}
+            ),  # Hidden div to trigger filter options loading
+            # Loading spinner for filter options
+            dbc.Spinner(
+                html.Div(id="filter-loading-indicator", className="mb-3"),
+                color="primary",
+                type="border",
+                fullscreen=False,
+            ),
             dbc.Card(
                 dbc.CardBody(
                     [
@@ -74,7 +83,16 @@ def create_filters() -> html.Div:
                                         dbc.Col(
                                             dcc.Dropdown(
                                                 id="player-count-dropdown",
-                                                options=[],  # Will be populated by callback
+                                                options=[
+                                                    {"label": "1", "value": 1},
+                                                    {"label": "2", "value": 2},
+                                                    {"label": "3", "value": 3},
+                                                    {"label": "4", "value": 4},
+                                                    {"label": "5", "value": 5},
+                                                    {"label": "6", "value": 6},
+                                                    {"label": "7", "value": 7},
+                                                    {"label": "8", "value": 8},
+                                                ],  # Hard-coded player count options
                                                 placeholder="Select player count...",
                                                 clearable=True,
                                             ),

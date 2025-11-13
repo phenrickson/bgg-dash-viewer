@@ -25,7 +25,8 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
     # Initialize BigQuery client
     bq_client = BigQueryClient()
 
-    # Don't cache this function to ensure we always get fresh data
+    # Cache filter options to improve performance
+    @cache.memoize(timeout=3600)  # Cache for 1 hour
     def get_filter_options() -> Dict[str, List[Dict[str, Any]]]:
         """Get options for filter dropdowns.
 
@@ -34,15 +35,11 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
         """
         logger.info("Fetching filter options from BigQuery")
 
-        # Get player counts separately - only include 1-8 from best_player_counts_table
-        player_counts = bq_client.get_player_counts()
-
         return {
             "publishers": bq_client.get_publishers(),
             "designers": bq_client.get_designers(),
             "categories": bq_client.get_categories(),
             "mechanics": bq_client.get_mechanics(),
-            "player_counts": player_counts,
         }
 
     @app.callback(
@@ -51,7 +48,6 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
             Output("designer-dropdown", "options"),
             Output("category-dropdown", "options"),
             Output("mechanic-dropdown", "options"),
-            Output("player-count-dropdown", "options"),
         ],
         [Input("filter-options-container", "children")],
     )
@@ -86,17 +82,11 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
             for m in filter_options["mechanics"]
         ]
 
-        player_count_options = [
-            {"label": str(pc["player_count"]), "value": pc["player_count"]}
-            for pc in filter_options["player_counts"]
-        ]
-
         return (
             publisher_options,
             designer_options,
             category_options,
             mechanic_options,
-            player_count_options,
         )
 
     @app.callback(
@@ -105,7 +95,7 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
             Output("search-results-count", "children"),
             Output("loading-search-results", "children"),
         ],
-        [Input("search-button", "n_clicks")],
+        [Input("search-button", "n_clicks"), Input("filter-options-container", "children")],
         [
             State("publisher-dropdown", "value"),
             State("designer-dropdown", "value"),
@@ -120,6 +110,7 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
     )
     def search_games(
         n_clicks: int,
+        filter_options_trigger: str,
         publishers: Optional[List[int]],
         designers: Optional[List[int]],
         categories: Optional[List[int]],
@@ -134,20 +125,25 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
 
         Args:
             n_clicks: Number of times the search button has been clicked
+            filter_options_trigger: Trigger for filter options loading
             publishers: Selected publisher IDs
             designers: Selected designer IDs
             categories: Selected category IDs
             mechanics: Selected mechanic IDs
             year_range: Min and max year published
             complexity_range: Min and max complexity
-            player_count_range: Min and max player count
+            player_count: Selected player count
+            player_count_type: Type of player count (best or recommended)
             results_per_page: Number of results to display per page
 
         Returns:
             Tuple of (search results container, results count text, loading indicator)
         """
-        if n_clicks is None:
-            # Initial load, return empty results
+        ctx = dash.callback_context
+        trigger_id = ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else None
+
+        # Skip search if this is just the initial page load with "init" value
+        if trigger_id == "filter-options-container" and filter_options_trigger == "init":
             return html.Div(), "", ""
 
         logger.info("Searching for games with filters")
