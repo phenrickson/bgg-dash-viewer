@@ -185,75 +185,196 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                     "",
                 )
 
-            # Add BGG link column
-            games_df["bgg_link"] = games_df["game_id"].apply(
-                lambda x: f"https://boardgamegeek.com/boardgame/{x}"
+            # Format player counts as badges
+            def format_player_counts(counts):
+                if not counts or pd.isna(counts):
+                    return ""
+                return " ".join(
+                    [
+                        f"<span class='player-count-badge'>{c}</span>"
+                        for c in str(counts).split(", ")
+                    ]
+                )
+
+            # Apply formatting to player counts
+            games_df["best_player_counts_formatted"] = games_df["best_player_counts"].apply(
+                format_player_counts
+            )
+            games_df["recommended_player_counts_formatted"] = games_df[
+                "recommended_player_counts"
+            ].apply(format_player_counts)
+
+            # Make the game name a clickable link to BGG
+            games_df["name"] = games_df.apply(
+                lambda row: f"[{row['name']}](https://boardgamegeek.com/boardgame/{row['game_id']})",
+                axis=1,
             )
 
-            # Add local link column
-            games_df["view_details"] = games_df["game_id"].apply(lambda x: f"/game/{x}")
-
-            # Create data table
+            # Create data table with improved styling
             table = dash_table.DataTable(
                 id="results-table",
                 columns=[
-                    {"name": "Name", "id": "name"},
+                    {"name": "Name", "id": "name", "presentation": "markdown"},
                     {"name": "Year", "id": "year_published"},
                     {
-                        "name": "Rating",
+                        "name": "Geek Rating",
                         "id": "bayes_average",
                         "type": "numeric",
                         "format": {"specifier": ".2f"},
                     },
                     {
-                        "name": "Weight",
+                        "name": "Average Rating",
+                        "id": "average_rating",
+                        "type": "numeric",
+                        "format": {"specifier": ".2f"},
+                    },
+                    {
+                        "name": "Complexity",
                         "id": "average_weight",
                         "type": "numeric",
                         "format": {"specifier": ".2f"},
                     },
                     {
+                        "name": "User Ratings",
+                        "id": "users_rated",
+                        "type": "numeric",
+                        "format": {"specifier": ",d"},
+                    },
+                    {
                         "name": "Best Player Counts",
-                        "id": "best_player_counts",
+                        "id": "best_player_counts_formatted",
                         "type": "text",
-                    },
-                    {
-                        "name": "Recommended Player Counts",
-                        "id": "recommended_player_counts",
-                        "type": "text",
-                    },
-                    {
-                        "name": "BGG",
-                        "id": "bgg_link",
                         "presentation": "markdown",
                     },
                     {
-                        "name": "Details",
-                        "id": "view_details",
+                        "name": "Recommended Player Counts",
+                        "id": "recommended_player_counts_formatted",
+                        "type": "text",
                         "presentation": "markdown",
                     },
                 ],
                 data=games_df.to_dict("records"),
-                style_table={"overflowX": "auto"},
+                style_table={
+                    "overflowX": "auto",
+                    "borderRadius": "8px",  # Increased border radius
+                    "boxShadow": "0 4px 8px rgba(0, 0, 0, 0.2)",  # Enhanced shadow
+                },
                 style_cell={
-                    "textAlign": "left",
-                    "padding": "10px",
+                    "textAlign": "center",  # Default to center alignment for all columns
+                    "padding": "12px 8px",  # Adjusted padding
                     "whiteSpace": "normal",
                     "height": "auto",
+                    "fontSize": "14px",
+                    "fontFamily": "'Roboto', 'Helvetica Neue', Arial, sans-serif",  # Match site font
+                    "verticalAlign": "middle",  # Vertically center all cell content
                 },
-                style_header={
-                    "backgroundColor": "rgb(230, 230, 230)",
-                    "fontWeight": "bold",
-                },
-                style_data_conditional=[
+                # More consistent column widths
+                style_cell_conditional=[
                     {
-                        "if": {"row_index": "odd"},
-                        "backgroundColor": "rgb(248, 248, 248)",
-                    }
+                        "if": {"column_id": "name"},
+                        "textAlign": "left",  # Keep name column left-aligned
+                        "width": "25%",  # Name column gets more space
+                        "minWidth": "200px",
+                    },
+                    {
+                        "if": {"column_id": "year_published"},
+                        "width": "8%",
+                        "minWidth": "80px",
+                    },
+                    {
+                        "if": {"column_id": "bayes_average"},
+                        "width": "10%",
+                        "minWidth": "100px",
+                    },
+                    {
+                        "if": {"column_id": "average_rating"},
+                        "width": "10%",
+                        "minWidth": "100px",
+                    },
+                    {
+                        "if": {"column_id": "average_weight"},
+                        "width": "10%",
+                        "minWidth": "100px",
+                    },
+                    {
+                        "if": {"column_id": "users_rated"},
+                        "width": "10%",
+                        "minWidth": "100px",
+                    },
+                    {
+                        "if": {"column_id": "best_player_counts_formatted"},
+                        "width": "13%",
+                        "minWidth": "120px",
+                    },
+                    {
+                        "if": {"column_id": "recommended_player_counts_formatted"},
+                        "width": "14%",
+                        "minWidth": "130px",
+                    },
+                ],
+                # Enhanced header styling - removed uppercase transform
+                style_header={
+                    "backgroundColor": "#2c3e50",  # Darker header for better contrast
+                    "color": "white",
+                    "fontWeight": "bold",
+                    "textAlign": "center",
+                    "padding": "15px 10px",
+                    "borderBottom": "2px solid #34495e",
+                },
+                # Enhanced conditional styling
+                style_data_conditional=[
+                    # Removed alternating row colors (row banding) as per user feedback
+                    # Highlight selected rows
+                    {
+                        "if": {"state": "selected"},
+                        "backgroundColor": "#34495e",
+                        "border": "1px solid #3498db",
+                    },
+                    # Bold game names
+                    {
+                        "if": {"column_id": "name"},
+                        "fontWeight": "bold",
+                    },
+                    # Color-code ratings based on value
+                    {
+                        "if": {
+                            "column_id": "bayes_average",
+                            "filter_query": "{bayes_average} >= 8.0",
+                        },
+                        "color": "#2ecc71",  # Green for high ratings
+                        "fontWeight": "bold",
+                    },
+                    {
+                        "if": {
+                            "column_id": "bayes_average",
+                            "filter_query": "{bayes_average} < 6.0",
+                        },
+                        "color": "#e74c3c",  # Red for low ratings
+                    },
+                    {
+                        "if": {
+                            "column_id": "average_rating",
+                            "filter_query": "{average_rating} >= 8.0",
+                        },
+                        "color": "#2ecc71",  # Green for high ratings
+                        "fontWeight": "bold",
+                    },
+                    {
+                        "if": {
+                            "column_id": "average_rating",
+                            "filter_query": "{average_rating} < 6.0",
+                        },
+                        "color": "#e74c3c",  # Red for low ratings
+                    },
                 ],
                 page_size=10,
+                page_action="native",
                 sort_action="native",
+                sort_mode="multi",  # Allow sorting by multiple columns
                 filter_action="native",
-                markdown_options={"link_target": "_blank"},
+                tooltip_delay=0,
+                tooltip_duration=None,
+                markdown_options={"link_target": "_blank", "html": True},  # Enable HTML in markdown
             )
 
             # Create results container
@@ -262,7 +383,7 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                     dbc.Card(
                         dbc.CardBody(
                             [
-                                html.H4("Search Results", className="card-title"),
+                                # html.H4("Search Results", className="card-title"),
                                 html.Div(table),
                             ]
                         )

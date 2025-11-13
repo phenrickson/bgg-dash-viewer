@@ -53,18 +53,18 @@ def create_filters() -> html.Div:
                         # Complexity Range Filter
                         html.Div(
                             [
-                                html.Label("Complexity Weight"),
+                                html.Label("Complexity"),
                                 dcc.RangeSlider(
                                     id="complexity-range-slider",
                                     min=1.0,
                                     max=5.0,
                                     step=0.1,
                                     marks={
-                                        1.0: "1.0",
-                                        2.0: "2.0",
-                                        3.0: "3.0",
-                                        4.0: "4.0",
-                                        5.0: "5.0",
+                                        1: "1.0",
+                                        2: "2.0",
+                                        3: "3.0",
+                                        4: "4.0",
+                                        5: "5.0",
                                     },
                                     value=[1.0, 5.0],
                                     allowCross=False,
@@ -78,51 +78,41 @@ def create_filters() -> html.Div:
                         html.Div(
                             [
                                 html.Label("Player Count"),
-                                dbc.Row(
+                                # Player count toggle moved above the dropdown
+                                dbc.ButtonGroup(
                                     [
-                                        dbc.Col(
-                                            dcc.Dropdown(
-                                                id="player-count-dropdown",
-                                                options=[
-                                                    {"label": "1", "value": 1},
-                                                    {"label": "2", "value": 2},
-                                                    {"label": "3", "value": 3},
-                                                    {"label": "4", "value": 4},
-                                                    {"label": "5", "value": 5},
-                                                    {"label": "6", "value": 6},
-                                                    {"label": "7", "value": 7},
-                                                    {"label": "8", "value": 8},
-                                                ],  # Hard-coded player count options
-                                                placeholder="Select player count...",
-                                                clearable=True,
-                                            ),
-                                            width=8,
+                                        dbc.Button(
+                                            "Best",
+                                            id="player-count-best-button",
+                                            color="primary",
+                                            outline=False,
+                                            size="sm",
+                                            className="me-1",
                                         ),
-                                        dbc.Col(
-                                            dbc.ButtonGroup(
-                                                [
-                                                    dbc.Button(
-                                                        "Best",
-                                                        id="player-count-best-button",
-                                                        color="primary",
-                                                        outline=False,
-                                                        size="sm",
-                                                        className="me-1",
-                                                    ),
-                                                    dbc.Button(
-                                                        "Recommended",
-                                                        id="player-count-recommended-button",
-                                                        color="primary",
-                                                        outline=True,
-                                                        size="sm",
-                                                    ),
-                                                ],
-                                                className="mt-1",
-                                            ),
-                                            width=4,
+                                        dbc.Button(
+                                            "Recommended",
+                                            id="player-count-recommended-button",
+                                            color="primary",
+                                            outline=True,
+                                            size="sm",
                                         ),
                                     ],
                                     className="mb-2",
+                                ),
+                                dcc.Dropdown(
+                                    id="player-count-dropdown",
+                                    options=[
+                                        {"label": "1", "value": 1},
+                                        {"label": "2", "value": 2},
+                                        {"label": "3", "value": 3},
+                                        {"label": "4", "value": 4},
+                                        {"label": "5", "value": 5},
+                                        {"label": "6", "value": 6},
+                                        {"label": "7", "value": 7},
+                                        {"label": "8", "value": 8},
+                                    ],  # Hard-coded player count options
+                                    placeholder="Select player count...",
+                                    clearable=True,
                                 ),
                                 html.Div(id="player-count-output", className="mt-2 text-muted"),
                                 # Hidden div to store the current player count type
@@ -186,23 +176,22 @@ def create_filters() -> html.Div:
                             ],
                             className="mb-4",
                         ),
-                        # Results Per Page
+                        # Search Results
                         html.Div(
                             [
-                                html.Label("Results Per Page"),
-                                dcc.Slider(
+                                html.Label("Search Results"),
+                                dcc.Dropdown(
                                     id="results-per-page",
-                                    min=10,
-                                    max=1000,
-                                    step=10,
-                                    marks={
-                                        10: "10",
-                                        100: "100",
-                                        500: "500",
-                                        1000: "1000",
-                                    },
+                                    options=[
+                                        {"label": "100", "value": 100},
+                                        {"label": "500", "value": 500},
+                                        {"label": "1,000", "value": 1000},
+                                        {"label": "10,000", "value": 10000},
+                                        {"label": "25,000", "value": 25000},
+                                    ],
                                     value=1000,
-                                    tooltip={"placement": "bottom", "always_visible": False},
+                                    clearable=False,
+                                    placeholder="Select number of results...",
                                 ),
                             ],
                             className="mb-4",

@@ -36,7 +36,6 @@ def create_game_search_layout() -> html.Div:
                                 [
                                     html.Div(
                                         [
-                                            html.H4("Search Results"),
                                             html.Div(
                                                 id="search-results-count",
                                                 className="text-muted mb-3",
