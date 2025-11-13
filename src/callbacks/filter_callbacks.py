@@ -305,10 +305,11 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
             plot_bgcolor="rgba(0,0,0,0)",
             font=dict(color="white"),
         )
+        rating_fig.update_traces(marker_color="#2FA4E7")  # Cerulean blue
 
         # Create year distribution chart
         year_df = pd.DataFrame(stats["year_distribution"])
-        year_fig = px.line(
+        year_fig = px.bar(
             year_df,
             x="year_published",
             y="game_count",
@@ -324,6 +325,7 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
             plot_bgcolor="rgba(0,0,0,0)",
             font=dict(color="white"),
         )
+        year_fig.update_traces(marker_color="#2FA4E7")  # Cerulean blue
 
         # Create summary container
         return html.Div(

@@ -34,7 +34,7 @@ def create_filters() -> html.Div:
                                 dcc.RangeSlider(
                                     id="year-range-slider",
                                     min=1950,
-                                    max=2025,
+                                    max=2030,
                                     step=1,
                                     marks={
                                         1950: "1950",

@@ -98,11 +98,14 @@ def display_page(pathname: str) -> Any:
     from .layouts.home import create_home_layout
     from .layouts.game_search import create_game_search_layout
     from .layouts.game_details import create_game_details_layout
+    from .layouts.dashboard import create_dashboard_layout
 
     logger.info(f"Routing to: {pathname}")
 
     if pathname == "/game-search":
         return create_game_search_layout()
+    elif pathname == "/dashboard":
+        return create_dashboard_layout()
     elif pathname and pathname.startswith("/game/"):
         try:
             game_id = int(pathname.split("/")[-1])

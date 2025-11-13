@@ -83,7 +83,7 @@ def create_home_layout() -> html.Div:
                                                                     dbc.Button(
                                                                         "View Dashboard",
                                                                         color="primary",
-                                                                        href="/",
+                                                                        href="/dashboard",
                                                                         id="refresh-stats-button",
                                                                     ),
                                                                 ]
