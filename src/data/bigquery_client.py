@@ -120,7 +120,6 @@ class BigQueryClient:
         max_player_count: Optional[int] = None,
         player_count: Optional[int] = None,
         player_count_type: Optional[str] = None,
-        active_only: bool = False,
         best_player_count_only: bool = False,
         sort_by: str = "bayes_average",
         sort_order: str = "DESC",
@@ -198,76 +197,99 @@ class BigQueryClient:
             """
             )
 
-        # Player count filtering
-        player_count_join = ""
-        player_count_filters = []
-
-        # Handle specific player count with recommendation type
-        if player_count is not None:
-            player_count_join = """
-            LEFT JOIN `${project_id}.${dataset}.player_count_recommendations` pcr 
-                ON g.game_id = pcr.game_id
-            """
-            player_count_filters.append(f"pcr.player_count = {player_count}")
-
-            # Filter by recommendation type if specified
-            if player_count_type == "best":
-                player_count_filters.append("pcr.best_percentage >= 0.5")  # At least 50% voted best
-            elif player_count_type == "recommended":
-                player_count_filters.append(
-                    "pcr.recommended_percentage >= 0.5"
-                )  # At least 50% voted recommended
-        # Handle min/max player count range (legacy support)
-        elif min_player_count is not None or max_player_count is not None:
-            player_count_join = """
-            LEFT JOIN `${project_id}.${dataset}.player_count_recommendations` pcr 
-                ON g.game_id = pcr.game_id
-            """
-            if min_player_count is not None:
-                player_count_filters.append(f"pcr.player_count >= {min_player_count}")
-            if max_player_count is not None:
-                player_count_filters.append(f"pcr.player_count <= {max_player_count}")
-
         # Combine all filters
         where_clause = "WHERE g.bayes_average IS NOT NULL AND g.bayes_average > 0"
         if filters:
             where_clause += " AND " + " AND ".join(filters)
-        if player_count_filters:
-            where_clause += " AND " + " AND ".join(player_count_filters)
 
-        # Add best player count join if requested
+        # Player count filtering using best_player_counts_table
+        player_count_join = ""
         best_player_count_join = ""
-        if best_player_count_only and player_count is not None:
+        best_player_count_filter = ""
+
+        if player_count is not None:
             best_player_count_join = f"""
             JOIN `${{project_id}}.${{dataset}}.best_player_counts_table` bpc 
-                ON g.game_id = bpc.game_id AND bpc.player_count = {player_count}
+                ON g.game_id = bpc.game_id
             """
+
+            if player_count_type == "best":
+                best_player_count_filter = f"""
+                AND {player_count} BETWEEN bpc.min_best_player_count AND bpc.max_best_player_count
+                """
+            elif player_count_type == "recommended":
+                best_player_count_filter = f"""
+                AND {player_count} BETWEEN bpc.min_recommended_player_count AND bpc.max_recommended_player_count
+                """
+            else:
+                # If no specific type, check both best and recommended
+                best_player_count_filter = f"""
+                AND ({player_count} BETWEEN bpc.min_best_player_count AND bpc.max_best_player_count
+                     OR {player_count} BETWEEN bpc.min_recommended_player_count AND bpc.max_recommended_player_count)
+                """
         elif best_player_count_only:
             best_player_count_join = f"""
             JOIN `${{project_id}}.${{dataset}}.best_player_counts_table` bpc 
                 ON g.game_id = bpc.game_id
             """
 
-        # Add active games join if requested
-        active_games_join = ""
-        if active_only:
-            active_games_join = """
-            JOIN `${project_id}.${dataset}.games_active_table` ga 
-                ON g.game_id = ga.game_id
+        # Handle min/max player count range (legacy support)
+        elif min_player_count is not None or max_player_count is not None:
+            player_count_join = """
+            LEFT JOIN `${project_id}.${dataset}.player_count_recommendations` pcr 
+                ON g.game_id = pcr.game_id
             """
+            player_count_filters = []
+            if min_player_count is not None:
+                player_count_filters.append(f"pcr.player_count >= {min_player_count}")
+            if max_player_count is not None:
+                player_count_filters.append(f"pcr.player_count <= {max_player_count}")
+            if player_count_filters:
+                where_clause += " AND " + " AND ".join(player_count_filters)
 
-        # Build the query
+        # Always include a LEFT JOIN to best_player_counts_table to get all player count fields
+        best_player_count_join = f"""
+        LEFT JOIN `${{project_id}}.${{dataset}}.best_player_counts_table` bpc 
+            ON g.game_id = bpc.game_id
+        """
+
+        # Include all player count fields from best_player_counts_table
+        player_count_fields = """
+            bpc.best_player_counts,
+            bpc.recommended_player_counts,
+            bpc.min_best_player_count,
+            bpc.max_best_player_count,
+            bpc.min_recommended_player_count,
+            bpc.max_recommended_player_count
+        """
+
+        # Add player count filter if specified
+        if player_count is not None:
+            if player_count_type == "best":
+                best_player_count_filter = f"""
+                AND {player_count} BETWEEN bpc.min_best_player_count AND bpc.max_best_player_count
+                """
+            elif player_count_type == "recommended":
+                best_player_count_filter = f"""
+                AND {player_count} BETWEEN bpc.min_recommended_player_count AND bpc.max_recommended_player_count
+                """
+            else:
+                # If no specific type, check both best and recommended
+                best_player_count_filter = f"""
+                AND ({player_count} BETWEEN bpc.min_best_player_count AND bpc.max_best_player_count
+                     OR {player_count} BETWEEN bpc.min_recommended_player_count AND bpc.max_recommended_player_count)
+                """
+
         query = f"""
         WITH filtered_games AS (
             SELECT DISTINCT g.*,
-                   CASE WHEN bpc.game_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_best_player_count,
-                   CASE WHEN ga.game_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_active
+                   {player_count_fields}
             FROM `${{project_id}}.${{dataset}}.games_active_table` g
             {' '.join(joins)}
             {player_count_join}
-            {best_player_count_join if best_player_count_only else "LEFT JOIN `${project_id}.${dataset}.best_player_counts_table` bpc ON g.game_id = bpc.game_id"}
-            {active_games_join if active_only else "LEFT JOIN `${project_id}.${dataset}.games_active_table` ga ON g.game_id = ga.game_id"}
+            {best_player_count_join}
             {where_clause}
+            {best_player_count_filter}
         )
         SELECT 
             game_id,
@@ -285,8 +307,8 @@ class BigQueryClient:
             min_age,
             thumbnail,
             image,
-            is_best_player_count,
-            is_active
+            best_player_counts,
+            recommended_player_counts
         FROM filtered_games
         ORDER BY {sort_by} {sort_order}
         LIMIT {limit}
@@ -306,10 +328,8 @@ class BigQueryClient:
         """
         # Get basic game information
         game_query = f"""
-        SELECT g.*,
-               CASE WHEN ga.game_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_active
+        SELECT g.*
         FROM `${{project_id}}.${{dataset}}.games_active_table` g
-        LEFT JOIN `${{project_id}}.${{dataset}}.games_active_table` ga ON g.game_id = ga.game_id
         WHERE g.game_id = {game_id}
         """
         game_df = self.execute_query(game_query)
@@ -363,10 +383,23 @@ class BigQueryClient:
                pcr.not_recommended_votes,
                pcr.best_percentage, 
                pcr.recommended_percentage,
-               CASE WHEN bpc.player_count IS NOT NULL THEN TRUE ELSE FALSE END AS is_best_player_count
+               CASE 
+                 WHEN bpc.game_id IS NOT NULL AND 
+                      pcr.player_count >= bpc.min_best_player_count AND 
+                      pcr.player_count <= bpc.max_best_player_count 
+                 THEN TRUE 
+                 ELSE FALSE 
+               END AS is_best_player_count,
+               CASE 
+                 WHEN bpc.game_id IS NOT NULL AND 
+                      pcr.player_count >= bpc.min_recommended_player_count AND 
+                      pcr.player_count <= bpc.max_recommended_player_count 
+                 THEN TRUE 
+                 ELSE FALSE 
+               END AS is_recommended_player_count
         FROM `${{project_id}}.${{dataset}}.player_count_recommendations` pcr
         LEFT JOIN `${{project_id}}.${{dataset}}.best_player_counts_table` bpc 
-            ON pcr.game_id = bpc.game_id AND pcr.player_count = bpc.player_count
+            ON pcr.game_id = bpc.game_id
         WHERE pcr.game_id = {game_id}
         ORDER BY pcr.player_count
         """
@@ -487,14 +520,17 @@ class BigQueryClient:
         return self.execute_query(query).to_dict("records")
 
     def get_player_counts(self) -> List[Dict[str, Any]]:
-        """Get list of player counts from recommendations.
+        """Get list of player counts from best_player_counts table.
 
         Returns:
-            List of player count dictionaries
+            List of player count dictionaries with values 1-8
         """
         query = """
-        SELECT DISTINCT player_count
-        FROM `${project_id}.${dataset}.player_count_recommendations`
+        WITH player_counts AS (
+            SELECT GENERATE_ARRAY(1, 8) as counts
+        )
+        SELECT count as player_count
+        FROM player_counts, UNNEST(counts) as count
         ORDER BY player_count
         """
         return self.execute_query(query).to_dict("records")

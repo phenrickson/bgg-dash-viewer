@@ -56,23 +56,60 @@ def create_game_details_layout(game_id: int) -> html.Div:
         player_count_fig = None
 
         if not player_counts.empty:
+            # Add indicators for best and recommended player counts
+            best_counts = []
+            recommended_counts = []
+
+            if "is_best_player_count" in player_counts.columns:
+                best_counts = player_counts[player_counts["is_best_player_count"] == True][
+                    "player_count"
+                ].tolist()
+
+            if "is_recommended_player_count" in player_counts.columns:
+                recommended_counts = player_counts[
+                    player_counts["is_recommended_player_count"] == True
+                ]["player_count"].tolist()
+
             player_count_fig = go.Figure(layout=dict(template="plotly_dark"))
+
+            # Add bars for best percentage
             player_count_fig.add_trace(
                 go.Bar(
                     x=player_counts["player_count"],
                     y=player_counts["best_percentage"],
                     name="Best",
                     marker_color="green",
+                    marker=dict(
+                        line=dict(
+                            color="gold",
+                            width=[
+                                3 if pc in best_counts else 0
+                                for pc in player_counts["player_count"]
+                            ],
+                        )
+                    ),
                 )
             )
+
+            # Add bars for recommended percentage
             player_count_fig.add_trace(
                 go.Bar(
                     x=player_counts["player_count"],
                     y=player_counts["recommended_percentage"],
                     name="Recommended",
                     marker_color="blue",
+                    marker=dict(
+                        line=dict(
+                            color="silver",
+                            width=[
+                                3 if pc in recommended_counts else 0
+                                for pc in player_counts["player_count"]
+                            ],
+                        )
+                    ),
                 )
             )
+
             player_count_fig.update_layout(
                 title="Player Count Recommendations",
                 xaxis_title="Player Count",
@@ -83,6 +120,19 @@ def create_game_details_layout(game_id: int) -> html.Div:
                 plot_bgcolor="rgba(0,0,0,0)",
                 font=dict(color="white"),
             )
+
+            # Add annotations for best player counts
+            if best_counts:
+                player_count_fig.add_annotation(
+                    x=0.5,
+                    y=1.05,
+                    xref="paper",
+                    yref="paper",
+                    text=f"Best Player Counts: {', '.join(map(str, best_counts))}",
+                    showarrow=False,
+                    font=dict(color="gold", size=14),
+                    align="center",
+                )
 
         # Create game details layout
         return html.Div(

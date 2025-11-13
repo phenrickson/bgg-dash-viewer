@@ -25,7 +25,7 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
     # Initialize BigQuery client
     bq_client = BigQueryClient()
 
-    @cache.memoize()
+    # Don't cache this function to ensure we always get fresh data
     def get_filter_options() -> Dict[str, List[Dict[str, Any]]]:
         """Get options for filter dropdowns.
 
@@ -34,7 +34,7 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
         """
         logger.info("Fetching filter options from BigQuery")
 
-        # Get player counts separately
+        # Get player counts separately - only include 1-8 from best_player_counts_table
         player_counts = bq_client.get_player_counts()
 
         return {
@@ -171,6 +171,7 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                 ),
                 player_count=player_count,
                 player_count_type=player_count_type if player_count is not None else None,
+                best_player_count_only=False,  # We're using the new player_count_type parameter instead
             )
 
             # Create results count text
@@ -213,6 +214,16 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                         "id": "average_weight",
                         "type": "numeric",
                         "format": {"specifier": ".2f"},
+                    },
+                    {
+                        "name": "Best Player Counts",
+                        "id": "best_player_counts",
+                        "type": "text",
+                    },
+                    {
+                        "name": "Recommended Player Counts",
+                        "id": "recommended_player_counts",
+                        "type": "text",
                     },
                     {
                         "name": "BGG",
