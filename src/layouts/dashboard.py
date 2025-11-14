@@ -54,7 +54,7 @@ def create_dashboard_layout() -> html.Div:
                                         className="mb-4",
                                     )
                                 ],
-                                md=4,
+                                md=6,
                             ),
                             dbc.Col(
                                 [
@@ -74,27 +74,7 @@ def create_dashboard_layout() -> html.Div:
                                         className="mb-4",
                                     )
                                 ],
-                                md=4,
-                            ),
-                            dbc.Col(
-                                [
-                                    dbc.Card(
-                                        dbc.CardBody(
-                                            [
-                                                html.H4(
-                                                    "User Ratings Distribution (Log Scale)",
-                                                    className="card-title",
-                                                ),
-                                                dbc.Spinner(
-                                                    dcc.Graph(id="users-rated-distribution-chart"),
-                                                    color="primary",
-                                                ),
-                                            ]
-                                        ),
-                                        className="mb-4",
-                                    )
-                                ],
-                                md=4,
+                                md=6,
                             ),
                         ]
                     ),

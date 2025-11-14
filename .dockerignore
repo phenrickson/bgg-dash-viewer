@@ -1,0 +1,60 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.pytest_cache
+nosetests.xml
+.venv
+venv/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Project specific
+.cache-data/
+*.log
+.env
+.env.local
+.env.*.local
+
+# Documentation
+docs/
+# Keep README.md as it's referenced in pyproject.toml
+# README.md
+# *.md
+
+# Tests
+tests/
+
+# GitHub
+.github/
+
+# Development files
+Makefile
+tasks.md
+project_summary.md

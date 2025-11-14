@@ -143,51 +143,6 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         return fig
 
     @app.callback(
-        Output("users-rated-distribution-chart", "figure"),
-        [Input("url", "pathname")],
-    )
-    def update_users_rated_distribution(pathname: str) -> Dict[str, Any]:
-        """Update the users rated distribution chart.
-
-        Args:
-            pathname: URL pathname (used as trigger)
-
-        Returns:
-            Plotly figure for users rated distribution
-        """
-        if pathname != "/dashboard":
-            return {}
-
-        df = get_dashboard_data()
-
-        # Create log-transformed data for better visualization
-        df_log = df.copy()
-        df_log["log_users_rated"] = np.log10(df_log["users_rated"])
-
-        fig = px.histogram(
-            df_log,
-            x="log_users_rated",
-            nbins=40,
-            title="Distribution of User Ratings (Log Scale)",
-            labels={"log_users_rated": "Log₁₀(Number of User Ratings)", "count": "Number of Games"},
-            template="plotly_dark",
-        )
-
-        fig.update_layout(
-            xaxis_title="Log₁₀(Number of User Ratings)",
-            yaxis_title="Number of Games",
-            margin=dict(l=40, r=40, t=60, b=40),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="white"),
-            showlegend=False,
-        )
-
-        fig.update_traces(marker_color="#f39c12", opacity=0.7)
-
-        return fig
-
-    @app.callback(
         Output("rating-by-year-chart", "figure"),
         [Input("url", "pathname")],
     )

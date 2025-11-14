@@ -122,14 +122,17 @@ def display_page(pathname: str) -> Any:
         return create_home_layout()
 
 
+# Import and register callbacks when module is loaded
+from .callbacks import register_callbacks
+
+register_callbacks(app, cache)
+
+# Expose server for gunicorn
+server = app.server
+
+
 def main() -> None:
     """Run the application."""
-    # Import callbacks to register them
-    from .callbacks import register_callbacks
-
-    # Register all callbacks
-    register_callbacks(app, cache)
-
     # Run the app
     app.run(
         host=app_config["host"],
