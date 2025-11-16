@@ -1,4 +1,4 @@
-"""Home page layout for the BGG Dash Viewer."""
+"""Home page layout for the Board Game Data Explorer."""
 
 from dash import html, dcc
 import dash_bootstrap_components as dbc
@@ -18,24 +18,24 @@ def create_home_layout() -> html.Div:
             create_header(),
             dbc.Container(
                 [
-                    create_page_header(
-                        "BoardGameGeek Data Explorer",
-                        "Explore and analyze board game data from BoardGameGeek",
-                    ),
+                    # create_page_header(
+                    #     "BoardGameGeek Data Explorer",
+                    #     "Explore and analyze board game data from BoardGameGeek",
+                    # ),
                     dbc.Row(
                         [
                             dbc.Col(
                                 [
                                     html.Div(
                                         [
-                                            html.H2("Welcome to BGG Dash Viewer"),
+                                            # html.H2("Welcome to Board Game Data Explorer"),
                                             html.P(
                                                 "This application provides an interactive interface for exploring and analyzing board game data from BoardGameGeek.",
                                                 className="lead",
                                             ),
-                                            html.P(
-                                                "Use the navigation menu to access different features of the application."
-                                            ),
+                                            # html.P(
+                                            #     "Use the navigation menu to access different features of the application."
+                                            # ),
                                         ],
                                         className="mb-4",
                                     ),
@@ -83,7 +83,7 @@ def create_home_layout() -> html.Div:
                                                                     dbc.Button(
                                                                         "View Dashboard",
                                                                         color="primary",
-                                                                        href="/",
+                                                                        href="/dashboard",
                                                                         id="refresh-stats-button",
                                                                     ),
                                                                 ]
@@ -100,7 +100,7 @@ def create_home_layout() -> html.Div:
                                     ),
                                     html.Div(
                                         [
-                                            html.H3("Dashboard"),
+                                            html.H3("Overview"),
                                             dbc.Spinner(
                                                 html.Div(id="summary-stats-container"),
                                                 color="primary",

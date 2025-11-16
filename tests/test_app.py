@@ -1,4 +1,4 @@
-"""Tests for the BGG Dash Viewer application."""
+"""Tests for the Board Game Data Explorer application."""
 
 import unittest
 from unittest.mock import patch, MagicMock
@@ -19,7 +19,7 @@ class TestApp(unittest.TestCase):
     def test_app_initialization(self):
         """Test that the app initializes correctly."""
         self.assertIsInstance(self.app, dash.Dash)
-        self.assertEqual(self.app.title, "BGG Dash Viewer")
+        self.assertEqual(self.app.title, "Board Game Data Explorer")
         self.assertTrue(self.app.suppress_callback_exceptions)
 
     @patch("src.layouts.home.create_home_layout")

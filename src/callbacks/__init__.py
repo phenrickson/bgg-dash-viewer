@@ -1,4 +1,4 @@
-"""Callbacks package for the BGG Dash Viewer."""
+"""Callbacks package for the Board Game Data Explorer."""
 
 import logging
 from typing import Any
@@ -19,6 +19,7 @@ def register_callbacks(app: dash.Dash, cache: Cache) -> None:
     # Import callback modules
     from .search_callbacks import register_search_callbacks
     from .filter_callbacks import register_filter_callbacks
+    from .dashboard_callbacks import register_dashboard_callbacks
 
     # Register callbacks from each module
     logger.info("Registering search callbacks")
@@ -26,5 +27,8 @@ def register_callbacks(app: dash.Dash, cache: Cache) -> None:
 
     logger.info("Registering filter callbacks")
     register_filter_callbacks(app, cache)
+
+    logger.info("Registering dashboard callbacks")
+    register_dashboard_callbacks(app, cache)
 
     logger.info("All callbacks registered")

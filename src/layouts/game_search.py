@@ -1,4 +1,4 @@
-"""Game search page layout for the BGG Dash Viewer."""
+"""Game search page layout for the Board Game Data Explorer."""
 
 from dash import html, dcc
 import dash_bootstrap_components as dbc
@@ -36,7 +36,6 @@ def create_game_search_layout() -> html.Div:
                                 [
                                     html.Div(
                                         [
-                                            html.H4("Search Results"),
                                             html.Div(
                                                 id="search-results-count",
                                                 className="text-muted mb-3",

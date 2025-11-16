@@ -1,4 +1,4 @@
-"""Header component for the BGG Dash Viewer."""
+"""Header component for the Board Game Data Explorer."""
 
 from dash import html
 import dash_bootstrap_components as dbc
@@ -21,7 +21,9 @@ def create_header() -> html.Div:
                                 [
                                     dbc.Col(html.I(className="fas fa-dice-d20 fa-2x me-2")),
                                     dbc.Col(
-                                        dbc.NavbarBrand("BGG Dash Viewer", className="ms-2 fs-2")
+                                        dbc.NavbarBrand(
+                                            "Board Game Data Explorer", className="ms-2 fs-2"
+                                        )
                                     ),
                                 ],
                                 align="center",

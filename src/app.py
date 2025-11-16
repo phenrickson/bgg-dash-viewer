@@ -1,4 +1,4 @@
-"""Main application module for the BGG Dash Viewer."""
+"""Main application module for the Board Game Data Explorer."""
 
 import os
 import logging
@@ -24,15 +24,41 @@ app_config = get_app_config()
 # Initialize Dash app
 app = dash.Dash(
     __name__,
-    external_stylesheets=[dbc.themes.BOOTSTRAP],
+    external_stylesheets=[dbc.themes.CERULEAN, dbc.icons.FONT_AWESOME],
     meta_tags=[
         {"name": "viewport", "content": "width=device-width, initial-scale=1"},
     ],
     suppress_callback_exceptions=True,
 )
 
+# Add clientside callback to set dark mode by default
+app.clientside_callback(
+    """
+    function(trigger) {
+        document.documentElement.setAttribute("data-bs-theme", "dark");
+        return window.dash_clientside.no_update;
+    }
+    """,
+    dash.Output("_", "children"),
+    dash.Input("_", "children"),
+)
+
+# Add clientside callback to trigger filter options loading on page load
+app.clientside_callback(
+    """
+    function(pathname) {
+        if (pathname === "/game-search") {
+            return "load";
+        }
+        return "init";
+    }
+    """,
+    dash.Output("filter-options-container", "children"),
+    dash.Input("url", "pathname"),
+)
+
 # Set app title
-app.title = "BGG Dash Viewer"
+app.title = "Board Game Data Explorer"
 
 # Initialize cache
 cache = Cache(
@@ -47,6 +73,7 @@ cache = Cache(
 # Define app layout with URL routing
 app.layout = html.Div(
     [
+        html.Div(id="_", style={"display": "none"}),  # Hidden div for clientside callback
         dcc.Location(id="url", refresh=False),
         html.Div(id="page-content"),
     ]
@@ -71,11 +98,14 @@ def display_page(pathname: str) -> Any:
     from .layouts.home import create_home_layout
     from .layouts.game_search import create_game_search_layout
     from .layouts.game_details import create_game_details_layout
+    from .layouts.dashboard import create_dashboard_layout
 
     logger.info(f"Routing to: {pathname}")
 
     if pathname == "/game-search":
         return create_game_search_layout()
+    elif pathname == "/dashboard":
+        return create_dashboard_layout()
     elif pathname and pathname.startswith("/game/"):
         try:
             game_id = int(pathname.split("/")[-1])
@@ -92,14 +122,17 @@ def display_page(pathname: str) -> Any:
         return create_home_layout()
 
 
+# Import and register callbacks when module is loaded
+from .callbacks import register_callbacks
+
+register_callbacks(app, cache)
+
+# Expose server for gunicorn
+server = app.server
+
+
 def main() -> None:
     """Run the application."""
-    # Import callbacks to register them
-    from .callbacks import register_callbacks
-
-    # Register all callbacks
-    register_callbacks(app, cache)
-
     # Run the app
     app.run(
         host=app_config["host"],
