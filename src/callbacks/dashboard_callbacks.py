@@ -105,6 +105,15 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
             hover_data=["name", "year_published", "users_rated"],
         )
 
+        # Customize hover template for better readability
+        fig.update_traces(
+            hovertemplate="<b>%{customdata[0]}</b><br>"
+            + "Year Published: %{customdata[1]}<br>"
+            + "Average Rating: %{y:.2f}<br>"
+            + "User Ratings: %{customdata[2]:,}<br>"
+            + "<extra></extra>"
+        )
+
         # Configure layout based on modal vs regular view
         if is_modal:
             margin = dict(l=60, r=60, t=80, b=60)
@@ -280,6 +289,15 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
             range_color=[5, 9],
         )
 
+        # Customize hover template for better readability
+        fig.update_traces(
+            hovertemplate="<b>%{customdata[0]}</b><br>"
+            + "Complexity: %{customdata[1]:.2f}/5<br>"
+            + "Average Rating: %{customdata[2]:.2f}<br>"
+            + "User Ratings: %{customdata[3]:,}<br>"
+            + "<extra></extra>"
+        )
+
         # Configure layout based on modal vs regular view
         # Configure layout based on modal vs regular view
         if is_modal:
@@ -303,6 +321,8 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
             coloraxis_colorbar=dict(title="Average Rating"),
             height=height,
         )
+
+        fig.update_traces(marker=dict(size=marker_size))
 
         return fig
 
@@ -350,6 +370,15 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
             template="plotly_dark",
             opacity=0.6,
             hover_data=["name", "year_published", "users_rated"],
+        )
+
+        # Customize hover template for better readability
+        fig.update_traces(
+            hovertemplate="<b>%{customdata[0]}</b><br>"
+            + "Year Published: %{customdata[1]}<br>"
+            + "User Ratings: %{customdata[2]:,}<br>"
+            + "Geek Rating: %{marker.color:.2f}<br>"
+            + "<extra></extra>"
         )
 
         # Configure layout based on modal vs regular view
@@ -419,6 +448,15 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
             opacity=0.6,
             range_color=[5, 8],
             hover_data=["name", "average_rating", "users_rated", "bayes_average"],
+        )
+
+        # Customize hover template for better readability
+        fig.update_traces(
+            hovertemplate="<b>%{customdata[0]}</b><br>"
+            + "Average Rating: %{customdata[1]:.2f}<br>"
+            + "User Ratings: %{customdata[2]:,}<br>"
+            + "Geek Rating: %{customdata[3]:.2f}<br>"
+            + "<extra></extra>"
         )
 
         # Configure layout based on modal vs regular view
