@@ -66,6 +66,26 @@ def create_footer() -> html.Footer:
                         ),
                     ]
                 ),
+                # Add "Powered by BGG" logo section
+                dbc.Row(
+                    dbc.Col(
+                        html.Div(
+                            html.A(
+                                html.Img(
+                                    src="https://cf.geekdo-images.com/HZy35cmzmmyV9BarSuk6ug__medium/img/Lru_FJkj084_7MInilQO4LiiB_U=/fit-in/500x500/filters:no_upscale():strip_icc()/pic7779581.png",
+                                    alt="Powered by BGG",
+                                    style={"height": "40px", "width": "auto", "opacity": "0.8"},
+                                ),
+                                href="https://boardgamegeek.com",
+                                target="_blank",
+                                title="Powered by BoardGameGeek",
+                            ),
+                            className="text-center mt-3",
+                        ),
+                        width=12,
+                    ),
+                    className="mt-2",
+                ),
             ],
             fluid=True,
             className="py-3",

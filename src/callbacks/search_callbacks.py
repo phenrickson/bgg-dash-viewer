@@ -11,6 +11,7 @@ from flask_caching import Cache
 import pandas as pd
 
 from ..data.bigquery_client import BigQueryClient
+from ..components.metrics_cards import create_metrics_cards
 
 logger = logging.getLogger(__name__)
 
@@ -88,8 +89,8 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
     @app.callback(
         [
             Output("search-results-container", "children"),
-            Output("search-results-count", "children"),
             Output("loading-search-results", "children"),
+            Output("search-metrics-cards-container", "children"),
         ],
         [Input("search-button", "n_clicks"), Input("filter-options-container", "children")],
         [
@@ -133,14 +134,14 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
             results_per_page: Number of results to display per page
 
         Returns:
-            Tuple of (search results container, results count text, loading indicator)
+            Tuple of (search results container, loading indicator, metrics cards)
         """
         ctx = dash.callback_context
         trigger_id = ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else None
 
         # Skip search if this is just the initial page load with "init" value
         if trigger_id == "filter-options-container" and filter_options_trigger == "init":
-            return html.Div(), "", ""
+            return html.Div(), "", html.Div()
 
         logger.info("Searching for games with filters")
         try:
@@ -166,8 +167,8 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                 best_player_count_only=False,  # We're using the new player_count_type parameter instead
             )
 
-            # Create results count text
-            results_count = f"Found {len(games_df)} games"
+            # Create metrics cards
+            metrics_cards = create_metrics_cards(games_df)
 
             if games_df.empty:
                 return (
@@ -177,8 +178,8 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                             color="warning",
                         )
                     ),
-                    results_count,
                     "",
+                    html.Div(),  # Empty metrics cards for no results
                 )
 
             # Format player counts as badges
@@ -387,7 +388,7 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                 ]
             )
 
-            return results_container, results_count, ""
+            return results_container, "", metrics_cards
 
         except Exception as e:
             logger.exception("Error searching for games: %s", str(e))
@@ -398,6 +399,6 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                         color="danger",
                     )
                 ),
-                "Error",
                 "",
+                html.Div(),  # Empty metrics cards for error case
             )
