@@ -1,4 +1,4 @@
-"""Filter callbacks for the BGG Dash Viewer."""
+"""Filter callbacks for the Board Game Data Explorer."""
 
 import logging
 from typing import Dict, List, Any, Optional, Tuple

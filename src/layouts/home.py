@@ -1,4 +1,4 @@
-"""Home page layout for the BGG Dash Viewer."""
+"""Home page layout for the Board Game Data Explorer."""
 
 from dash import html, dcc
 import dash_bootstrap_components as dbc
@@ -28,7 +28,7 @@ def create_home_layout() -> html.Div:
                                 [
                                     html.Div(
                                         [
-                                            # html.H2("Welcome to BGG Dash Viewer"),
+                                            # html.H2("Welcome to Board Game Data Explorer"),
                                             html.P(
                                                 "This application provides an interactive interface for exploring and analyzing board game data from BoardGameGeek.",
                                                 className="lead",

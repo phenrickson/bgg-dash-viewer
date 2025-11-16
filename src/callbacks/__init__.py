@@ -1,4 +1,4 @@
-"""Callbacks package for the BGG Dash Viewer."""
+"""Callbacks package for the Board Game Data Explorer."""
 
 import logging
 from typing import Any

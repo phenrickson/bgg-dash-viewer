@@ -1,4 +1,4 @@
-"""Game details page layout for the BGG Dash Viewer."""
+"""Game details page layout for the Board Game Data Explorer."""
 
 import logging
 from typing import Dict, List, Any, Optional

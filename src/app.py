@@ -1,4 +1,4 @@
-"""Main application module for the BGG Dash Viewer."""
+"""Main application module for the Board Game Data Explorer."""
 
 import os
 import logging
@@ -58,7 +58,7 @@ app.clientside_callback(
 )
 
 # Set app title
-app.title = "BGG Dash Viewer"
+app.title = "Board Game Data Explorer"
 
 # Initialize cache
 cache = Cache(

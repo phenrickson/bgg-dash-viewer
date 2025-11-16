@@ -1,4 +1,4 @@
-"""Dashboard callbacks for the BGG Dash Viewer."""
+"""Dashboard callbacks for the Board Game Data Explorer."""
 
 import logging
 from typing import Dict, List, Any, Optional
@@ -14,6 +14,7 @@ import pandas as pd
 import numpy as np
 
 from ..data.bigquery_client import BigQueryClient
+from ..components.metrics_cards import create_metrics_cards
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +132,25 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         fig.update_traces(marker=dict(size=marker_size))
 
         return fig
+
+    @app.callback(
+        Output("metrics-cards-container", "children"),
+        [Input("url", "pathname")],
+    )
+    def update_metrics_cards(pathname: str) -> dbc.Row:
+        """Update the metrics cards with current data.
+
+        Args:
+            pathname: URL pathname (used as trigger)
+
+        Returns:
+            Row containing metrics cards
+        """
+        if pathname != "/dashboard":
+            return dbc.Row([])
+
+        df = get_dashboard_data()
+        return create_metrics_cards(df)
 
     @app.callback(
         Output("rating-by-year-chart", "figure"),

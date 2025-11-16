@@ -1,4 +1,4 @@
-"""Filter components for the BGG Dash Viewer."""
+"""Filter components for the Board Game Data Explorer."""
 
 from dash import html, dcc
 import dash_bootstrap_components as dbc

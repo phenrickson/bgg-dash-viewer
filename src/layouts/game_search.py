@@ -1,4 +1,4 @@
-"""Game search page layout for the BGG Dash Viewer."""
+"""Game search page layout for the Board Game Data Explorer."""
 
 from dash import html, dcc
 import dash_bootstrap_components as dbc

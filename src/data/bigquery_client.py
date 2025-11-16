@@ -1,4 +1,4 @@
-"""BigQuery client for the BGG Dash Viewer."""
+"""BigQuery client for the Board Game Data Explorer."""
 
 import os
 from typing import Dict, List, Optional, Any, Union

@@ -247,6 +247,38 @@ body {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
+/* Metrics cards styling */
+.metric-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 12px !important;
+    overflow: hidden;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3) !important;
+}
+
+.metric-card .card-body {
+    padding: 1.25rem;
+}
+
+.metric-card h4 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.metric-card p {
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0;
+    color: rgba(255, 255, 255, 0.8);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .container {
@@ -256,5 +288,19 @@ body {
     
     .card {
         margin-bottom: 20px;
+    }
+    
+    .metric-card h4 {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .metric-card h4 {
+        font-size: 1.25rem;
+    }
+    
+    .metric-card p {
+        font-size: 0.75rem;
     }
 }
