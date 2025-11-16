@@ -3,11 +3,9 @@ name: Deploy to Cloud Run
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   GAR_LOCATION: us-central1
   SERVICE: bgg-dash-viewer
   REGION: us-central1
@@ -28,15 +26,15 @@ jobs:
         id: auth
         uses: 'google-github-actions/auth@v2'
         with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+          credentials_json: '${{ secrets.SERVICE_ACCOUNT_KEY }}'
 
-      - name: Docker Auth
-        id: docker-auth
-        uses: 'docker/login-action@v3'
-        with:
-          username: _json_key
-          password: ${{ secrets.GCP_SA_KEY }}
-          registry: ${{ env.GAR_LOCATION }}-docker.pkg.dev
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: |
+          gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
+          gcloud artifacts repositories create ${{ env.SERVICE }} --repository-format=docker --location=${{ env.GAR_LOCATION }} --quiet || true
 
       - name: Build and Push Container
         run: |-
@@ -44,21 +42,17 @@ jobs:
           docker push "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ github.sha }}"
 
       - name: Deploy to Cloud Run
-        id: deploy
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: ${{ env.SERVICE }}
-          region: ${{ env.REGION }}
-          image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ github.sha }}
-          env_vars: |
-            ENVIRONMENT=prod
-            PORT=8080
-            HOST=0.0.0.0
-            DEBUG=False
-            CACHE_TIMEOUT=3600
-          secrets: |
-            GOOGLE_APPLICATION_CREDENTIALS=/secrets/gcp-credentials:${{ secrets.GCP_CREDENTIALS_SECRET_NAME }}
-            GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          gcloud run deploy ${{ env.SERVICE }} \
+            --image ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ github.sha }} \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --memory 2Gi \
+            --cpu 1 \
+            --max-instances 10 \
+            --service-account bgg-data-warehouse@${{ env.PROJECT_ID }}.iam.gserviceaccount.com \
+            --set-env-vars="ENVIRONMENT=prod,PORT=8080,HOST=0.0.0.0,DEBUG=False,CACHE_TIMEOUT=3600,GCP_PROJECT_ID=${{ env.PROJECT_ID }}"
 
       - name: Show Output
         run: echo ${{ steps.deploy.outputs.url }}
