@@ -225,6 +225,9 @@ def create_dashboard_layout() -> html.Div:
                         backdrop=True,
                         scrollable=True,
                     ),
+                    # Hidden stores for cross-filtering
+                    dcc.Store(id="selected-games-store", data=[]),
+                    dcc.Store(id="chart-selection-trigger", data=0),
                 ],
                 className="mb-5",
             ),
