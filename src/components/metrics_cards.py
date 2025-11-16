@@ -34,7 +34,7 @@ def create_metrics_cards(df: pd.DataFrame) -> dbc.Row:
             color="success",
         ),
         create_metric_card(
-            title="Median User Rating",
+            title="Median Rating",
             value=f"{median_average_rating:.2f}",
             color="info",
         ),
@@ -51,7 +51,7 @@ def create_metrics_cards(df: pd.DataFrame) -> dbc.Row:
     ]
 
     return dbc.Row(
-        [dbc.Col(card, width=12, md=6, lg=2, xl=2) for card in cards], className="mb-4 g-3"
+        [dbc.Col(card, width=12, md=6, lg=2, xl=2) for card in cards], className="mb-2 g-3"
     )
 
 
@@ -71,12 +71,13 @@ def create_metric_card(title: str, value: str, color: str) -> dbc.Card:
             [
                 html.Div(
                     [
-                        html.H4(value, className="mb-1 fw-bold text-center"),
+                        html.H5(value, className="mb-0 fw-bold text-center"),
                         html.P(title, className="text-muted mb-0 small text-center"),
                     ],
                     className="text-center",
                 ),
-            ]
+            ],
+            className="py-2 px-3",  # Reduced padding
         ),
         className="h-100 metric-card",
         style={

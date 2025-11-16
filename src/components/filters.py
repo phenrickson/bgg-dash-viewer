@@ -25,7 +25,7 @@ def create_filters() -> html.Div:
             dbc.Card(
                 dbc.CardBody(
                     [
-                        html.H4("Search Filters", className="card-title"),
+                        html.H4("Search Filters", className="card-title mb-3"),
                         html.Hr(),
                         # Year Range Filter
                         html.Div(

@@ -36,10 +36,8 @@ def create_game_search_layout() -> html.Div:
                                 [
                                     html.Div(
                                         [
-                                            html.Div(
-                                                id="search-results-count",
-                                                className="text-muted mb-3",
-                                            ),
+                                            # Metrics cards above the table
+                                            html.Div(id="search-metrics-cards-container"),
                                             dbc.Spinner(
                                                 html.Div(id="loading-search-results"),
                                                 color="primary",
