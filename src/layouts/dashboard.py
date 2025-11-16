@@ -33,7 +33,7 @@ def create_dashboard_layout() -> html.Div:
                             )
                         ]
                     ),
-                    # Distribution charts row
+                    # First row of scatter plots
                     dbc.Row(
                         [
                             dbc.Col(
@@ -41,54 +41,22 @@ def create_dashboard_layout() -> html.Div:
                                     dbc.Card(
                                         dbc.CardBody(
                                             [
-                                                html.H4(
-                                                    "Average Rating Distribution",
-                                                    className="card-title",
-                                                ),
-                                                dbc.Spinner(
-                                                    dcc.Graph(id="rating-distribution-chart"),
-                                                    color="primary",
-                                                ),
-                                            ]
-                                        ),
-                                        className="mb-4",
-                                    )
-                                ],
-                                md=6,
-                            ),
-                            dbc.Col(
-                                [
-                                    dbc.Card(
-                                        dbc.CardBody(
-                                            [
-                                                html.H4(
-                                                    "Complexity Distribution",
-                                                    className="card-title",
-                                                ),
-                                                dbc.Spinner(
-                                                    dcc.Graph(id="weight-distribution-chart"),
-                                                    color="primary",
-                                                ),
-                                            ]
-                                        ),
-                                        className="mb-4",
-                                    )
-                                ],
-                                md=6,
-                            ),
-                        ]
-                    ),
-                    # Scatter plots row
-                    dbc.Row(
-                        [
-                            dbc.Col(
-                                [
-                                    dbc.Card(
-                                        dbc.CardBody(
-                                            [
-                                                html.H4(
-                                                    "Average Rating by Year Published",
-                                                    className="card-title",
+                                                html.Div(
+                                                    [
+                                                        html.H4(
+                                                            "Average Rating by Year Published",
+                                                            className="card-title d-inline",
+                                                        ),
+                                                        dbc.Button(
+                                                            html.I(className="fas fa-expand"),
+                                                            id="expand-rating-by-year-btn",
+                                                            color="link",
+                                                            size="sm",
+                                                            className="float-end p-1",
+                                                            title="Expand to full screen",
+                                                        ),
+                                                    ],
+                                                    className="d-flex justify-content-between align-items-center",
                                                 ),
                                                 html.P(
                                                     "Games published from 1975 to present",
@@ -110,9 +78,22 @@ def create_dashboard_layout() -> html.Div:
                                     dbc.Card(
                                         dbc.CardBody(
                                             [
-                                                html.H4(
-                                                    "Complexity vs Average Rating",
-                                                    className="card-title",
+                                                html.Div(
+                                                    [
+                                                        html.H4(
+                                                            "Complexity vs Average Rating",
+                                                            className="card-title d-inline",
+                                                        ),
+                                                        dbc.Button(
+                                                            html.I(className="fas fa-expand"),
+                                                            id="expand-weight-vs-rating-btn",
+                                                            color="link",
+                                                            size="sm",
+                                                            className="float-end p-1",
+                                                            title="Expand to full screen",
+                                                        ),
+                                                    ],
+                                                    className="d-flex justify-content-between align-items-center",
                                                 ),
                                                 html.P(
                                                     "Relationship between game complexity and rating",
@@ -130,6 +111,116 @@ def create_dashboard_layout() -> html.Div:
                                 md=6,
                             ),
                         ]
+                    ),
+                    # Second row of scatter plots
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                [
+                                    dbc.Card(
+                                        dbc.CardBody(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        html.H4(
+                                                            "User Ratings by Year Published",
+                                                            className="card-title d-inline",
+                                                        ),
+                                                        dbc.Button(
+                                                            html.I(className="fas fa-expand"),
+                                                            id="expand-users-by-year-btn",
+                                                            color="link",
+                                                            size="sm",
+                                                            className="float-end p-1",
+                                                            title="Expand to full screen",
+                                                        ),
+                                                    ],
+                                                    className="d-flex justify-content-between align-items-center",
+                                                ),
+                                                html.P(
+                                                    "User rating trends over time",
+                                                    className="text-muted small",
+                                                ),
+                                                dbc.Spinner(
+                                                    dcc.Graph(id="complexity-by-year-chart"),
+                                                    color="primary",
+                                                ),
+                                            ]
+                                        ),
+                                        className="mb-4",
+                                    )
+                                ],
+                                md=6,
+                            ),
+                            dbc.Col(
+                                [
+                                    dbc.Card(
+                                        dbc.CardBody(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        html.H4(
+                                                            "Average Rating and User Ratings",
+                                                            className="card-title d-inline",
+                                                        ),
+                                                        dbc.Button(
+                                                            html.I(className="fas fa-expand"),
+                                                            id="expand-rating-vs-users-btn",
+                                                            color="link",
+                                                            size="sm",
+                                                            className="float-end p-1",
+                                                            title="Expand to full screen",
+                                                        ),
+                                                    ],
+                                                    className="d-flex justify-content-between align-items-center",
+                                                ),
+                                                html.P(
+                                                    "Relationship between average rating and number of user ratings",
+                                                    className="text-muted small",
+                                                ),
+                                                dbc.Spinner(
+                                                    dcc.Graph(id="rating-vs-users-chart"),
+                                                    color="primary",
+                                                ),
+                                            ]
+                                        ),
+                                        className="mb-4",
+                                    )
+                                ],
+                                md=6,
+                            ),
+                        ]
+                    ),
+                    # Modal for expanded chart view
+                    dbc.Modal(
+                        [
+                            dbc.ModalHeader(
+                                [
+                                    dbc.ModalTitle(id="modal-chart-title"),
+                                    dbc.Button(
+                                        "×",
+                                        id="close-modal-btn",
+                                        className="btn-close",
+                                        n_clicks=0,
+                                        style={
+                                            "background": "none",
+                                            "border": "none",
+                                            "font-size": "1.5rem",
+                                        },
+                                    ),
+                                ],
+                                className="d-flex justify-content-between align-items-center",
+                            ),
+                            dbc.ModalBody(
+                                dcc.Graph(id="modal-chart", style={"height": "70vh"}),
+                                className="p-0",
+                            ),
+                        ],
+                        id="chart-modal",
+                        size="xl",
+                        is_open=False,
+                        backdrop=True,
+                        scrollable=True,
                     ),
                 ],
                 className="mb-5",
