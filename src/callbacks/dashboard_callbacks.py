@@ -27,8 +27,12 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         app: Dash application instance
         cache: Flask-Caching instance
     """
-    # Initialize BigQuery client
-    bq_client = BigQueryClient()
+    # Lazy-load BigQuery client to reduce startup time
+    def get_bq_client() -> BigQueryClient:
+        """Get or create BigQuery client instance."""
+        if not hasattr(get_bq_client, '_client'):
+            get_bq_client._client = BigQueryClient()
+        return get_bq_client._client
 
     @cache.memoize(timeout=3600)  # Cache for 1 hour
     def get_dashboard_data() -> pd.DataFrame:
@@ -61,7 +65,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         ORDER BY bayes_average DESC
         """
 
-        return bq_client.execute_query(query)
+        return get_bq_client().execute_query(query)
 
     @cache.memoize(timeout=3600)  # Cache for 1 hour
     def get_prepared_dashboard_data() -> pd.DataFrame:
