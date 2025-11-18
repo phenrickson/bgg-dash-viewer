@@ -23,8 +23,12 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
         app: Dash application instance
         cache: Flask-Caching instance
     """
-    # Initialize BigQuery client
-    bq_client = BigQueryClient()
+    # Lazy-load BigQuery client to reduce startup time
+    def get_bq_client() -> BigQueryClient:
+        """Get or create BigQuery client instance."""
+        if not hasattr(get_bq_client, '_client'):
+            get_bq_client._client = BigQueryClient()
+        return get_bq_client._client
 
     # Cache filter options to improve performance
     @cache.memoize(timeout=14400)  # Cache for 4 hours (data changes infrequently)
@@ -37,7 +41,7 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
         logger.info("Fetching filter options from BigQuery using optimized combined table")
 
         # Use the new optimized method that queries the pre-computed combined table
-        return bq_client.get_all_filter_options()
+        return get_bq_client().get_all_filter_options()
 
     @app.callback(
         [
@@ -146,7 +150,7 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
         logger.info("Searching for games with filters")
         try:
             # Get games from BigQuery
-            games_df = bq_client.get_games(
+            games_df = get_bq_client().get_games(
                 limit=results_per_page,
                 publishers=publishers,
                 designers=designers,

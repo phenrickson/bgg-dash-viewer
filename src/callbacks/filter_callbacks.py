@@ -24,8 +24,12 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
         app: Dash application instance
         cache: Flask-Caching instance
     """
-    # Initialize BigQuery client
-    bq_client = BigQueryClient()
+    # Lazy-load BigQuery client to reduce startup time
+    def get_bq_client() -> BigQueryClient:
+        """Get or create BigQuery client instance."""
+        if not hasattr(get_bq_client, '_client'):
+            get_bq_client._client = BigQueryClient()
+        return get_bq_client._client
 
     @app.callback(
         Output("year-range-output", "children"),
@@ -228,7 +232,7 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
             Dictionary with summary statistics
         """
         logger.info("Fetching summary statistics from BigQuery")
-        return bq_client.get_summary_stats()
+        return get_bq_client().get_summary_stats()
 
     @app.callback(
         Output("summary-stats-container", "children"),
