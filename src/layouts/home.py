@@ -65,7 +65,31 @@ def create_home_layout() -> html.Div:
                                                             ),
                                                             className="h-100",
                                                         ),
-                                                        md=6,
+                                                        md=4,
+                                                        className="mb-4",
+                                                    ),
+                                                    dbc.Col(
+                                                        dbc.Card(
+                                                            dbc.CardBody(
+                                                                [
+                                                                    html.H4(
+                                                                        "New Games",
+                                                                        className="card-title",
+                                                                    ),
+                                                                    html.P(
+                                                                        "Monitor newly added games to the database. Track when games are fetched and processed from BoardGameGeek.",
+                                                                        className="card-text",
+                                                                    ),
+                                                                    dbc.Button(
+                                                                        "View New Games",
+                                                                        color="primary",
+                                                                        href="/new-games",
+                                                                    ),
+                                                                ]
+                                                            ),
+                                                            className="h-100",
+                                                        ),
+                                                        md=4,
                                                         className="mb-4",
                                                     ),
                                                     dbc.Col(
@@ -90,7 +114,7 @@ def create_home_layout() -> html.Div:
                                                             ),
                                                             className="h-100",
                                                         ),
-                                                        md=6,
+                                                        md=4,
                                                         className="mb-4",
                                                     ),
                                                 ]
