@@ -97,15 +97,15 @@ def create_home_layout() -> html.Div:
                                                             dbc.CardBody(
                                                                 [
                                                                     html.H4(
-                                                                        "Data Visualizations",
+                                                                        "BGG Ratings",
                                                                         className="card-title",
                                                                     ),
                                                                     html.P(
-                                                                        "Explore interactive visualizations of board game data, including ratings, complexity, publication years, and more.",
+                                                                        "Explore interactive visualizations of BoardGameGeek ratings and complexity over time.",
                                                                         className="card-text",
                                                                     ),
                                                                     dbc.Button(
-                                                                        "View Dashboard",
+                                                                        "View Ratings",
                                                                         color="primary",
                                                                         href="/dashboard",
                                                                         id="refresh-stats-button",

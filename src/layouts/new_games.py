@@ -77,7 +77,6 @@ def create_new_games_layout() -> html.Div:
                     # Results container
                     html.Div(id="new-games-results-container"),
                 ],
-                fluid=True,
                 className="mb-5",
             ),
             create_footer(),
