@@ -675,3 +675,166 @@ class BigQueryClient:
             "rating_distribution": rating_dist,
             "year_distribution": year_dist,
         }
+
+    def get_new_games(
+        self,
+        days_back: int = 7,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        limit: int = 100,
+    ) -> pd.DataFrame:
+        """Get games that were fetched for the first time (truly new games).
+
+        Args:
+            days_back: Number of days to look back from today (default: 7)
+            start_date: Optional start date (YYYY-MM-DD format). Overrides days_back
+            end_date: Optional end date (YYYY-MM-DD format). Defaults to current date
+            limit: Maximum number of games to return
+
+        Returns:
+            DataFrame with new games and their metadata
+        """
+        # Build date filter
+        if start_date and end_date:
+            date_filter = """
+            AND first_fetch_timestamp >= TIMESTAMP(@start_date)
+            AND first_fetch_timestamp < TIMESTAMP_ADD(TIMESTAMP(@end_date), INTERVAL 1 DAY)
+            """
+            params = {"start_date": start_date, "end_date": end_date}
+        elif start_date:
+            date_filter = """
+            AND first_fetch_timestamp >= TIMESTAMP(@start_date)
+            """
+            params = {"start_date": start_date}
+        else:
+            date_filter = """
+            AND first_fetch_timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @days_back DAY)
+            """
+            params = {"days_back": days_back}
+
+        query = f"""
+        WITH first_fetches AS (
+            SELECT
+                game_id,
+                MIN(fetch_timestamp) as first_fetch_timestamp
+            FROM `${{project_id}}.${{raw_dataset}}.fetched_responses`
+            WHERE fetch_status = 'success'
+            GROUP BY game_id
+        )
+        SELECT
+            g.game_id,
+            g.name,
+            g.year_published,
+            g.average_rating,
+            g.bayes_average,
+            g.users_rated,
+            g.average_weight,
+            g.min_players,
+            g.max_players,
+            g.playing_time,
+            g.min_playtime,
+            g.max_playtime,
+            g.min_age,
+            g.description,
+            g.thumbnail,
+            g.image,
+            ff.first_fetch_timestamp as load_timestamp
+        FROM first_fetches ff
+        JOIN `${{project_id}}.${{dataset}}.games_active_table` g
+            ON ff.game_id = g.game_id
+        WHERE 1=1
+        {date_filter}
+        ORDER BY ff.first_fetch_timestamp DESC
+        LIMIT {limit}
+        """
+
+        return self.execute_query(query, params)
+
+    def get_new_games_summary(
+        self,
+        days_back: int = 7,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Get summary statistics for new games (fetched and processed).
+
+        Args:
+            days_back: Number of days to look back from today (default: 7)
+            start_date: Optional start date (YYYY-MM-DD format). Overrides days_back
+            end_date: Optional end date (YYYY-MM-DD format). Defaults to current date
+
+        Returns:
+            Dictionary with summary statistics including fetched and processed counts
+        """
+        # Build date filter for fetched games
+        if start_date and end_date:
+            date_filter_fetched = """
+            WHERE first_fetch_timestamp >= TIMESTAMP(@start_date)
+              AND first_fetch_timestamp < TIMESTAMP_ADD(TIMESTAMP(@end_date), INTERVAL 1 DAY)
+            """
+            date_filter_first_fetch = """
+            AND f.fetch_timestamp >= TIMESTAMP(@start_date)
+              AND f.fetch_timestamp < TIMESTAMP_ADD(TIMESTAMP(@end_date), INTERVAL 1 DAY)
+            """
+            params = {"start_date": start_date, "end_date": end_date}
+        elif start_date:
+            date_filter_fetched = """
+            WHERE first_fetch_timestamp >= TIMESTAMP(@start_date)
+            """
+            date_filter_first_fetch = """
+            AND f.fetch_timestamp >= TIMESTAMP(@start_date)
+            """
+            params = {"start_date": start_date}
+        else:
+            date_filter_fetched = """
+            WHERE first_fetch_timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @days_back DAY)
+            """
+            date_filter_first_fetch = """
+            AND f.fetch_timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @days_back DAY)
+            """
+            params = {"days_back": days_back}
+
+        query = f"""
+        WITH first_fetches AS (
+            SELECT
+                game_id,
+                MIN(fetch_timestamp) as first_fetch_timestamp
+            FROM `${{project_id}}.${{raw_dataset}}.fetched_responses`
+            WHERE fetch_status = 'success'
+            GROUP BY game_id
+        ),
+        new_games_fetched_cte AS (
+            SELECT COUNT(DISTINCT game_id) as count
+            FROM first_fetches
+            {date_filter_fetched}
+        ),
+        first_fetches_with_order AS (
+            SELECT
+                f.record_id,
+                f.game_id,
+                f.fetch_timestamp,
+                ROW_NUMBER() OVER (PARTITION BY f.game_id ORDER BY f.fetch_timestamp) as fetch_order
+            FROM `${{project_id}}.${{raw_dataset}}.fetched_responses` f
+            WHERE f.fetch_status = 'success'
+        ),
+        new_games_processed_cte AS (
+            SELECT COUNT(DISTINCT f.game_id) as count
+            FROM first_fetches_with_order f
+            INNER JOIN `${{project_id}}.${{raw_dataset}}.processed_responses` p
+                ON f.record_id = p.record_id
+            WHERE f.fetch_order = 1
+              {date_filter_first_fetch}
+              AND p.process_status = 'success'
+        )
+        SELECT
+            ngf.count as new_games_fetched,
+            ngp.count as new_games_processed
+        FROM new_games_fetched_cte ngf
+        CROSS JOIN new_games_processed_cte ngp
+        """
+
+        result = self.execute_query(query, params)
+        if isinstance(result, pd.DataFrame) and not result.empty:
+            row_dict = result.iloc[0].to_dict()
+            return dict(row_dict) if row_dict else {}
+        return {}

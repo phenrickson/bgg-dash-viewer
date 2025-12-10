@@ -65,7 +65,7 @@ def create_home_layout() -> html.Div:
                                                             ),
                                                             className="h-100",
                                                         ),
-                                                        md=6,
+                                                        md=4,
                                                         className="mb-4",
                                                     ),
                                                     dbc.Col(
@@ -73,15 +73,39 @@ def create_home_layout() -> html.Div:
                                                             dbc.CardBody(
                                                                 [
                                                                     html.H4(
-                                                                        "Data Visualizations",
+                                                                        "New Games",
                                                                         className="card-title",
                                                                     ),
                                                                     html.P(
-                                                                        "Explore interactive visualizations of board game data, including ratings, complexity, publication years, and more.",
+                                                                        "Monitor newly added games to the database. Track when games are fetched and processed from BoardGameGeek.",
                                                                         className="card-text",
                                                                     ),
                                                                     dbc.Button(
-                                                                        "View Dashboard",
+                                                                        "View New Games",
+                                                                        color="primary",
+                                                                        href="/new-games",
+                                                                    ),
+                                                                ]
+                                                            ),
+                                                            className="h-100",
+                                                        ),
+                                                        md=4,
+                                                        className="mb-4",
+                                                    ),
+                                                    dbc.Col(
+                                                        dbc.Card(
+                                                            dbc.CardBody(
+                                                                [
+                                                                    html.H4(
+                                                                        "BGG Ratings",
+                                                                        className="card-title",
+                                                                    ),
+                                                                    html.P(
+                                                                        "Explore interactive visualizations of BoardGameGeek ratings and complexity over time.",
+                                                                        className="card-text",
+                                                                    ),
+                                                                    dbc.Button(
+                                                                        "View Ratings",
                                                                         color="primary",
                                                                         href="/dashboard",
                                                                         id="refresh-stats-button",
@@ -90,7 +114,7 @@ def create_home_layout() -> html.Div:
                                                             ),
                                                             className="h-100",
                                                         ),
-                                                        md=6,
+                                                        md=4,
                                                         className="mb-4",
                                                     ),
                                                 ]

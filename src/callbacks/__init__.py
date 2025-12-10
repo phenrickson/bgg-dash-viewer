@@ -20,6 +20,7 @@ def register_callbacks(app: dash.Dash, cache: Cache) -> None:
     from .search_callbacks import register_search_callbacks
     from .filter_callbacks import register_filter_callbacks
     from .dashboard_callbacks import register_dashboard_callbacks
+    from .new_games_callbacks import register_new_games_callbacks
 
     # Register callbacks from each module
     logger.info("Registering search callbacks")
@@ -30,5 +31,8 @@ def register_callbacks(app: dash.Dash, cache: Cache) -> None:
 
     logger.info("Registering dashboard callbacks")
     register_dashboard_callbacks(app, cache)
+
+    logger.info("Registering new games callbacks")
+    register_new_games_callbacks(app, cache)
 
     logger.info("All callbacks registered")
