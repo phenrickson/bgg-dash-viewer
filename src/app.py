@@ -100,6 +100,7 @@ def display_page(pathname: str) -> Any:
     from .layouts.game_details import create_game_details_layout
     from .layouts.dashboard import create_dashboard_layout
     from .layouts.new_games import create_new_games_layout
+    from .layouts.upcoming_predictions import create_upcoming_predictions_layout
 
     logger.info(f"Routing to: {pathname}")
 
@@ -109,6 +110,8 @@ def display_page(pathname: str) -> Any:
         return create_dashboard_layout()
     elif pathname == "/new-games":
         return create_new_games_layout()
+    elif pathname == "/upcoming-predictions":
+        return create_upcoming_predictions_layout()
     elif pathname and pathname.startswith("/game/"):
         try:
             game_id = int(pathname.split("/")[-1])

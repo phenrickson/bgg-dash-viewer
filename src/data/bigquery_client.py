@@ -838,3 +838,70 @@ class BigQueryClient:
             row_dict = result.iloc[0].to_dict()
             return dict(row_dict) if row_dict else {}
         return {}
+
+    def get_prediction_summary(self) -> pd.DataFrame:
+        """Get summary of all prediction jobs.
+
+        Returns:
+            DataFrame with job summaries including:
+            - job_id: Unique identifier for the prediction job
+            - num_predictions: Number of predictions in the job
+            - latest_prediction: Timestamp of most recent prediction
+            - earliest_prediction: Timestamp of earliest prediction
+            - min_year: Minimum publication year in predictions
+            - max_year: Maximum publication year in predictions
+            - avg_predicted_rating: Average predicted geek rating
+            - hurdle_experiment: Model used for hurdle prediction
+            - complexity_experiment: Model used for complexity prediction
+            - rating_experiment: Model used for rating prediction
+            - users_rated_experiment: Model used for users rated prediction
+        """
+        query = """
+        SELECT
+            job_id,
+            COUNT(*) as num_predictions,
+            MAX(score_ts) as latest_prediction,
+            MIN(score_ts) as earliest_prediction,
+            MIN(year_published) as min_year,
+            MAX(year_published) as max_year,
+            AVG(predicted_geek_rating) as avg_predicted_rating,
+            ANY_VALUE(hurdle_experiment) as hurdle_experiment,
+            ANY_VALUE(complexity_experiment) as complexity_experiment,
+            ANY_VALUE(rating_experiment) as rating_experiment,
+            ANY_VALUE(users_rated_experiment) as users_rated_experiment
+        FROM `${project_id}.${dataset}.predictions`
+        GROUP BY job_id
+        ORDER BY latest_prediction DESC
+        """
+        return self.execute_query(query)
+
+    def query_predictions(self, job_id: str) -> pd.DataFrame:
+        """Get all predictions for a specific job.
+
+        Args:
+            job_id: The job ID to get predictions for
+
+        Returns:
+            DataFrame with all predictions for the specified job
+        """
+        query = """
+        SELECT
+            job_id,
+            game_id,
+            name,
+            year_published,
+            predicted_hurdle_prob,
+            predicted_complexity,
+            predicted_rating,
+            predicted_users_rated,
+            predicted_geek_rating,
+            hurdle_experiment,
+            complexity_experiment,
+            rating_experiment,
+            users_rated_experiment,
+            score_ts
+        FROM `${project_id}.${dataset}.predictions`
+        WHERE job_id = @job_id
+        ORDER BY predicted_geek_rating DESC
+        """
+        return self.execute_query(query, params={"job_id": job_id})
