@@ -3,7 +3,7 @@
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 
-from ..components.header import create_header, create_page_header
+from ..components.header import create_header
 from ..components.footer import create_footer
 from ..components.filters import create_filters
 
@@ -19,10 +19,6 @@ def create_game_search_layout() -> html.Div:
             create_header(),
             dbc.Container(
                 [
-                    create_page_header(
-                        "Game Search",
-                        "Search and filter board games by various criteria",
-                    ),
                     # Tabs for module pages
                     dbc.Tabs(
                         [
@@ -38,13 +34,10 @@ def create_game_search_layout() -> html.Div:
                     # Main layout: sidebar + content
                     dbc.Row(
                         [
-                            # Sidebar - Filters card
+                            # Sidebar - Filters (already wrapped in a card)
                             dbc.Col(
-                                dbc.Card(
-                                    dbc.CardBody(create_filters()),
-                                ),
-                                lg=2,
-                                md=3,
+                                create_filters(),
+                                className="filters-sidebar",
                             ),
                             # Content area
                             dbc.Col(
@@ -54,7 +47,7 @@ def create_game_search_layout() -> html.Div:
                                         dbc.CardBody(
                                             html.Div(id="search-metrics-cards-container")
                                         ),
-                                        className="mb-4",
+                                        className="mb-4 panel-card",
                                     ),
                                     # Loading indicator
                                     dbc.Spinner(
@@ -67,12 +60,12 @@ def create_game_search_layout() -> html.Div:
                                         dbc.CardBody(
                                             html.Div(id="search-results-container")
                                         ),
+                                        className="panel-card",
                                     ),
                                 ],
-                                lg=10,
-                                md=9,
                             ),
                         ],
+                        className="flex-nowrap",
                     ),
                 ],
                 fluid=True,

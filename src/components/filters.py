@@ -15,13 +15,7 @@ def create_filters() -> html.Div:
             html.Div(
                 id="filter-options-container", children="init", style={"display": "none"}
             ),  # Hidden div to trigger filter options loading
-            # Loading spinner for filter options
-            dbc.Spinner(
-                html.Div(id="filter-loading-indicator", className="mb-3"),
-                color="primary",
-                type="border",
-                fullscreen=False,
-            ),
+            html.Div(id="filter-loading-indicator", style={"display": "none"}),
             dbc.Card(
                 dbc.CardBody(
                     [
@@ -224,7 +218,7 @@ def create_filters() -> html.Div:
                         ),
                     ]
                 ),
-                className="mb-4",
+                className="mb-4 panel-card",
             ),
         ]
     )

@@ -30,6 +30,18 @@ body {
     border: none;
 }
 
+/* Consistent panel card styling for main layout sections */
+.panel-card {
+    background-color: var(--bs-card-bg, var(--bs-gray-800)) !important;
+    border: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.1)) !important;
+}
+
+/* Filters sidebar fixed width */
+.filters-sidebar {
+    flex: 0 0 280px;
+    max-width: 280px;
+}
+
 .card-title {
     font-weight: 600;
 }
