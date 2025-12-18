@@ -1,5 +1,5 @@
 # Multi-stage build for smaller image size
-FROM python:3.12-slim as builder
+FROM python:3.12-slim AS builder
 
 # Set working directory
 WORKDIR /app
@@ -53,4 +53,4 @@ ENV DEBUG=False
 # Run the application with gunicorn
 # Using 1 worker for faster startup and lower memory usage
 # Using preload to load application before forking
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--timeout", "120", "--preload", "src.app:server"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--timeout", "120", "--preload", "dash_app:server"]

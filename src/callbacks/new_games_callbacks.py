@@ -1,18 +1,26 @@
 """New games monitoring callbacks for the Board Game Data Explorer."""
 
 import logging
-from datetime import datetime, timedelta
-from typing import Any, Tuple
+from typing import Any
 
 import dash
-from dash import html, dash_table, ctx
+from dash import html, dcc, ctx
 from dash.dependencies import Input, Output, State
+import dash_ag_grid as dag
 import dash_bootstrap_components as dbc
 from flask_caching import Cache
 import pandas as pd
+import plotly.graph_objects as go
 
 from ..data.bigquery_client import BigQueryClient
-from ..components.metrics_cards import create_metrics_cards
+from ..components.ag_grid_config import (
+    get_default_grid_options,
+    get_default_column_def,
+    get_grid_style,
+    get_grid_class_name,
+    get_new_games_column_defs,
+)
+from ..theme import PLOTLY_TEMPLATE, get_plotly_layout_defaults
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +57,7 @@ def register_new_games_callbacks(app: dash.Dash, cache: Cache) -> None:
         btn_7days: int,
         btn_30days: int,
         btn_365days: int,
-    ) -> Tuple[int, bool, bool, bool]:
+    ) -> tuple[int, bool, bool, bool]:
         """Update days back based on quick filter button clicks.
 
         Args:
@@ -91,7 +99,7 @@ def register_new_games_callbacks(app: dash.Dash, cache: Cache) -> None:
         btn_30days: int,
         btn_365days: int,
         days_back: int,
-    ) -> Tuple[Any, str]:
+    ) -> tuple[Any, str]:
         """Update the new games results table and visualizations.
 
         Args:
@@ -168,26 +176,24 @@ def register_new_games_callbacks(app: dash.Dash, cache: Cache) -> None:
             daily_counts = df_chart.groupby('date').size().reset_index(name='count')
             daily_counts = daily_counts.sort_values('date')
 
-            # Create time series chart
-            import plotly.graph_objects as go
+            # Create time series chart with Vizro theming
             fig = go.Figure()
             fig.add_trace(go.Scatter(
                 x=daily_counts['date'],
                 y=daily_counts['count'],
                 mode='lines+markers',
-                line=dict(color='#2E86AB', width=2),
+                line=dict(color='var(--bs-primary)', width=2),
                 marker=dict(size=6),
                 fill='tozeroy',
                 fillcolor='rgba(46, 134, 171, 0.2)',
             ))
+            layout_defaults = get_plotly_layout_defaults()
             fig.update_layout(
+                template=PLOTLY_TEMPLATE,
                 xaxis_title="Date",
                 yaxis_title="New Games Count",
                 height=300,
-                margin=dict(l=40, r=40, t=40, b=40),
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='white'),
+                **{k: v for k, v in layout_defaults.items() if k != 'template'},
                 xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)'),
                 yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)'),
             )
@@ -197,74 +203,26 @@ def register_new_games_callbacks(app: dash.Dash, cache: Cache) -> None:
             df_table['load_timestamp'] = pd.to_datetime(df_table['load_timestamp']).dt.strftime('%m/%d/%y %H:%M:%S')
             df_table['users_rated'] = df_table['users_rated'].fillna(0).astype(int)
 
-            # Create BGG link column
+            # Create BGG link column as markdown
             df_table['bgg_link'] = df_table['game_id'].apply(
-                lambda x: f'https://boardgamegeek.com/boardgame/{x}'
+                lambda x: f'[BGG](https://boardgamegeek.com/boardgame/{x})'
             )
 
-            # Select and order columns
-            table_data = df_table[['game_id', 'bgg_link', 'name', 'year_published', 'users_rated', 'load_timestamp']].to_dict('records')
-
-            # Create the data table with game search page styling
-            table = dash_table.DataTable(
+            # Create AG Grid with Vizro theming
+            grid = dag.AgGrid(
                 id='new-games-table',
-                columns=[
-                    {"name": "Game ID", "id": "game_id"},
-                    {"name": "Link", "id": "bgg_link", "presentation": "markdown"},
-                    {"name": "Name", "id": "name"},
-                    {"name": "Year Published", "id": "year_published"},
-                    {"name": "Ratings", "id": "users_rated"},
-                    {"name": "Added", "id": "load_timestamp"},
-                ],
-                data=[{
-                    **row,
-                    'bgg_link': f'[BGG]({row["bgg_link"]})'
-                } for row in table_data],
-                page_size=25,
-                page_action='native',
-                sort_action='native',
-                filter_action='native',
-                style_table={'overflowX': 'auto'},
-                style_cell={
-                    "textAlign": "center",
-                    "padding": "12px 8px",
-                    "whiteSpace": "normal",
-                    "height": "auto",
-                    "fontSize": "14px",
-                },
-                style_cell_conditional=[
-                    {
-                        "if": {"column_id": "name"},
-                        "textAlign": "left",
-                        "width": "25%",
-                        "minWidth": "200px",
-                    },
-                    {
-                        "if": {"column_id": "bgg_link"},
-                        "width": "80px",
-                    },
-                ],
-                style_header={
-                    "backgroundColor": "#2c3e50",
-                    "color": "white",
-                    "fontWeight": "bold",
-                    "textAlign": "center",
-                    "padding": "15px 10px",
-                    "border": "1px solid #34495e",
-                },
-                style_data_conditional=[
-                    {
-                        "if": {"state": "selected"},
-                        "backgroundColor": "#34495e",
-                        "border": "1px solid #95a5a6",
-                    }
-                ],
+                rowData=df_table[['game_id', 'bgg_link', 'name', 'year_published', 'users_rated', 'load_timestamp']].to_dict('records'),
+                columnDefs=get_new_games_column_defs(),
+                defaultColDef=get_default_column_def(),
+                dashGridOptions=get_default_grid_options(),
+                className=get_grid_class_name(),
+                style=get_grid_style("500px"),
             )
 
             # Create summary stats section
             time_range_text = f"Last {days_back} Day" + ("s" if days_back > 1 else "")
             stats_section = html.Div([
-                html.H3(f"New Games Activity ({time_range_text})", className="mb-3"),
+                html.H4(f"New Games Activity ({time_range_text})", className="mb-3"),
                 dbc.Row([
                     dbc.Col([
                         html.P("New Games Fetched", className="text-muted mb-1"),
@@ -274,17 +232,32 @@ def register_new_games_callbacks(app: dash.Dash, cache: Cache) -> None:
                         html.P("New Games Processed", className="text-muted mb-1"),
                         html.H2(f"{new_games_processed:,}", className="mb-0"),
                     ], md=6),
-                ], className="mb-4"),
+                ]),
             ])
 
-            # Combine all components
-            from dash import dcc
+            # Combine all components in cards
             results = html.Div([
-                stats_section,
-                html.H3("Daily New Games Fetched", className="mb-3 mt-4"),
-                dcc.Graph(figure=fig, config={'displayModeBar': False}),
-                html.H3("Latest New Games Added", className="mb-3 mt-4"),
-                table,
+                # Stats card
+                dbc.Card(
+                    dbc.CardBody(stats_section),
+                    className="mb-4 panel-card",
+                ),
+                # Chart card
+                dbc.Card(
+                    dbc.CardBody([
+                        html.H4("Daily New Games Fetched", className="mb-3"),
+                        dcc.Graph(figure=fig, config={'displayModeBar': False}),
+                    ]),
+                    className="mb-4 panel-card",
+                ),
+                # Table card
+                dbc.Card(
+                    dbc.CardBody([
+                        html.H4("Latest New Games Added", className="mb-3"),
+                        grid,
+                    ]),
+                    className="panel-card",
+                ),
             ])
 
             return results, ""

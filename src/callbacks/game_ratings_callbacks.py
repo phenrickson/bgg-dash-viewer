@@ -1,7 +1,7 @@
-"""Dashboard callbacks for the Board Game Data Explorer."""
+"""Game ratings callbacks for the Board Game Data Explorer."""
 
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Any
 
 import dash
 from dash import html, dcc
@@ -16,6 +16,7 @@ import numpy as np
 from ..data.bigquery_client import BigQueryClient
 from ..components.metrics_cards import create_metrics_cards
 from ..utils.sampling import prepare_visualization_data
+from ..theme import PLOTLY_TEMPLATE
 
 logger = logging.getLogger(__name__)
 
@@ -94,8 +95,8 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         return df_sample
 
     def create_rating_by_year_chart(
-        df_sample: pd.DataFrame, is_modal: bool = False, selected_games: List[int] = None
-    ) -> Dict[str, Any]:
+        df_sample: pd.DataFrame, is_modal: bool = False, selected_games: list[int] | None = None
+    ) -> dict[str, Any]:
         """Create the rating by year scatter plot.
 
         Args:
@@ -120,7 +121,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
                 "average_rating": "Average Rating",
                 "log_users_rated": "Log₁₀(User Ratings)",
             },
-            template="plotly_dark",
+            template=PLOTLY_TEMPLATE,
             opacity=0.6,
             range_color=[5, 9],
             hover_data=["name", "year_published", "users_rated"],
@@ -212,7 +213,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         Returns:
             Row containing metrics cards
         """
-        if pathname != "/dashboard":
+        if pathname != "/app/game-ratings":
             return dbc.Row([])
 
         df = get_dashboard_data()
@@ -222,7 +223,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         Output("rating-by-year-chart", "figure"),
         [Input("url", "pathname")],
     )
-    def update_rating_by_year_chart(pathname: str) -> Dict[str, Any]:
+    def update_rating_by_year_chart(pathname: str) -> dict[str, Any]:
         """Update the rating by year jitter plot.
 
         Args:
@@ -231,7 +232,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         Returns:
             Plotly figure for rating by year
         """
-        if pathname != "/dashboard":
+        if pathname != "/app/game-ratings":
             return {}
 
         df_sample = get_prepared_dashboard_data()
@@ -258,7 +259,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         complexity_year_clicks: int,
         rating_users_clicks: int,
         close_clicks: int,
-    ) -> tuple[bool, Dict[str, Any], str]:
+    ) -> tuple[bool, dict[str, Any], str]:
         """Toggle the chart modal and update its content.
 
         Args:
@@ -302,8 +303,8 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         return False, {}, ""
 
     def create_weight_vs_rating_chart(
-        df_sample: pd.DataFrame, is_modal: bool = False, selected_games: List[int] = None
-    ) -> Dict[str, Any]:
+        df_sample: pd.DataFrame, is_modal: bool = False, selected_games: list[int] | None = None
+    ) -> dict[str, Any]:
         """Create the complexity vs rating scatter plot.
 
         Args:
@@ -337,7 +338,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
                 "average_rating_jittered": "Average Rating",
                 "log_users_rated": "Log₁₀(User Ratings)",
             },
-            template="plotly_dark",
+            template=PLOTLY_TEMPLATE,
             opacity=0.45,
             hover_data=["name", "average_weight", "average_rating", "users_rated"],
             range_color=[5, 9],
@@ -419,8 +420,8 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         return fig
 
     def create_users_by_year_chart(
-        df_sample: pd.DataFrame, is_modal: bool = False, selected_games: List[int] = None
-    ) -> Dict[str, Any]:
+        df_sample: pd.DataFrame, is_modal: bool = False, selected_games: list[int] | None = None
+    ) -> dict[str, Any]:
         """Create the users by year scatter plot.
 
         Args:
@@ -452,7 +453,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
                 "log_users_rated": "Log₁₀(User Ratings)",
             },
             range_color=[5, 8],
-            template="plotly_dark",
+            template=PLOTLY_TEMPLATE,
             opacity=0.6,
             hover_data=["name", "year_published", "users_rated"],
         )
@@ -530,8 +531,8 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         return fig
 
     def create_rating_vs_users_chart(
-        df_sample: pd.DataFrame, is_modal: bool = False, selected_games: List[int] = None
-    ) -> Dict[str, Any]:
+        df_sample: pd.DataFrame, is_modal: bool = False, selected_games: list[int] | None = None
+    ) -> dict[str, Any]:
         """Create the rating vs users scatter plot.
 
         Args:
@@ -566,7 +567,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
                 "log_users_jittered": "Log₁₀(User Ratings)",
                 "bayes_average": "Geek Rating",
             },
-            template="plotly_dark",
+            template=PLOTLY_TEMPLATE,
             opacity=0.6,
             range_color=[5, 8],
             hover_data=["name", "average_rating", "users_rated", "bayes_average"],
@@ -650,7 +651,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         Output("weight-vs-rating-chart", "figure"),
         [Input("url", "pathname")],
     )
-    def update_weight_vs_rating_chart(pathname: str) -> Dict[str, Any]:
+    def update_weight_vs_rating_chart(pathname: str) -> dict[str, Any]:
         """Update the complexity vs rating scatter plot.
 
         Args:
@@ -659,7 +660,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         Returns:
             Plotly figure for complexity vs rating
         """
-        if pathname != "/dashboard":
+        if pathname != "/app/game-ratings":
             return {}
 
         df_sample = get_prepared_dashboard_data()
@@ -669,7 +670,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         Output("complexity-by-year-chart", "figure"),
         [Input("url", "pathname")],
     )
-    def update_complexity_by_year_chart(pathname: str) -> Dict[str, Any]:
+    def update_complexity_by_year_chart(pathname: str) -> dict[str, Any]:
         """Update the users by year scatter plot.
 
         Args:
@@ -678,7 +679,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         Returns:
             Plotly figure for users by year
         """
-        if pathname != "/dashboard":
+        if pathname != "/app/game-ratings":
             return {}
 
         df_sample = get_prepared_dashboard_data()
@@ -688,7 +689,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         Output("rating-vs-users-chart", "figure"),
         [Input("url", "pathname")],
     )
-    def update_rating_vs_users_chart(pathname: str) -> Dict[str, Any]:
+    def update_rating_vs_users_chart(pathname: str) -> dict[str, Any]:
         """Update the rating vs users scatter plot.
 
         Args:
@@ -697,7 +698,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         Returns:
             Plotly figure for rating vs users
         """
-        if pathname != "/dashboard":
+        if pathname != "/app/game-ratings":
             return {}
 
         df_sample = get_prepared_dashboard_data()

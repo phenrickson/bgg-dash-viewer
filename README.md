@@ -55,7 +55,7 @@ cp .env.example .env
 
 6. Run the application:
 ```bash
-python -m src.app
+python dash_app.py
 ```
 
 ## Development
@@ -64,15 +64,17 @@ python -m src.app
 
 ```
 bgg-dash-viewer/
+├── assets/                # Dash static assets (CSS)
 ├── config/                # Configuration files
 │   └── bigquery.yaml      # BigQuery configuration
+├── dash_app.py            # Main application entry point
+├── static/                # Flask static assets (landing page CSS)
+├── templates/             # Flask templates (landing page HTML)
 ├── src/                   # Source code
-│   ├── assets/            # Static assets (CSS, images)
-│   ├── components/        # Reusable Dash components
-│   ├── layouts/           # Page layouts
 │   ├── callbacks/         # Dash callbacks
+│   ├── components/        # Reusable Dash components
 │   ├── data/              # Data handling
-│   └── app.py             # Main application entry point
+│   └── layouts/           # Page layouts
 └── tests/                 # Tests
 ```
 
@@ -99,13 +101,13 @@ The application can be deployed to various platforms:
 ### Local Development Server
 
 ```bash
-python -m src.app
+python dash_app.py
 ```
 
 ### Production Deployment with Gunicorn
 
 ```bash
-gunicorn src.app:server
+gunicorn dash_app:server
 ```
 
 ## License

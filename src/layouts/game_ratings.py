@@ -1,9 +1,9 @@
-"""Dashboard layout for the Board Game Data Explorer."""
+"""Game ratings layout for the Board Game Data Explorer."""
 
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 
-from ..components.header import create_header
+from ..components.header import create_header, create_page_header
 from ..components.footer import create_footer
 from ..components.metrics_cards import create_metrics_cards
 
@@ -19,20 +19,9 @@ def create_dashboard_layout() -> html.Div:
             create_header(),
             dbc.Container(
                 [
-                    dbc.Row(
-                        [
-                            dbc.Col(
-                                [
-                                    html.H1("BoardGameGeek Ratings", className="mb-4"),
-                                    html.P(
-                                        "Interactive visualizations of board game data from BoardGameGeek. "
-                                        "All charts show data for rated games only.",
-                                        className="lead mb-4",
-                                    ),
-                                ],
-                                width=12,
-                            )
-                        ]
+                    create_page_header(
+                        "BoardGameGeek Ratings",
+                        subtitle="Interactive visualizations of board game data from BoardGameGeek. All charts show data for rated games only.",
                     ),
                     # Metrics cards row
                     html.Div(id="metrics-cards-container"),

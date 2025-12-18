@@ -1,17 +1,17 @@
 """Game details page layout for the Board Game Data Explorer."""
 
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Any
 
 from dash import html, dcc
 import dash_bootstrap_components as dbc
-import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 
 from ..components.header import create_header, create_page_header
 from ..components.footer import create_footer
 from ..data.bigquery_client import BigQueryClient
+from ..theme import PLOTLY_TEMPLATE
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ def create_game_details_layout(game_id: int) -> html.Div:
                     player_counts["is_recommended_player_count"] == True
                 ]["player_count"].tolist()
 
-            player_count_fig = go.Figure(layout=dict(template="plotly_dark"))
+            player_count_fig = go.Figure(layout=dict(template=PLOTLY_TEMPLATE))
 
             # Add bars for best percentage
             player_count_fig.add_trace(

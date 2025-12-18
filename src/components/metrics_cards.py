@@ -1,6 +1,5 @@
 """Metrics cards component for displaying key dashboard statistics."""
 
-from typing import Dict, Any
 import dash_bootstrap_components as dbc
 from dash import html
 import pandas as pd
@@ -51,7 +50,8 @@ def create_metrics_cards(df: pd.DataFrame) -> dbc.Row:
     ]
 
     return dbc.Row(
-        [dbc.Col(card, width=12, md=6, lg=2, xl=2) for card in cards], className="mb-2 g-3"
+        [dbc.Col(card, className="col") for card in cards],
+        className="mb-3 g-3",
     )
 
 

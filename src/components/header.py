@@ -19,7 +19,7 @@ def create_header() -> html.Div:
                             # Use row and col to control vertical alignment of logo / brand
                             dbc.Row(
                                 [
-                                    dbc.Col(html.I(className="fas fa-dice-d20 fa-2x me-2")),
+                                    dbc.Col(html.I(className="fas fa-dice-d20 fa-2x me-2", style={"color": "#6366f1"})),
                                     dbc.Col(
                                         dbc.NavbarBrand(
                                             "Board Game Data Explorer", className="ms-2 fs-2"
@@ -36,10 +36,10 @@ def create_header() -> html.Div:
                         dbc.Collapse(
                             dbc.Nav(
                                 [
-                                    dbc.NavItem(dbc.NavLink("Home", href="/")),
-                                    dbc.NavItem(dbc.NavLink("Game Search", href="/game-search")),
-                                    dbc.NavItem(dbc.NavLink("New Games", href="/new-games")),
-                                    dbc.NavItem(dbc.NavLink("BGG Ratings", href="/dashboard")),
+                                    dbc.NavItem(dbc.NavLink("Game Search", href="/app/game-search")),
+                                    dbc.NavItem(dbc.NavLink("New Games", href="/app/new-games")),
+                                    dbc.NavItem(dbc.NavLink("Predictions", href="/app/upcoming-predictions")),
+                                    dbc.NavItem(dbc.NavLink("Game Ratings", href="/app/game-ratings")),
                                 ],
                                 className="ms-auto",
                                 navbar=True,
@@ -57,22 +57,29 @@ def create_header() -> html.Div:
     )
 
 
-def create_page_header(title: str, subtitle: str = None) -> html.Div:
-    """Create a page header with title and optional subtitle.
+def create_page_header(
+    title: str,
+    subtitle: str = None,
+    show_border: bool = True,
+) -> html.Div:
+    """Create a standardized page header with title and optional subtitle.
 
     Args:
-        title: Page title
-        subtitle: Optional page subtitle
+        title: Page title.
+        subtitle: Optional page subtitle.
+        show_border: Whether to show bottom border (default True).
 
     Returns:
-        Page header component
+        Page header component.
     """
-    header_content = [html.H1(title, className="display-4")]
+    header_content = [html.H1(title, className="display-5 mb-2")]
 
     if subtitle:
-        header_content.append(html.P(subtitle, className="lead"))
+        header_content.append(html.P(subtitle, className="lead text-muted"))
+
+    border_class = " pb-3 border-bottom" if show_border else ""
 
     return html.Div(
         header_content,
-        className="mb-4 pb-2 border-bottom",
+        className=f"mb-4{border_class}",
     )

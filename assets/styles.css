@@ -1,0 +1,298 @@
+/* Custom styles for BGG Dash Viewer - Vizro Bootstrap Theme */
+
+/* ==========================================================================
+   Global Styles
+   ========================================================================== */
+
+body {
+    font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #0f172a 100%) !important;
+    background-attachment: fixed;
+}
+
+/* Make sure footer stays at the bottom */
+.min-vh-100 {
+    min-height: 100vh;
+}
+
+/* ==========================================================================
+   Header Styles
+   ========================================================================== */
+
+.navbar {
+    background: linear-gradient(90deg, #1a1a2e 0%, #16213e 100%) !important;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.navbar-brand,
+.navbar-brand * {
+    font-weight: 700;
+    color: #94a3b8 !important;
+}
+
+.navbar .navbar-brand i,
+.navbar-brand i.fas,
+.navbar-brand i.fa-dice-d20 {
+    color: #6366f1 !important;
+}
+
+.nav-link {
+    color: #94a3b8 !important;
+    transition: color 0.2s ease;
+}
+
+.nav-link:hover {
+    color: #f1f5f9 !important;
+}
+
+.nav-link.active {
+    color: #6366f1 !important;
+}
+
+/* ==========================================================================
+   Card Styles
+   ========================================================================== */
+
+.card {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Consistent panel card styling for main layout sections */
+.panel-card {
+    background-color: transparent !important;
+    border: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.1)) !important;
+}
+
+/* Nested cards inside panels (stats cards, etc.) */
+.panel-card .card {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Filters sidebar fixed width */
+.filters-sidebar {
+    flex: 0 0 280px;
+    max-width: 280px;
+}
+
+.card-title {
+    font-weight: 600;
+}
+
+/* ==========================================================================
+   Badge Styles
+   ========================================================================== */
+
+.badge {
+    font-weight: 500;
+    padding: 0.5em 0.8em;
+}
+
+/* Player count badges (used in AG Grid) */
+.player-count-badge {
+    display: inline-block;
+    background-color: var(--bs-primary);
+    color: white;
+    border-radius: 12px;
+    padding: 2px 8px;
+    margin: 2px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    text-align: center;
+}
+
+/* ==========================================================================
+   Button Styles
+   ========================================================================== */
+
+.btn-primary:hover,
+.btn-secondary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* ==========================================================================
+   AG Grid Custom Styles (Vizro theme enhancements)
+   ========================================================================== */
+
+.ag-theme-vizro,
+.ag-theme-quartz-dark.ag-theme-vizro {
+    --ag-header-height: 48px;
+    --ag-row-height: 44px;
+    --ag-font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Ensure AG Grid links are styled properly */
+.ag-theme-vizro a,
+.ag-theme-quartz-dark a {
+    color: var(--bs-primary);
+    text-decoration: none;
+}
+
+.ag-theme-vizro a:hover,
+.ag-theme-quartz-dark a:hover {
+    text-decoration: underline;
+}
+
+/* ==========================================================================
+   Filter/Slider Styles
+   ========================================================================== */
+
+.rc-slider-track {
+    background-color: var(--bs-primary);
+}
+
+.rc-slider-rail {
+    background-color: var(--bs-gray-600);
+}
+
+.rc-slider-handle {
+    border-color: var(--bs-primary);
+    background-color: var(--bs-light);
+}
+
+.rc-slider-handle:hover {
+    border-color: var(--bs-primary);
+}
+
+.rc-slider-handle:active {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 5px var(--bs-primary);
+}
+
+/* ==========================================================================
+   Dropdown Styles (Dark Mode)
+   ========================================================================== */
+
+.Select-control {
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-light) !important;
+    border-color: var(--bs-gray-700) !important;
+}
+
+.Select-control:hover {
+    border-color: var(--bs-gray-600);
+}
+
+.Select.is-focused > .Select-control {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 1px var(--bs-primary);
+}
+
+.Select-menu-outer {
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-light) !important;
+    border-color: var(--bs-gray-700) !important;
+}
+
+.Select-option {
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-light) !important;
+}
+
+.Select-option.is-focused {
+    background-color: var(--bs-gray-700) !important;
+}
+
+.Select-option.is-selected {
+    background-color: var(--bs-primary) !important;
+    color: var(--bs-light) !important;
+}
+
+.Select-value-label {
+    color: var(--bs-light) !important;
+}
+
+.Select-placeholder {
+    color: var(--bs-gray-500) !important;
+}
+
+/* ==========================================================================
+   Loading Spinner
+   ========================================================================== */
+
+._dash-loading {
+    margin: auto;
+    color: var(--bs-primary);
+}
+
+/* ==========================================================================
+   Game Details Page
+   ========================================================================== */
+
+.game-image {
+    max-height: 300px;
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* ==========================================================================
+   Metrics Cards
+   ========================================================================== */
+
+.metric-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 12px !important;
+    overflow: hidden;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3) !important;
+}
+
+.metric-card .card-body {
+    padding: 1.25rem;
+}
+
+.metric-card h4 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.metric-card p {
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    .container {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+
+    .card {
+        margin-bottom: 20px;
+    }
+
+    .metric-card h4 {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .metric-card h4 {
+        font-size: 1.25rem;
+    }
+
+    .metric-card p {
+        font-size: 0.75rem;
+    }
+}

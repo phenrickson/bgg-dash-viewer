@@ -1,4 +1,4 @@
-.PHONY: help install format lint type-check test run clean all docker-build docker-run docker-test docker-clean
+.PHONY: help install format lint type-check test app clean all build up down
 
 # Default target
 help:
@@ -8,13 +8,12 @@ help:
 	@echo "  lint         - Run ruff linter"
 	@echo "  type-check   - Run mypy type checker"
 	@echo "  test         - Run pytest tests"
-	@echo "  app          - Run the Dash application"
+	@echo "  app          - Run the Dash application locally"
 	@echo "  clean        - Clean up cache files"
 	@echo "  all          - Run format, lint, type-check, and test"
-	@echo "  docker-build - Build Docker image"
-	@echo "  docker-run   - Run Docker container locally"
-	@echo "  docker-test  - Build and test Docker container"
-	@echo "  docker-clean - Clean up Docker images and containers"
+	@echo "  build        - Build Docker image"
+	@echo "  up           - Start Docker container"
+	@echo "  down         - Stop Docker container"
 
 # Install dependencies
 install:
@@ -22,16 +21,16 @@ install:
 
 # Format code
 format:
-	uv run black src/ tests/
-	uv run ruff check --fix src/ tests/
+	uv run black dash_app.py src/ tests/
+	uv run ruff check --fix dash_app.py src/ tests/
 
 # Lint code
 lint:
-	uv run ruff check src/ tests/
+	uv run ruff check dash_app.py src/ tests/
 
 # Type check
 type-check:
-	uv run mypy src/
+	uv run mypy dash_app.py src/
 
 # Run tests
 test:
@@ -39,7 +38,7 @@ test:
 
 # Run the application
 app:
-	uv run -m src.app
+	uv run python dash_app.py
 
 # Clean cache files
 clean:
@@ -53,16 +52,24 @@ clean:
 all: format lint type-check test
 
 # Docker commands
-docker-build:
+build:
 	docker build -t bgg-dash-viewer .
 
-docker-run:
-	docker run -p 8080:8080 --env-file .env bgg-dash-viewer
+up:
+	@docker run -d --name bgg-dash-viewer -p 8080:8080 --env-file .env \
+		-v "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
+		-e GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json \
+		bgg-dash-viewer
+	@echo ""
+	@echo "Container started! Access the app at:"
+	@echo "  Landing page:  http://localhost:8080/"
+	@echo "  Game Search:   http://localhost:8080/app/game-search"
+	@echo "  Predictions:   http://localhost:8080/app/upcoming-predictions"
+	@echo "  New Games:     http://localhost:8080/app/new-games"
+	@echo "  Game Ratings:  http://localhost:8080/app/game-ratings"
+	@echo ""
+	@echo "Stop with: make down"
 
-docker-test: docker-build
-	@echo "Testing Docker build..."
-	docker run --rm bgg-dash-viewer python -c "import src.app; print('Docker build successful!')"
-
-docker-clean:
-	docker rmi bgg-dash-viewer 2>/dev/null || true
-	docker system prune -f
+down:
+	-docker stop bgg-dash-viewer
+	@echo "Container stopped."

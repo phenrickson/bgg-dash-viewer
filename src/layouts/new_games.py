@@ -24,12 +24,9 @@ def create_new_games_layout() -> html.Div:
             dbc.Container(
                 [
                     # Page header
-                    html.H1("New Games Added", className="mb-2"),
-                    html.P("Monitoring new games added to the warehouse", className="text-muted mb-1"),
-                    html.P(
-                        f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} UTC",
-                        className="text-muted mb-4",
-                        style={"fontSize": "0.9rem"}
+                    create_page_header(
+                        "New Games Added",
+                        subtitle="Monitoring new games added to the warehouse",
                     ),
 
                     # Time range filter buttons
@@ -77,7 +74,8 @@ def create_new_games_layout() -> html.Div:
                     # Results container
                     html.Div(id="new-games-results-container"),
                 ],
-                className="mb-5",
+                fluid=True,
+                className="py-4 px-4",
             ),
             create_footer(),
         ],
