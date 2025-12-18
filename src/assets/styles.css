@@ -6,6 +6,8 @@
 
 body {
     font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #0f172a 100%) !important;
+    background-attachment: fixed;
 }
 
 /* Make sure footer stays at the bottom */
@@ -17,8 +19,34 @@ body {
    Header Styles
    ========================================================================== */
 
-.navbar-brand {
+.navbar {
+    background: linear-gradient(90deg, #1a1a2e 0%, #16213e 100%) !important;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.navbar-brand,
+.navbar-brand * {
     font-weight: 700;
+    color: #94a3b8 !important;
+}
+
+.navbar .navbar-brand i,
+.navbar-brand i.fas,
+.navbar-brand i.fa-dice-d20 {
+    color: #6366f1 !important;
+}
+
+.nav-link {
+    color: #94a3b8 !important;
+    transition: color 0.2s ease;
+}
+
+.nav-link:hover {
+    color: #f1f5f9 !important;
+}
+
+.nav-link.active {
+    color: #6366f1 !important;
 }
 
 /* ==========================================================================
@@ -32,7 +60,7 @@ body {
 
 /* Consistent panel card styling for main layout sections */
 .panel-card {
-    background-color: var(--bs-card-bg, var(--bs-gray-800)) !important;
+    background-color: transparent !important;
     border: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.1)) !important;
 }
 

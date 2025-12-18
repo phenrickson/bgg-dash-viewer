@@ -19,7 +19,7 @@ def create_header() -> html.Div:
                             # Use row and col to control vertical alignment of logo / brand
                             dbc.Row(
                                 [
-                                    dbc.Col(html.I(className="fas fa-dice-d20 fa-2x me-2")),
+                                    dbc.Col(html.I(className="fas fa-dice-d20 fa-2x me-2", style={"color": "#6366f1"})),
                                     dbc.Col(
                                         dbc.NavbarBrand(
                                             "Board Game Data Explorer", className="ms-2 fs-2"
@@ -37,10 +37,10 @@ def create_header() -> html.Div:
                             dbc.Nav(
                                 [
                                     dbc.NavItem(dbc.NavLink("Home", href="/")),
-                                    dbc.NavItem(dbc.NavLink("Game Search", href="/game-search")),
-                                    dbc.NavItem(dbc.NavLink("New Games", href="/new-games")),
-                                    dbc.NavItem(dbc.NavLink("Upcoming Predictions", href="/upcoming-predictions")),
-                                    dbc.NavItem(dbc.NavLink("BGG Ratings", href="/dashboard")),
+                                    dbc.NavItem(dbc.NavLink("Game Search", href="/app/game-search")),
+                                    dbc.NavItem(dbc.NavLink("New Games", href="/app/new-games")),
+                                    dbc.NavItem(dbc.NavLink("Predictions", href="/app/upcoming-predictions")),
+                                    dbc.NavItem(dbc.NavLink("BGG Ratings", href="/app/dashboard")),
                                 ],
                                 className="ms-auto",
                                 navbar=True,

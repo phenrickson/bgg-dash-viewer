@@ -10,6 +10,7 @@ from flask_caching import Cache
 
 from .config import get_app_config
 from .theme import VIZRO_BOOTSTRAP
+from .landing import landing_bp
 
 # Configure logging
 logging.basicConfig(
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 app_config = get_app_config()
 
 # Initialize Dash app with Vizro Bootstrap theme
+# Mount Dash at /app/ so Flask can serve the landing page at /
 app = dash.Dash(
     __name__,
     external_stylesheets=[VIZRO_BOOTSTRAP, dbc.icons.FONT_AWESOME],
@@ -29,6 +31,7 @@ app = dash.Dash(
         {"name": "viewport", "content": "width=device-width, initial-scale=1"},
     ],
     suppress_callback_exceptions=True,
+    url_base_pathname="/app/",
 )
 
 # Add clientside callback to set dark mode by default
@@ -47,7 +50,7 @@ app.clientside_callback(
 app.clientside_callback(
     """
     function(pathname) {
-        if (pathname === "/game-search") {
+        if (pathname === "/app/game-search") {
             return "load";
         }
         return "init";
@@ -69,6 +72,24 @@ cache = Cache(
         "CACHE_DEFAULT_TIMEOUT": app_config["cache_timeout"],
     },
 )
+
+# Register Flask landing page blueprint
+app.server.register_blueprint(landing_bp)
+
+
+# Serve Flask landing page at root instead of Dash
+@app.server.route("/")
+def index():
+    """Serve the landing page."""
+    from flask import render_template
+    from .landing import FEATURES, REPORTS, MONITORING
+
+    return render_template(
+        "landing.html",
+        features=FEATURES,
+        reports=REPORTS,
+        monitoring=MONITORING,
+    )
 
 # Define app layout with URL routing
 app.layout = html.Div(
@@ -104,15 +125,16 @@ def display_page(pathname: str) -> Any:
 
     logger.info(f"Routing to: {pathname}")
 
-    if pathname == "/game-search":
+    # Routes are now under /app/ prefix
+    if pathname == "/app/game-search":
         return create_game_search_layout()
-    elif pathname == "/dashboard":
+    elif pathname == "/app/dashboard":
         return create_dashboard_layout()
-    elif pathname == "/new-games":
+    elif pathname == "/app/new-games":
         return create_new_games_layout()
-    elif pathname == "/upcoming-predictions":
+    elif pathname == "/app/upcoming-predictions":
         return create_upcoming_predictions_layout()
-    elif pathname and pathname.startswith("/game/"):
+    elif pathname and pathname.startswith("/app/game/"):
         try:
             game_id = int(pathname.split("/")[-1])
             return create_game_details_layout(game_id)
@@ -125,7 +147,8 @@ def display_page(pathname: str) -> Any:
                 ]
             )
     else:
-        return create_home_layout()
+        # Default to game search as the main Dash page
+        return create_game_search_layout()
 
 
 # Import and register callbacks when module is loaded

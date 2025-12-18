@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Board Game Data Explorer</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Custom Landing Page Styles -->
+    <link href="{{ url_for('landing.static', filename='landing.css') }}" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <nav class="navbar navbar-dark">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-dice-d20 me-2"></i>BGG Data Explorer
+            </a>
+            <div class="d-flex align-items-center">
+                <a href="https://boardgamegeek.com" target="_blank" class="text-light text-decoration-none">
+                    <small>Powered by BoardGameGeek</small>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container py-5">
+        <!-- Page Title -->
+        <h1 class="text-center mb-5">Board Game Data Explorer</h1>
+
+        <!-- About Section -->
+        <div class="about-section text-center mb-5">
+            <p class="lead">
+                Explore, analyze, and discover board games using data from BoardGameGeek.
+                Search through thousands of games, view predictions, and access detailed analytics.
+            </p>
+        </div>
+
+        <!-- Features Section -->
+        <section class="module-section mb-5">
+            <h2 class="section-title">Features</h2>
+            <div class="section-container">
+                <div class="row g-4">
+                    {% for module in features %}
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        {% if module.route %}
+                        <a href="{{ module.route }}" class="module-card-link">
+                        {% else %}
+                        <div class="module-card-link disabled">
+                        {% endif %}
+                            <div class="module-card {% if not module.route %}coming-soon{% endif %}">
+                                <div class="module-icon" style="color: {{ module.color }}">
+                                    <i class="{{ module.icon }}"></i>
+                                </div>
+                                <h5 class="module-title">{{ module.title }}</h5>
+                                <p class="module-description">{{ module.description }}</p>
+                                {% if not module.route %}
+                                <span class="coming-soon-badge">Coming Soon</span>
+                                {% endif %}
+                            </div>
+                        {% if module.route %}
+                        </a>
+                        {% else %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <!-- Reports Section -->
+        <section class="module-section mb-5">
+            <h2 class="section-title">Reports</h2>
+            <div class="section-container">
+                <div class="row g-4">
+                    {% for module in reports %}
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        {% if module.route %}
+                        <a href="{{ module.route }}" class="module-card-link">
+                        {% else %}
+                        <div class="module-card-link disabled">
+                        {% endif %}
+                            <div class="module-card {% if not module.route %}coming-soon{% endif %}">
+                                <div class="module-icon" style="color: {{ module.color }}">
+                                    <i class="{{ module.icon }}"></i>
+                                </div>
+                                <h5 class="module-title">{{ module.title }}</h5>
+                                <p class="module-description">{{ module.description }}</p>
+                                {% if not module.route %}
+                                <span class="coming-soon-badge">Coming Soon</span>
+                                {% endif %}
+                            </div>
+                        {% if module.route %}
+                        </a>
+                        {% else %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <!-- Monitoring Section -->
+        <section class="module-section mb-5">
+            <h2 class="section-title">Monitoring</h2>
+            <div class="section-container">
+                <div class="row g-4">
+                    {% for module in monitoring %}
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        {% if module.route %}
+                        <a href="{{ module.route }}" class="module-card-link">
+                        {% else %}
+                        <div class="module-card-link disabled">
+                        {% endif %}
+                            <div class="module-card {% if not module.route %}coming-soon{% endif %}">
+                                <div class="module-icon" style="color: {{ module.color }}">
+                                    <i class="{{ module.icon }}"></i>
+                                </div>
+                                <h5 class="module-title">{{ module.title }}</h5>
+                                <p class="module-description">{{ module.description }}</p>
+                                {% if not module.route %}
+                                <span class="coming-soon-badge">Coming Soon</span>
+                                {% endif %}
+                            </div>
+                        {% if module.route %}
+                        </a>
+                        {% else %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer mt-auto py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-0 text-muted">
+                        <strong>Author:</strong> Phil Henrickson
+                    </p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <a href="https://github.com/phenrickson" target="_blank" class="text-muted me-3">
+                        <i class="fab fa-github"></i> GitHub
+                    </a>
+                    <a href="https://boardgamegeek.com" target="_blank" class="text-muted">
+                        <i class="fas fa-external-link-alt"></i> BoardGameGeek
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS (optional, for interactive components) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

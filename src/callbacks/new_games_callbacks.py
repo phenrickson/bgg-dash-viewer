@@ -222,7 +222,7 @@ def register_new_games_callbacks(app: dash.Dash, cache: Cache) -> None:
             # Create summary stats section
             time_range_text = f"Last {days_back} Day" + ("s" if days_back > 1 else "")
             stats_section = html.Div([
-                html.H3(f"New Games Activity ({time_range_text})", className="mb-3"),
+                html.H4(f"New Games Activity ({time_range_text})", className="mb-3"),
                 dbc.Row([
                     dbc.Col([
                         html.P("New Games Fetched", className="text-muted mb-1"),
@@ -232,16 +232,32 @@ def register_new_games_callbacks(app: dash.Dash, cache: Cache) -> None:
                         html.P("New Games Processed", className="text-muted mb-1"),
                         html.H2(f"{new_games_processed:,}", className="mb-0"),
                     ], md=6),
-                ], className="mb-4"),
+                ]),
             ])
 
-            # Combine all components
+            # Combine all components in cards
             results = html.Div([
-                stats_section,
-                html.H3("Daily New Games Fetched", className="mb-3 mt-4"),
-                dcc.Graph(figure=fig, config={'displayModeBar': False}),
-                html.H3("Latest New Games Added", className="mb-3 mt-4"),
-                grid,
+                # Stats card
+                dbc.Card(
+                    dbc.CardBody(stats_section),
+                    className="mb-4 panel-card",
+                ),
+                # Chart card
+                dbc.Card(
+                    dbc.CardBody([
+                        html.H4("Daily New Games Fetched", className="mb-3"),
+                        dcc.Graph(figure=fig, config={'displayModeBar': False}),
+                    ]),
+                    className="mb-4 panel-card",
+                ),
+                # Table card
+                dbc.Card(
+                    dbc.CardBody([
+                        html.H4("Latest New Games Added", className="mb-3"),
+                        grid,
+                    ]),
+                    className="panel-card",
+                ),
             ])
 
             return results, ""
