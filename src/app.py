@@ -1,8 +1,7 @@
 """Main application module for the Board Game Data Explorer."""
 
-import os
 import logging
-from typing import Dict, Any
+from typing import Any
 
 import dash
 from dash import html, dcc
@@ -10,6 +9,7 @@ import dash_bootstrap_components as dbc
 from flask_caching import Cache
 
 from .config import get_app_config
+from .theme import VIZRO_BOOTSTRAP
 
 # Configure logging
 logging.basicConfig(
@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 # Get application configuration
 app_config = get_app_config()
 
-# Initialize Dash app
+# Initialize Dash app with Vizro Bootstrap theme
 app = dash.Dash(
     __name__,
-    external_stylesheets=[dbc.themes.CERULEAN, dbc.icons.FONT_AWESOME],
+    external_stylesheets=[VIZRO_BOOTSTRAP, dbc.icons.FONT_AWESOME],
     meta_tags=[
         {"name": "viewport", "content": "width=device-width, initial-scale=1"},
     ],

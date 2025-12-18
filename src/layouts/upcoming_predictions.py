@@ -67,13 +67,16 @@ def create_upcoming_predictions_layout():
                         active_tab="predictions-table",
                         className="mb-3",
                     ),
-                    dbc.Spinner(
-                        html.Div(id="predictions-loading"),
-                        color="primary",
-                        type="border",
+                    dcc.Loading(
+                        id="predictions-table-loading",
+                        type="default",
+                        children=html.Div(id="predictions-table-content"),
                     ),
-                    html.Div(id="predictions-table-content"),
-                    html.Div(id="bigquery-jobs-content"),
+                    dcc.Loading(
+                        id="bigquery-jobs-loading",
+                        type="default",
+                        children=html.Div(id="bigquery-jobs-content"),
+                    ),
                     # Hidden stores
                     dcc.Store(id="predictions-jobs-store"),
                     dcc.Store(id="selected-job-predictions-store"),

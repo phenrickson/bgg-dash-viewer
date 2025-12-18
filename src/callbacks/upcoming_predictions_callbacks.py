@@ -1,18 +1,26 @@
 """Callbacks for the upcoming predictions page."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
+import dash_ag_grid as dag
 import pandas as pd
-import plotly.express as px
-from dash import Input, Output, State, dash_table, dcc, html
+from dash import Input, Output, State, dcc, html
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 
 from ..data.bigquery_client import BigQueryClient
+from ..components.ag_grid_config import (
+    get_default_grid_options,
+    get_default_column_def,
+    get_grid_style,
+    get_grid_class_name,
+    get_predictions_column_defs,
+    get_jobs_column_defs,
+)
 
 # Lazy-loaded BigQuery client
-_bq_client: Optional[BigQueryClient] = None
+_bq_client: BigQueryClient | None = None
 
 
 def get_bq_client() -> BigQueryClient:
@@ -36,7 +44,7 @@ def register_upcoming_predictions_callbacks(app, cache):
     """
 
     @cache.memoize(timeout=300)  # Cache for 5 minutes
-    def _load_prediction_jobs_cached() -> Tuple[List[Dict], List[Dict], str]:
+    def _load_prediction_jobs_cached() -> tuple[list[dict], list[dict], str]:
         """Cached helper to load available prediction jobs from BigQuery.
 
         Returns:
@@ -78,7 +86,7 @@ def register_upcoming_predictions_callbacks(app, cache):
         ],
         [Input("url", "pathname"), Input("refresh-trigger-store", "data")],
     )
-    def load_prediction_jobs(pathname: str, refresh_trigger: int) -> Tuple[List[Dict], List[Dict], str]:
+    def load_prediction_jobs(pathname: str, refresh_trigger: int) -> tuple[list[dict], list[dict], str]:
         """Load available prediction jobs from BigQuery.
 
         Args:
@@ -100,7 +108,7 @@ def register_upcoming_predictions_callbacks(app, cache):
         [State("predictions-jobs-store", "data")],
     )
     def update_job_details(
-        selected_job_id: Optional[str], jobs_data: List[Dict]
+        selected_job_id: str | None, jobs_data: list[dict]
     ) -> html.Div:
         """Update the selected job details display.
 
@@ -141,7 +149,7 @@ def register_upcoming_predictions_callbacks(app, cache):
         )
 
     @cache.memoize(timeout=600)  # Cache for 10 minutes
-    def _load_predictions_for_job_cached(selected_job_id: str) -> List[Dict]:
+    def _load_predictions_for_job_cached(selected_job_id: str) -> list[dict]:
         """Cached helper function to load predictions."""
         try:
             client = get_bq_client()
@@ -165,7 +173,7 @@ def register_upcoming_predictions_callbacks(app, cache):
         Output("selected-job-predictions-store", "data"),
         [Input("prediction-job-dropdown", "value")],
     )
-    def load_predictions_for_job(selected_job_id: Optional[str]) -> List[Dict]:
+    def load_predictions_for_job(selected_job_id: str | None) -> list[dict]:
         """Load predictions for the selected job.
 
         Args:
@@ -183,7 +191,7 @@ def register_upcoming_predictions_callbacks(app, cache):
         Output("predictions-table-content", "children"),
         [Input("selected-job-predictions-store", "data")],
     )
-    def render_predictions_table_tab(predictions_data: List[Dict]) -> html.Div:
+    def render_predictions_table_tab(predictions_data: list[dict]) -> html.Div:
         """Render the predictions table tab.
 
         Args:
@@ -250,8 +258,8 @@ def register_upcoming_predictions_callbacks(app, cache):
         [State("selected-job-predictions-store", "data")],
     )
     def update_predictions_table(
-        selected_year: Optional[str], predictions_data: List[Dict]
-    ) -> Tuple[html.Div, html.Div]:
+        selected_year: str | None, predictions_data: list[dict]
+    ) -> tuple[html.Div, html.Div]:
         """Update predictions table and stats based on selected year.
 
         Args:
@@ -340,74 +348,21 @@ def register_upcoming_predictions_callbacks(app, cache):
             "predicted_users_rated",
         ]
 
-        # Create data table
-        data_table = dash_table.DataTable(
-            data=filtered_df[display_columns].to_dict("records"),
-            columns=[
-                {"name": "Year", "id": "year_published", "type": "numeric"},
-                {"name": "Game ID", "id": "game_id", "type": "numeric"},
-                {"name": "Name", "id": "name_link", "presentation": "markdown"},
-                {
-                    "name": "Geek Rating",
-                    "id": "predicted_geek_rating",
-                    "type": "numeric",
-                    "format": {"specifier": ".3f"},
-                },
-                {
-                    "name": "Hurdle Prob",
-                    "id": "predicted_hurdle_prob",
-                    "type": "numeric",
-                    "format": {"specifier": ".3f"},
-                },
-                {
-                    "name": "Complexity",
-                    "id": "predicted_complexity",
-                    "type": "numeric",
-                    "format": {"specifier": ".2f"},
-                },
-                {
-                    "name": "Rating",
-                    "id": "predicted_rating",
-                    "type": "numeric",
-                    "format": {"specifier": ".2f"},
-                },
-                {
-                    "name": "Users Rated",
-                    "id": "predicted_users_rated",
-                    "type": "numeric",
-                    "format": {"specifier": ",.0f"},
-                },
-            ],
-            style_table={"overflowX": "auto"},
-            style_cell={
-                "textAlign": "left",
-                "padding": "12px",
-                "fontSize": "14px",
-                "fontFamily": "system-ui, -apple-system, sans-serif",
-            },
-            style_header={
-                "fontWeight": "600",
-                "borderBottom": "2px solid #dee2e6",
-            },
-            style_data={
-                "borderBottom": "1px solid #dee2e6",
-            },
-            style_data_conditional=[
-                {
-                    "if": {"column_id": "name_link"},
-                    "fontWeight": "500",
-                    "maxWidth": "300px",
-                    "overflow": "hidden",
-                    "textOverflow": "ellipsis",
-                }
-            ],
-            page_size=100,
-            page_action="native",
-            sort_action="native",
-            filter_action="native",
+        # Create AG Grid with Vizro theming
+        grid_options = get_default_grid_options()
+        grid_options["paginationPageSize"] = 100
+
+        data_grid = dag.AgGrid(
+            id="predictions-table",
+            rowData=filtered_df[display_columns].to_dict("records"),
+            columnDefs=get_predictions_column_defs(),
+            defaultColDef=get_default_column_def(),
+            dashGridOptions=grid_options,
+            className=get_grid_class_name(),
+            style=get_grid_style("600px"),
         )
 
-        return stats_cards, data_table
+        return stats_cards, data_grid
 
 
     @app.callback(
@@ -417,7 +372,7 @@ def register_upcoming_predictions_callbacks(app, cache):
         ],
         [Input("predictions-tabs", "active_tab")],
     )
-    def toggle_tab_content(active_tab: str) -> Tuple[Dict, Dict]:
+    def toggle_tab_content(active_tab: str) -> tuple[dict, dict]:
         """Show/hide content based on active tab.
 
         Args:
@@ -435,7 +390,7 @@ def register_upcoming_predictions_callbacks(app, cache):
         Output("bigquery-jobs-content", "children"),
         [Input("predictions-jobs-store", "data")],
     )
-    def render_bigquery_jobs_tab(jobs_data: List[Dict]) -> html.Div:
+    def render_bigquery_jobs_tab(jobs_data: list[dict]) -> html.Div:
         """Render the BigQuery jobs tab.
 
         Args:
@@ -538,56 +493,18 @@ def register_upcoming_predictions_callbacks(app, cache):
             "users_rated_experiment",
         ]
 
-        jobs_table = dash_table.DataTable(
-            data=df[display_columns].to_dict("records"),
-            columns=[
-                {"name": "Job ID", "id": "job_id"},
-                {
-                    "name": "# Predictions",
-                    "id": "num_predictions",
-                    "type": "numeric",
-                    "format": {"specifier": ","},
-                },
-                {"name": "Latest", "id": "latest_prediction"},
-                {"name": "Earliest", "id": "earliest_prediction"},
-                {"name": "Min Year", "id": "min_year", "type": "numeric"},
-                {"name": "Max Year", "id": "max_year", "type": "numeric"},
-                {
-                    "name": "Avg Rating",
-                    "id": "avg_predicted_rating",
-                    "type": "numeric",
-                    "format": {"specifier": ".3f"},
-                },
-                {"name": "Hurdle Model", "id": "hurdle_experiment"},
-                {"name": "Complexity Model", "id": "complexity_experiment"},
-                {"name": "Rating Model", "id": "rating_experiment"},
-                {"name": "Users Rated Model", "id": "users_rated_experiment"},
-            ],
-            style_table={"overflowX": "auto"},
-            style_cell={
-                "textAlign": "left",
-                "padding": "12px",
-                "fontSize": "14px",
-                "fontFamily": "system-ui, -apple-system, sans-serif",
-                "minWidth": "100px",
-            },
-            style_header={
-                "fontWeight": "600",
-                "borderBottom": "2px solid #dee2e6",
-            },
-            style_data={
-                "borderBottom": "1px solid #dee2e6",
-            },
-            style_cell_conditional=[
-                {
-                    "if": {"column_id": "job_id"},
-                    "fontFamily": "monospace",
-                    "fontSize": "12px",
-                }
-            ],
-            page_size=20,
-            page_action="native",
-            sort_action="native",
+        # Create AG Grid for jobs with Vizro theming
+        grid_options = get_default_grid_options()
+        grid_options["paginationPageSize"] = 20
+
+        jobs_grid = dag.AgGrid(
+            id="jobs-table",
+            rowData=df[display_columns].to_dict("records"),
+            columnDefs=get_jobs_column_defs(),
+            defaultColDef=get_default_column_def(),
+            dashGridOptions=grid_options,
+            className=get_grid_class_name(),
+            style=get_grid_style("400px"),
         )
 
         return html.Div(
@@ -595,7 +512,7 @@ def register_upcoming_predictions_callbacks(app, cache):
                 html.H4("Summary Statistics", className="mb-3"),
                 stats_cards,
                 html.H4("All Prediction Jobs", className="mt-5 mb-3"),
-                jobs_table,
+                jobs_grid,
             ]
         )
 
@@ -604,7 +521,7 @@ def register_upcoming_predictions_callbacks(app, cache):
         [Input("refresh-predictions-btn", "n_clicks")],
         [State("refresh-trigger-store", "data")],
     )
-    def refresh_data(n_clicks: Optional[int], current_trigger: int) -> int:
+    def refresh_data(n_clicks: int | None, current_trigger: int) -> int:
         """Handle refresh button click.
 
         Args:

@@ -1,7 +1,7 @@
 """Filter callbacks for the Board Game Data Explorer."""
 
 import logging
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Any
 
 import dash
 from dash import html, dcc
@@ -9,10 +9,10 @@ from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 from flask_caching import Cache
 import plotly.express as px
-import plotly.graph_objects as go
 import pandas as pd
 
 from ..data.bigquery_client import BigQueryClient
+from ..theme import PLOTLY_TEMPLATE
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
         Output("year-range-output", "children"),
         [Input("year-range-slider", "value")],
     )
-    def update_year_range_output(value: List[int]) -> str:
+    def update_year_range_output(value: list[int]) -> str:
         """Update the year range output text.
 
         Args:
@@ -52,7 +52,7 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
         Output("complexity-range-output", "children"),
         [Input("complexity-range-slider", "value")],
     )
-    def update_complexity_range_output(value: List[float]) -> str:
+    def update_complexity_range_output(value: list[float]) -> str:
         """Update the complexity range output text.
 
         Args:
@@ -93,8 +93,8 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
         [State("player-count-type-store", "children")],
     )
     def toggle_player_count_type(
-        best_clicks: Optional[int], recommended_clicks: Optional[int], current_type: str
-    ) -> Tuple[bool, bool, str]:
+        best_clicks: int | None, recommended_clicks: int | None, current_type: str
+    ) -> tuple[bool, bool, str]:
         """Toggle between Best and Recommended player count types.
 
         Args:
@@ -129,7 +129,7 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
         ],
         prevent_initial_call=True,
     )
-    def update_player_count_output(player_count: Optional[int], player_count_type: str) -> str:
+    def update_player_count_output(player_count: int | None, player_count_type: str) -> str:
         """Update the player count output text.
 
         Args:
@@ -158,14 +158,14 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
         ],
     )
     def show_reset_button(
-        publishers: Optional[List[int]],
-        designers: Optional[List[int]],
-        categories: Optional[List[int]],
-        mechanics: Optional[List[int]],
-        year_range: List[int],
-        complexity_range: List[float],
-        player_count: Optional[int],
-    ) -> Dict[str, str]:
+        publishers: list[int] | None,
+        designers: list[int] | None,
+        categories: list[int] | None,
+        mechanics: list[int] | None,
+        year_range: list[int],
+        complexity_range: list[float],
+        player_count: int | None,
+    ) -> dict[str, str]:
         """Show the reset button if any filters are applied.
 
         Args:
@@ -213,7 +213,7 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
         [Input("reset-filters-button", "n_clicks")],
         prevent_initial_call=True,
     )
-    def reset_filters(n_clicks: int) -> Tuple:
+    def reset_filters(n_clicks: int) -> tuple:
         """Reset all filters to their default values.
 
         Args:
@@ -225,7 +225,7 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
         return None, None, None, None, None, None, None, False, True, "best"
 
     @cache.memoize()
-    def get_summary_stats() -> Dict[str, Any]:
+    def get_summary_stats() -> dict[str, Any]:
         """Get summary statistics for the dashboard.
 
         Returns:
@@ -238,7 +238,7 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
         Output("summary-stats-container", "children"),
         [Input("refresh-stats-button", "n_clicks")],
     )
-    def update_summary_stats(n_clicks: Optional[int]) -> html.Div:
+    def update_summary_stats(n_clicks: int | None) -> html.Div:
         """Update the summary statistics.
 
         Args:
@@ -299,7 +299,7 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
             y="game_count",
             title="Geek Rating Distribution",
             labels={"rating_bin": "Geek Rating", "game_count": "Number of Games"},
-            template="plotly_dark",
+            template=PLOTLY_TEMPLATE,
         )
         rating_fig.update_layout(
             xaxis_title="Rating",
@@ -319,7 +319,7 @@ def register_filter_callbacks(app: dash.Dash, cache: Cache) -> None:
             y="game_count",
             title="Games Published by Year",
             labels={"year_published": "Year", "game_count": "Number of Games"},
-            template="plotly_dark",
+            template=PLOTLY_TEMPLATE,
         )
         year_fig.update_layout(
             xaxis_title="Year",

@@ -90,5 +90,6 @@ def create_footer() -> html.Footer:
             fluid=True,
             className="py-3",
         ),
-        className="mt-auto bg-light",
+        className="mt-auto",
+        style={"backgroundColor": "var(--bs-secondary-bg)"},
     )

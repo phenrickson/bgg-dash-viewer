@@ -58,22 +58,29 @@ def create_header() -> html.Div:
     )
 
 
-def create_page_header(title: str, subtitle: str = None) -> html.Div:
-    """Create a page header with title and optional subtitle.
+def create_page_header(
+    title: str,
+    subtitle: str = None,
+    show_border: bool = True,
+) -> html.Div:
+    """Create a standardized page header with title and optional subtitle.
 
     Args:
-        title: Page title
-        subtitle: Optional page subtitle
+        title: Page title.
+        subtitle: Optional page subtitle.
+        show_border: Whether to show bottom border (default True).
 
     Returns:
-        Page header component
+        Page header component.
     """
-    header_content = [html.H1(title, className="display-4")]
+    header_content = [html.H1(title, className="display-5 mb-2")]
 
     if subtitle:
-        header_content.append(html.P(subtitle, className="lead"))
+        header_content.append(html.P(subtitle, className="lead text-muted"))
+
+    border_class = " pb-3 border-bottom" if show_border else ""
 
     return html.Div(
         header_content,
-        className="mb-4 pb-2 border-bottom",
+        className=f"mb-4{border_class}",
     )
