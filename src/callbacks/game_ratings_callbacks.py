@@ -1,4 +1,4 @@
-"""Dashboard callbacks for the Board Game Data Explorer."""
+"""Game ratings callbacks for the Board Game Data Explorer."""
 
 import logging
 from typing import Any
@@ -213,7 +213,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         Returns:
             Row containing metrics cards
         """
-        if pathname != "/dashboard":
+        if pathname != "/app/game-ratings":
             return dbc.Row([])
 
         df = get_dashboard_data()
@@ -232,7 +232,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         Returns:
             Plotly figure for rating by year
         """
-        if pathname != "/dashboard":
+        if pathname != "/app/game-ratings":
             return {}
 
         df_sample = get_prepared_dashboard_data()
@@ -660,7 +660,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         Returns:
             Plotly figure for complexity vs rating
         """
-        if pathname != "/dashboard":
+        if pathname != "/app/game-ratings":
             return {}
 
         df_sample = get_prepared_dashboard_data()
@@ -679,7 +679,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         Returns:
             Plotly figure for users by year
         """
-        if pathname != "/dashboard":
+        if pathname != "/app/game-ratings":
             return {}
 
         df_sample = get_prepared_dashboard_data()
@@ -698,7 +698,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
         Returns:
             Plotly figure for rating vs users
         """
-        if pathname != "/dashboard":
+        if pathname != "/app/game-ratings":
             return {}
 
         df_sample = get_prepared_dashboard_data()

@@ -141,7 +141,7 @@ cp .env.example .env
 
 4. Run the application:
 ```bash
-python -m src.app
+python dash_app.py
 ```
 
 ## Outstanding Tasks

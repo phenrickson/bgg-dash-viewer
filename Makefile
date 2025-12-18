@@ -39,7 +39,7 @@ test:
 
 # Run the application
 app:
-	uv run -m src.app
+	uv run python dash_app.py
 
 # Clean cache files
 clean:
@@ -61,7 +61,7 @@ docker-run:
 
 docker-test: docker-build
 	@echo "Testing Docker build..."
-	docker run --rm bgg-dash-viewer python -c "import src.app; print('Docker build successful!')"
+	docker run --rm bgg-dash-viewer python -c "import dash_app; print('Docker build successful!')"
 
 docker-clean:
 	docker rmi bgg-dash-viewer 2>/dev/null || true

@@ -97,7 +97,7 @@ def register_upcoming_predictions_callbacks(app, cache):
             Tuple of (jobs data, dropdown options, default selected job_id)
         """
         # Only load data if we're on the predictions page
-        if pathname != "/upcoming-predictions":
+        if pathname != "/app/upcoming-predictions":
             raise PreventUpdate
 
         return _load_prediction_jobs_cached()

@@ -36,11 +36,10 @@ def create_header() -> html.Div:
                         dbc.Collapse(
                             dbc.Nav(
                                 [
-                                    dbc.NavItem(dbc.NavLink("Home", href="/")),
                                     dbc.NavItem(dbc.NavLink("Game Search", href="/app/game-search")),
                                     dbc.NavItem(dbc.NavLink("New Games", href="/app/new-games")),
                                     dbc.NavItem(dbc.NavLink("Predictions", href="/app/upcoming-predictions")),
-                                    dbc.NavItem(dbc.NavLink("BGG Ratings", href="/app/dashboard")),
+                                    dbc.NavItem(dbc.NavLink("Game Ratings", href="/app/game-ratings")),
                                 ],
                                 className="ms-auto",
                                 navbar=True,

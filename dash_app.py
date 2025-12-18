@@ -1,4 +1,4 @@
-"""Main application module for the Board Game Data Explorer."""
+"""Main Dash application module for the Board Game Data Explorer."""
 
 import logging
 from typing import Any
@@ -8,9 +8,9 @@ from dash import html, dcc
 import dash_bootstrap_components as dbc
 from flask_caching import Cache
 
-from .config import get_app_config
-from .theme import VIZRO_BOOTSTRAP
-from .landing import landing_bp
+from src.config import get_app_config
+from src.theme import VIZRO_BOOTSTRAP
+from src.landing import landing_bp
 
 # Configure logging
 logging.basicConfig(
@@ -32,6 +32,7 @@ app = dash.Dash(
     ],
     suppress_callback_exceptions=True,
     url_base_pathname="/app/",
+    assets_folder="src/assets",
 )
 
 # Add clientside callback to set dark mode by default
@@ -73,6 +74,9 @@ cache = Cache(
     },
 )
 
+# Configure Flask to find templates in src/
+app.server.template_folder = "src/templates"
+
 # Register Flask landing page blueprint
 app.server.register_blueprint(landing_bp)
 
@@ -82,7 +86,7 @@ app.server.register_blueprint(landing_bp)
 def index():
     """Serve the landing page."""
     from flask import render_template
-    from .landing import FEATURES, REPORTS, MONITORING
+    from src.landing import FEATURES, REPORTS, MONITORING
 
     return render_template(
         "landing.html",
@@ -90,6 +94,7 @@ def index():
         reports=REPORTS,
         monitoring=MONITORING,
     )
+
 
 # Define app layout with URL routing
 app.layout = html.Div(
@@ -116,19 +121,19 @@ def display_page(pathname: str) -> Any:
         Page layout
     """
     # Import layouts here to avoid circular imports
-    from .layouts.home import create_home_layout
-    from .layouts.game_search import create_game_search_layout
-    from .layouts.game_details import create_game_details_layout
-    from .layouts.dashboard import create_dashboard_layout
-    from .layouts.new_games import create_new_games_layout
-    from .layouts.upcoming_predictions import create_upcoming_predictions_layout
+    from src.layouts.home import create_home_layout
+    from src.layouts.game_search import create_game_search_layout
+    from src.layouts.game_details import create_game_details_layout
+    from src.layouts.game_ratings import create_dashboard_layout
+    from src.layouts.new_games import create_new_games_layout
+    from src.layouts.upcoming_predictions import create_upcoming_predictions_layout
 
     logger.info(f"Routing to: {pathname}")
 
     # Routes are now under /app/ prefix
     if pathname == "/app/game-search":
         return create_game_search_layout()
-    elif pathname == "/app/dashboard":
+    elif pathname == "/app/game-ratings":
         return create_dashboard_layout()
     elif pathname == "/app/new-games":
         return create_new_games_layout()
@@ -152,7 +157,7 @@ def display_page(pathname: str) -> Any:
 
 
 # Import and register callbacks when module is loaded
-from .callbacks import register_callbacks
+from src.callbacks import register_callbacks
 
 register_callbacks(app, cache)
 

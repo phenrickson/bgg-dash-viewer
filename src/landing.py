@@ -53,11 +53,11 @@ REPORTS = [
         "route": "/app/new-games",
     },
     {
-        "title": "BGG Ratings",
+        "title": "Game Ratings",
         "description": "Interactive rating analytics and trends over time",
         "icon": "fas fa-chart-line",
         "color": "#06b6d4",  # cyan
-        "route": "/app/dashboard",
+        "route": "/app/game-ratings",
     },
     {
         "title": "Publishers",

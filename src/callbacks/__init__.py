@@ -19,7 +19,7 @@ def register_callbacks(app: dash.Dash, cache: Cache) -> None:
     # Import callback modules
     from .search_callbacks import register_search_callbacks
     from .filter_callbacks import register_filter_callbacks
-    from .dashboard_callbacks import register_dashboard_callbacks
+    from .game_ratings_callbacks import register_dashboard_callbacks
     from .new_games_callbacks import register_new_games_callbacks
     from .upcoming_predictions_callbacks import register_upcoming_predictions_callbacks
 

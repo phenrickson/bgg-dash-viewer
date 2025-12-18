@@ -1,4 +1,4 @@
-"""Dashboard layout for the Board Game Data Explorer."""
+"""Game ratings layout for the Board Game Data Explorer."""
 
 from dash import html, dcc
 import dash_bootstrap_components as dbc

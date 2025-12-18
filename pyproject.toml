@@ -38,7 +38,7 @@ dev = [
 ]
 
 [project.scripts]
-bgg-dash-viewer = "src.app:main"
+bgg-dash-viewer = "dash_app:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

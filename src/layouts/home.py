@@ -94,7 +94,7 @@ def create_home_layout() -> html.Div:
                                                                     dbc.Button(
                                                                         "View Ratings",
                                                                         color="primary",
-                                                                        href="/dashboard",
+                                                                        href="/app/game-ratings",
                                                                         id="refresh-stats-button",
                                                                     ),
                                                                 ]
