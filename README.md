@@ -64,15 +64,17 @@ python dash_app.py
 
 ```
 bgg-dash-viewer/
+├── assets/                # Dash static assets (CSS)
 ├── config/                # Configuration files
 │   └── bigquery.yaml      # BigQuery configuration
 ├── dash_app.py            # Main application entry point
+├── static/                # Flask static assets (landing page CSS)
+├── templates/             # Flask templates (landing page HTML)
 ├── src/                   # Source code
-│   ├── assets/            # Static assets (CSS, images)
-│   ├── components/        # Reusable Dash components
-│   ├── layouts/           # Page layouts
 │   ├── callbacks/         # Dash callbacks
-│   └── data/              # Data handling
+│   ├── components/        # Reusable Dash components
+│   ├── data/              # Data handling
+│   └── layouts/           # Page layouts
 └── tests/                 # Tests
 ```
 

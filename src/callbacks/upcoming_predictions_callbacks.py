@@ -148,6 +148,90 @@ def register_upcoming_predictions_callbacks(app, cache):
             ]
         )
 
+    @app.callback(
+        Output("predictions-summary-stats", "children"),
+        [Input("prediction-job-dropdown", "value")],
+        [State("predictions-jobs-store", "data")],
+    )
+    def update_summary_stats(
+        selected_job_id: str | None, jobs_data: list[dict]
+    ) -> html.Div:
+        """Update the summary statistics section.
+
+        Args:
+            selected_job_id: ID of selected job
+            jobs_data: List of all jobs data
+
+        Returns:
+            Div containing summary stats cards
+        """
+        if not selected_job_id or not jobs_data:
+            return html.Div(
+                "Select a prediction job to view statistics.",
+                className="text-muted text-center py-3",
+            )
+
+        # Find selected job
+        selected_job = next(
+            (job for job in jobs_data if job["job_id"] == selected_job_id), None
+        )
+
+        if not selected_job:
+            return html.Div()
+
+        # Format the details
+        latest_pred = pd.to_datetime(selected_job["latest_prediction"]).strftime(
+            "%Y-%m-%d"
+        )
+
+        return html.Div(
+            [
+                html.H4("Job Statistics", className="mb-3"),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dbc.Card(
+                                dbc.CardBody(
+                                    [
+                                        html.H6("Total Predictions", className="text-muted"),
+                                        html.H3(f"{selected_job['num_predictions']:,}"),
+                                    ]
+                                ),
+                                className="text-center",
+                            ),
+                            md=4,
+                        ),
+                        dbc.Col(
+                            dbc.Card(
+                                dbc.CardBody(
+                                    [
+                                        html.H6("Year Range", className="text-muted"),
+                                        html.H3(
+                                            f"{selected_job.get('min_year', 'N/A')} - {selected_job.get('max_year', 'N/A')}"
+                                        ),
+                                    ]
+                                ),
+                                className="text-center",
+                            ),
+                            md=4,
+                        ),
+                        dbc.Col(
+                            dbc.Card(
+                                dbc.CardBody(
+                                    [
+                                        html.H6("Latest Prediction", className="text-muted"),
+                                        html.H3(latest_pred),
+                                    ]
+                                ),
+                                className="text-center",
+                            ),
+                            md=4,
+                        ),
+                    ],
+                ),
+            ]
+        )
+
     @cache.memoize(timeout=600)  # Cache for 10 minutes
     def _load_predictions_for_job_cached(selected_job_id: str) -> list[dict]:
         """Cached helper function to load predictions."""

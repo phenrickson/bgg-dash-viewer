@@ -1,10 +1,9 @@
 """Tests for the Board Game Data Explorer application."""
 
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import dash
-from dash.testing.application_runners import import_app
 
 from dash_app import app
 
@@ -20,18 +19,17 @@ class TestApp(unittest.TestCase):
         """Test that the app initializes correctly."""
         self.assertIsInstance(self.app, dash.Dash)
         self.assertEqual(self.app.title, "Board Game Data Explorer")
-        self.assertTrue(self.app.suppress_callback_exceptions)
 
-    @patch("src.layouts.home.create_home_layout")
-    def test_display_page_home(self, mock_create_home_layout):
-        """Test that the home page is displayed correctly."""
-        mock_create_home_layout.return_value = "Home Layout"
+    @patch("src.layouts.game_search.create_game_search_layout")
+    def test_display_page_default(self, mock_create_game_search_layout):
+        """Test that the default page routes to game search."""
+        mock_create_game_search_layout.return_value = "Search Layout"
         from dash_app import display_page
 
         result = display_page("/")
 
-        mock_create_home_layout.assert_called_once()
-        self.assertEqual(result, "Home Layout")
+        mock_create_game_search_layout.assert_called_once()
+        self.assertEqual(result, "Search Layout")
 
     @patch("src.layouts.game_search.create_game_search_layout")
     def test_display_page_search(self, mock_create_game_search_layout):

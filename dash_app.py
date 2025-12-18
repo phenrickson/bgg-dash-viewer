@@ -32,7 +32,6 @@ app = dash.Dash(
     ],
     suppress_callback_exceptions=True,
     url_base_pathname="/app/",
-    assets_folder="src/assets",
 )
 
 # Add clientside callback to set dark mode by default
@@ -74,8 +73,6 @@ cache = Cache(
     },
 )
 
-# Configure Flask to find templates in src/
-app.server.template_folder = "src/templates"
 
 # Register Flask landing page blueprint
 app.server.register_blueprint(landing_bp)

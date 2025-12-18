@@ -44,7 +44,7 @@ bgg-dash-viewer = "dash_app:main"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-v --tb=short"
-pythonpath = ["src"]
+pythonpath = [".", "src"]
 
 [tool.black]
 line-length = 100

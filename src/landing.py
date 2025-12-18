@@ -4,11 +4,12 @@ from flask import Blueprint, render_template
 import os
 
 # Create blueprint with custom template and static folders
+# Paths are relative to root since templates/ and static/ are at project root
 landing_bp = Blueprint(
     "landing",
     __name__,
-    template_folder="templates",
-    static_folder="static",
+    template_folder="../templates",
+    static_folder="../static",
     static_url_path="/landing/static",
 )
 

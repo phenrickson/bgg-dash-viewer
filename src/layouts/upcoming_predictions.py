@@ -58,19 +58,8 @@ def create_upcoming_predictions_layout():
                         ),
                         className="mb-4 panel-card",
                     ),
-                    # Stats card
-                    dbc.Card(
-                        dbc.CardBody(
-                            [
-                                dcc.Loading(
-                                    id="predictions-stats-loading",
-                                    type="default",
-                                    children=html.Div(id="predictions-summary-stats"),
-                                ),
-                            ]
-                        ),
-                        className="mb-4 panel-card",
-                    ),
+                    # Hidden div for callback output (stats panel removed)
+                    html.Div(id="predictions-summary-stats", style={"display": "none"}),
                     # Tabs card
                     dbc.Card(
                         dbc.CardBody(

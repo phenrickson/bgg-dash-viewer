@@ -13,15 +13,19 @@ bgg-dash-viewer/
 ├── .python-version             # Python version specification (3.12)
 ├── README.md                   # Project documentation
 ├── pyproject.toml              # Project configuration and dependencies
-├── tasks.md                    # Outstanding tasks and future enhancements
+├── dash_app.py                 # Main Dash application entry point
+├── assets/                     # Dash static assets
+│   └── styles.css              # Custom CSS styles
+├── static/                     # Flask static assets (landing page)
+│   └── landing.css             # Landing page CSS
+├── templates/                  # Flask templates
+│   └── landing.html            # Landing page template
 ├── config/
-│   └── bigquery.yaml           # BigQuery configuration (copied from original project)
+│   └── bigquery.yaml           # BigQuery configuration
 ├── src/
 │   ├── __init__.py             # Package initialization
-│   ├── app.py                  # Main Dash application entry point
 │   ├── config.py               # Configuration handling
-│   ├── assets/                 # Static assets
-│   │   └── styles.css          # Custom CSS styles
+│   ├── landing.py              # Flask landing page blueprint
 │   ├── components/             # Reusable Dash components
 │   │   ├── __init__.py
 │   │   ├── header.py           # Header component
@@ -31,18 +35,20 @@ bgg-dash-viewer/
 │   │   ├── __init__.py
 │   │   ├── home.py             # Home page layout
 │   │   ├── game_search.py      # Game search page layout
-│   │   └── game_details.py     # Game details page layout
+│   │   ├── game_details.py     # Game details page layout
+│   │   ├── game_ratings.py     # Game ratings dashboard layout
+│   │   ├── new_games.py        # New games monitoring layout
+│   │   └── upcoming_predictions.py  # Predictions page layout
 │   ├── callbacks/              # Dash callbacks
 │   │   ├── __init__.py
 │   │   ├── search_callbacks.py # Search functionality callbacks
-│   │   └── filter_callbacks.py # Filter functionality callbacks
+│   │   └── game_ratings_callbacks.py # Game ratings callbacks
 │   └── data/                   # Data handling
 │       ├── __init__.py
 │       └── bigquery_client.py  # BigQuery client
 └── tests/                      # Tests
     ├── __init__.py
-    ├── test_app.py             # App tests
-    └── test_bigquery_client.py # BigQuery client tests
+    └── test_app.py             # App tests
 ```
 
 ## Implemented Components
