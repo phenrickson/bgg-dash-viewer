@@ -203,15 +203,16 @@ def register_new_games_callbacks(app: dash.Dash, cache: Cache) -> None:
             df_table['load_timestamp'] = pd.to_datetime(df_table['load_timestamp']).dt.strftime('%m/%d/%y %H:%M:%S')
             df_table['users_rated'] = df_table['users_rated'].fillna(0).astype(int)
 
-            # Create BGG link column as markdown
-            df_table['bgg_link'] = df_table['game_id'].apply(
-                lambda x: f'[BGG](https://boardgamegeek.com/boardgame/{x})'
+            # Create name as BGG link in markdown format
+            df_table['name'] = df_table.apply(
+                lambda row: f'[{row["name"]}](https://boardgamegeek.com/boardgame/{row["game_id"]})',
+                axis=1
             )
 
             # Create AG Grid with Vizro theming
             grid = dag.AgGrid(
                 id='new-games-table',
-                rowData=df_table[['game_id', 'bgg_link', 'name', 'year_published', 'users_rated', 'load_timestamp']].to_dict('records'),
+                rowData=df_table[['game_id', 'name', 'year_published', 'users_rated', 'load_timestamp']].to_dict('records'),
                 columnDefs=get_new_games_column_defs(),
                 defaultColDef=get_default_column_def(),
                 dashGridOptions=get_default_grid_options(),

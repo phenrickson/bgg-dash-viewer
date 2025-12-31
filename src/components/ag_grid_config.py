@@ -71,19 +71,19 @@ def get_search_results_column_defs() -> list[dict[str, Any]]:
     """
     return [
         {
+            "field": "year_published",
+            "headerName": "Year",
+            "flex": 1,
+            "minWidth": 70,
+            "filter": "agNumberColumnFilter",
+        },
+        {
             "field": "name",
             "headerName": "Name",
             "cellRenderer": "markdown",
             "flex": 3,
             "minWidth": 150,
             "filter": "agTextColumnFilter",
-        },
-        {
-            "field": "year_published",
-            "headerName": "Year",
-            "flex": 1,
-            "minWidth": 70,
-            "filter": "agNumberColumnFilter",
         },
         {
             "field": "bayes_average",
@@ -149,23 +149,16 @@ def get_new_games_column_defs() -> list[dict[str, Any]]:
     return [
         {
             "field": "game_id",
-            "headerName": "Game ID",
+            "headerName": "ID",
             "width": 100,
             "filter": "agNumberColumnFilter",
-        },
-        {
-            "field": "bgg_link",
-            "headerName": "Link",
-            "width": 80,
-            "cellRenderer": "markdown",
-            "sortable": False,
-            "filter": False,
         },
         {
             "field": "name",
             "headerName": "Name",
             "flex": 2,
             "minWidth": 200,
+            "cellRenderer": "markdown",
             "filter": "agTextColumnFilter",
         },
         {
@@ -205,7 +198,7 @@ def get_predictions_column_defs() -> list[dict[str, Any]]:
         },
         {
             "field": "game_id",
-            "headerName": "Game ID",
+            "headerName": "ID",
             "width": 100,
             "filter": "agNumberColumnFilter",
         },
@@ -218,39 +211,45 @@ def get_predictions_column_defs() -> list[dict[str, Any]]:
             "filter": "agTextColumnFilter",
         },
         {
-            "field": "predicted_geek_rating",
-            "headerName": "Geek Rating",
-            "width": 120,
-            "valueFormatter": {"function": "d3.format('.3f')(params.value)"},
-            "filter": "agNumberColumnFilter",
-        },
-        {
-            "field": "predicted_hurdle_prob",
-            "headerName": "Hurdle Prob",
-            "width": 120,
-            "valueFormatter": {"function": "d3.format('.3f')(params.value)"},
-            "filter": "agNumberColumnFilter",
-        },
-        {
-            "field": "predicted_complexity",
-            "headerName": "Complexity",
-            "width": 110,
-            "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
-            "filter": "agNumberColumnFilter",
-        },
-        {
-            "field": "predicted_rating",
-            "headerName": "Rating",
-            "width": 100,
-            "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
-            "filter": "agNumberColumnFilter",
-        },
-        {
-            "field": "predicted_users_rated",
-            "headerName": "Users Rated",
-            "width": 120,
-            "valueFormatter": {"function": "d3.format(',.0f')(params.value)"},
-            "filter": "agNumberColumnFilter",
+            "headerName": "Estimated",
+            "headerClass": "ag-header-center",
+            "children": [
+                {
+                    "field": "predicted_geek_rating",
+                    "headerName": "Geek Rating",
+                    "width": 120,
+                    "valueFormatter": {"function": "d3.format('.3f')(params.value)"},
+                    "filter": "agNumberColumnFilter",
+                },
+                {
+                    "field": "predicted_hurdle_prob",
+                    "headerName": "Hurdle Prob",
+                    "width": 120,
+                    "valueFormatter": {"function": "d3.format('.3f')(params.value)"},
+                    "filter": "agNumberColumnFilter",
+                },
+                {
+                    "field": "predicted_complexity",
+                    "headerName": "Complexity",
+                    "width": 110,
+                    "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
+                    "filter": "agNumberColumnFilter",
+                },
+                {
+                    "field": "predicted_rating",
+                    "headerName": "Rating",
+                    "width": 100,
+                    "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
+                    "filter": "agNumberColumnFilter",
+                },
+                {
+                    "field": "predicted_users_rated",
+                    "headerName": "Users Rated",
+                    "width": 120,
+                    "valueFormatter": {"function": "d3.format(',.0f')(params.value)"},
+                    "filter": "agNumberColumnFilter",
+                },
+            ],
         },
     ]
 

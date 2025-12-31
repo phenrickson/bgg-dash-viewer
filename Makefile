@@ -55,7 +55,7 @@ all: format lint type-check test
 build:
 	docker build -t bgg-dash-viewer .
 
-up:
+up: build
 	@docker run -d --name bgg-dash-viewer -p 8080:8080 --env-file .env \
 		-v "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
 		-e GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json \
@@ -72,4 +72,5 @@ up:
 
 down:
 	-docker stop bgg-dash-viewer
+	-docker rm bgg-dash-viewer
 	@echo "Container stopped."

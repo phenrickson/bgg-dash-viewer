@@ -79,15 +79,15 @@ def create_upcoming_predictions_layout():
                                     active_tab="predictions-table",
                                     className="mb-3",
                                 ),
-                                dcc.Loading(
-                                    id="predictions-table-loading",
-                                    type="default",
-                                    children=html.Div(id="predictions-table-content"),
+                                dbc.Spinner(
+                                    html.Div(id="predictions-table-content"),
+                                    color="primary",
+                                    type="border",
                                 ),
-                                dcc.Loading(
-                                    id="bigquery-jobs-loading",
-                                    type="default",
-                                    children=html.Div(id="bigquery-jobs-content"),
+                                dbc.Spinner(
+                                    html.Div(id="bigquery-jobs-content"),
+                                    color="primary",
+                                    type="border",
                                 ),
                             ]
                         ),
