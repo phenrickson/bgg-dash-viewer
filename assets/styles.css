@@ -125,6 +125,13 @@ body {
     --ag-font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
 }
 
+/* Center header groups */
+.ag-header-group-cell.ag-header-center .ag-header-group-cell-label {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+}
+
 /* Ensure AG Grid links are styled properly */
 .ag-theme-vizro a,
 .ag-theme-quartz-dark a {
