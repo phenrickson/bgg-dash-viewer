@@ -1,27 +1,18 @@
-environments:
-  test:
-    project_id: gcp-demos-411520
-    dataset: bgg_data_test
-    raw: bgg_raw_test
-    location: US
-  dev:
-    project_id: gcp-demos-411520
-    dataset: bgg_data_dev
-    raw: bgg_raw_dev
-    location: US
-  prod:
-    project_id: gcp-demos-411520
-    dataset: bgg_data_prod
-    raw: bgg_raw_prod
-    location: US
+# BigQuery Configuration for BGG Dash Viewer
+# Simplified single-project configuration
 
-# Default to dev environment unless specified
-default_environment: dev
+project:
+  id: bgg-data-warehouse
+  location: US
+
+datasets:
+  raw: raw
+  core: core
 
 storage:
   bucket: bgg-data-warehouse
 
-# Raw data tables
+# Raw data tables (in raw dataset)
 raw_tables:
   thing_ids:
     name: thing_ids
@@ -73,6 +64,7 @@ raw_tables:
         type: INTEGER
         mode: REQUIRED
 
+# Core data tables (in core dataset)
 tables:
   # Core game data
   games:
@@ -90,23 +82,23 @@ tables:
   categories:
     name: categories
     description: "Game categories"
-    
+
   mechanics:
     name: mechanics
     description: "Game mechanics"
-    
+
   families:
     name: families
     description: "Game families/series"
-    
+
   designers:
     name: designers
     description: "Game designers"
-    
+
   artists:
     name: artists
     description: "Game artists"
-    
+
   publishers:
     name: publishers
     description: "Game publishers"

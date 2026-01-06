@@ -2,7 +2,7 @@
 
 import logging
 import os
-from typing import Dict, Optional
+from typing import Dict
 
 import yaml
 from dotenv import load_dotenv
@@ -14,20 +14,12 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-def get_bigquery_config(environment: Optional[str] = None) -> Dict:
+def get_bigquery_config() -> Dict:
     """Get BigQuery configuration.
-
-    Args:
-        environment: Optional environment name (dev/test/prod). If not provided,
-                    uses ENVIRONMENT from .env file or default_environment from config.
 
     Returns:
         Dictionary containing BigQuery configuration
     """
-    # Load environment from .env if not provided
-    if not environment:
-        environment = os.getenv("ENVIRONMENT")
-
     # Get the absolute path to the config directory
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     config_path = os.path.join(base_dir, "config", "bigquery.yaml")
@@ -35,27 +27,18 @@ def get_bigquery_config(environment: Optional[str] = None) -> Dict:
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
 
-    # Get environment
-    env = environment or config.get("default_environment", "dev")
-    logger.info(f"Using environment: {env}")
-    if env not in config["environments"]:
-        raise ValueError(f"Invalid environment: {env}")
+    logger.info(f"Using project: {config['project']['id']}")
 
-    # Build config with environment-specific values
-    env_config = config["environments"][env]
+    # Build config with simplified structure
     return {
         "project": {
-            "id": env_config["project_id"],
-            "dataset": env_config["dataset"],
-            "location": env_config["location"],
+            "id": config["project"]["id"],
+            "location": config["project"]["location"],
         },
+        "datasets": config["datasets"],
         "storage": config["storage"],
-        "datasets": {
-            "raw": env_config["raw"],  # Use environment-specific raw dataset
-        },
         "tables": config["tables"],
         "raw_tables": config.get("raw_tables", {}),
-        "environments": config["environments"],  # Include environments in config
     }
 
 

@@ -1,7 +1,7 @@
 """BigQuery client for the Board Game Data Explorer."""
 
 import os
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any
 
 import pandas as pd
 from google.cloud import bigquery
@@ -13,15 +13,11 @@ from ..config import get_bigquery_config
 class BigQueryClient:
     """Client for interacting with the BGG data warehouse in BigQuery."""
 
-    def __init__(self, environment: Optional[str] = None):
-        """Initialize the BigQuery client.
-
-        Args:
-            environment: Optional environment name (dev/test/prod)
-        """
-        self.config = get_bigquery_config(environment)
+    def __init__(self):
+        """Initialize the BigQuery client."""
+        self.config = get_bigquery_config()
         self.project_id = self.config["project"]["id"]
-        self.dataset = self.config["project"]["dataset"]
+        self.dataset = self.config["datasets"]["core"]
         self.raw_dataset = self.config["datasets"]["raw"]
         self.client = self._initialize_client()
 

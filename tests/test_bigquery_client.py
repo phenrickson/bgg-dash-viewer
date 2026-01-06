@@ -20,10 +20,10 @@ class TestBigQueryClient(unittest.TestCase):
         mock_get_config.return_value = {
             "project": {
                 "id": "test-project",
-                "dataset": "test_dataset",
                 "location": "US",
             },
             "datasets": {
+                "core": "test_dataset",
                 "raw": "test_raw_dataset",
             },
             "tables": {},
