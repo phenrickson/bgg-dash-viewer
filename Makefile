@@ -55,11 +55,10 @@ all: format lint type-check test
 build:
 	docker build -t bgg-dash-viewer .
 
-up: build
-	@docker run -d --name bgg-dash-viewer -p 8080:8080 --env-file .env \
-		-v "${HOME}/.config/gcloud:/root/.config/gcloud:ro" \
-		-e GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json \
-		bgg-dash-viewer
+up:
+	@echo "Starting container..."
+	@docker rm -f bgg-dash-viewer 2>nul || docker rm -f bgg-dash-viewer 2>/dev/null || true
+	docker run -d --name bgg-dash-viewer -p 8080:8080 --env-file .env bgg-dash-viewer
 	@echo ""
 	@echo "Container started! Access the app at:"
 	@echo "  Landing page:  http://localhost:8080/"

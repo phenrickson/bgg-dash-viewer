@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  PROJECT_ID: bgg-data-warehouse
   GAR_LOCATION: us-central1
   SERVICE: bgg-dash-viewer
   REGION: us-central1

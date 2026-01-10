@@ -23,6 +23,7 @@ class BigQueryClient:
         self.project_id = self.config["project"]["id"]
         self.dataset = self.config["project"]["dataset"]
         self.raw_dataset = self.config["datasets"]["raw"]
+        self.core_dataset = self.config["datasets"]["core"]
         self.client = self._initialize_client()
 
     def _initialize_client(self) -> bigquery.Client:
@@ -51,6 +52,7 @@ class BigQueryClient:
         formatted_query = query.replace("${project_id}", self.project_id)
         formatted_query = formatted_query.replace("${dataset}", self.dataset)
         formatted_query = formatted_query.replace("${raw_dataset}", self.raw_dataset)
+        formatted_query = formatted_query.replace("${core_dataset}", self.core_dataset)
 
         # Execute query with parameters if provided
         job_config = bigquery.QueryJobConfig()
@@ -168,7 +170,7 @@ class BigQueryClient:
             publisher_ids = ", ".join(str(pid) for pid in publishers)
             joins.append(
                 f"""
-            JOIN `${{project_id}}.${{dataset}}.game_publishers` gp 
+            JOIN `${{project_id}}.${{core_dataset}}.game_publishers` gp 
                 ON g.game_id = gp.game_id AND gp.publisher_id IN ({publisher_ids})
             """
             )
@@ -176,7 +178,7 @@ class BigQueryClient:
             designer_ids = ", ".join(str(did) for did in designers)
             joins.append(
                 f"""
-            JOIN `${{project_id}}.${{dataset}}.game_designers` gd 
+            JOIN `${{project_id}}.${{core_dataset}}.game_designers` gd 
                 ON g.game_id = gd.game_id AND gd.designer_id IN ({designer_ids})
             """
             )
@@ -184,7 +186,7 @@ class BigQueryClient:
             category_ids = ", ".join(str(cid) for cid in categories)
             joins.append(
                 f"""
-            JOIN `${{project_id}}.${{dataset}}.game_categories` gc 
+            JOIN `${{project_id}}.${{core_dataset}}.game_categories` gc 
                 ON g.game_id = gc.game_id AND gc.category_id IN ({category_ids})
             """
             )
@@ -192,7 +194,7 @@ class BigQueryClient:
             mechanic_ids = ", ".join(str(mid) for mid in mechanics)
             joins.append(
                 f"""
-            JOIN `${{project_id}}.${{dataset}}.game_mechanics` gm 
+            JOIN `${{project_id}}.${{core_dataset}}.game_mechanics` gm 
                 ON g.game_id = gm.game_id AND gm.mechanic_id IN ({mechanic_ids})
             """
             )
@@ -202,14 +204,14 @@ class BigQueryClient:
         if filters:
             where_clause += " AND " + " AND ".join(filters)
 
-        # Player count filtering using best_player_counts_table
+        # Player count filtering using best_player_counts
         player_count_join = ""
         best_player_count_join = ""
         best_player_count_filter = ""
 
         if player_count is not None:
             best_player_count_join = f"""
-            JOIN `${{project_id}}.${{dataset}}.best_player_counts_table` bpc 
+            JOIN `${{project_id}}.${{dataset}}.best_player_counts` bpc 
                 ON g.game_id = bpc.game_id
             """
 
@@ -229,7 +231,7 @@ class BigQueryClient:
                 """
         elif best_player_count_only:
             best_player_count_join = f"""
-            JOIN `${{project_id}}.${{dataset}}.best_player_counts_table` bpc 
+            JOIN `${{project_id}}.${{dataset}}.best_player_counts` bpc 
                 ON g.game_id = bpc.game_id
             """
 
@@ -247,13 +249,13 @@ class BigQueryClient:
             if player_count_filters:
                 where_clause += " AND " + " AND ".join(player_count_filters)
 
-        # Always include a LEFT JOIN to best_player_counts_table to get all player count fields
+        # Always include a LEFT JOIN to best_player_counts to get all player count fields
         best_player_count_join = f"""
-        LEFT JOIN `${{project_id}}.${{dataset}}.best_player_counts_table` bpc 
+        LEFT JOIN `${{project_id}}.${{dataset}}.best_player_counts` bpc 
             ON g.game_id = bpc.game_id
         """
 
-        # Include all player count fields from best_player_counts_table
+        # Include all player count fields from best_player_counts
         player_count_fields = """
             bpc.best_player_counts,
             bpc.recommended_player_counts,
@@ -284,7 +286,7 @@ class BigQueryClient:
         WITH filtered_games AS (
             SELECT DISTINCT g.*,
                    {player_count_fields}
-            FROM `${{project_id}}.${{dataset}}.games_active_table` g
+            FROM `${{project_id}}.${{dataset}}.games_active` g
             {' '.join(joins)}
             {player_count_join}
             {best_player_count_join}
@@ -329,7 +331,7 @@ class BigQueryClient:
         # Get basic game information
         game_query = f"""
         SELECT g.*
-        FROM `${{project_id}}.${{dataset}}.games_active_table` g
+        FROM `${{project_id}}.${{dataset}}.games_active` g
         WHERE g.game_id = {game_id}
         """
         game_df = self.execute_query(game_query)
@@ -343,7 +345,7 @@ class BigQueryClient:
         categories_query = f"""
         SELECT c.category_id, c.name
         FROM `${{project_id}}.${{dataset}}.categories` c
-        JOIN `${{project_id}}.${{dataset}}.game_categories` gc ON c.category_id = gc.category_id
+        JOIN `${{project_id}}.${{core_dataset}}.game_categories` gc ON c.category_id = gc.category_id
         WHERE gc.game_id = {game_id}
         """
         game_data["categories"] = self.execute_query(categories_query).to_dict("records")
@@ -352,7 +354,7 @@ class BigQueryClient:
         mechanics_query = f"""
         SELECT m.mechanic_id, m.name
         FROM `${{project_id}}.${{dataset}}.mechanics` m
-        JOIN `${{project_id}}.${{dataset}}.game_mechanics` gm ON m.mechanic_id = gm.mechanic_id
+        JOIN `${{project_id}}.${{core_dataset}}.game_mechanics` gm ON m.mechanic_id = gm.mechanic_id
         WHERE gm.game_id = {game_id}
         """
         game_data["mechanics"] = self.execute_query(mechanics_query).to_dict("records")
@@ -361,7 +363,7 @@ class BigQueryClient:
         designers_query = f"""
         SELECT d.designer_id, d.name
         FROM `${{project_id}}.${{dataset}}.designers` d
-        JOIN `${{project_id}}.${{dataset}}.game_designers` gd ON d.designer_id = gd.designer_id
+        JOIN `${{project_id}}.${{core_dataset}}.game_designers` gd ON d.designer_id = gd.designer_id
         WHERE gd.game_id = {game_id}
         """
         game_data["designers"] = self.execute_query(designers_query).to_dict("records")
@@ -370,7 +372,7 @@ class BigQueryClient:
         publishers_query = f"""
         SELECT p.publisher_id, p.name
         FROM `${{project_id}}.${{dataset}}.publishers` p
-        JOIN `${{project_id}}.${{dataset}}.game_publishers` gp ON p.publisher_id = gp.publisher_id
+        JOIN `${{project_id}}.${{core_dataset}}.game_publishers` gp ON p.publisher_id = gp.publisher_id
         WHERE gp.game_id = {game_id}
         """
         game_data["publishers"] = self.execute_query(publishers_query).to_dict("records")
@@ -398,7 +400,7 @@ class BigQueryClient:
                  ELSE FALSE 
                END AS is_recommended_player_count
         FROM `${{project_id}}.${{dataset}}.player_count_recommendations` pcr
-        LEFT JOIN `${{project_id}}.${{dataset}}.best_player_counts_table` bpc 
+        LEFT JOIN `${{project_id}}.${{dataset}}.best_player_counts` bpc 
             ON pcr.game_id = bpc.game_id
         WHERE pcr.game_id = {game_id}
         ORDER BY pcr.player_count
@@ -423,7 +425,7 @@ class BigQueryClient:
                 COUNT(DISTINCT gp.game_id) as game_count,
                 ROW_NUMBER() OVER (ORDER BY COUNT(DISTINCT gp.game_id) DESC) as rank
             FROM `${{project_id}}.${{dataset}}.publishers` p
-            JOIN `${{project_id}}.${{dataset}}.game_publishers` gp 
+            JOIN `${{project_id}}.${{core_dataset}}.game_publishers` gp 
                 ON p.publisher_id = gp.publisher_id
             GROUP BY p.publisher_id, p.name
         )
@@ -452,7 +454,7 @@ class BigQueryClient:
                 COUNT(DISTINCT gd.game_id) as game_count,
                 ROW_NUMBER() OVER (ORDER BY COUNT(DISTINCT gd.game_id) DESC) as rank
             FROM `${{project_id}}.${{dataset}}.designers` d
-            JOIN `${{project_id}}.${{dataset}}.game_designers` gd 
+            JOIN `${{project_id}}.${{core_dataset}}.game_designers` gd 
                 ON d.designer_id = gd.designer_id
             GROUP BY d.designer_id, d.name
         )
@@ -480,7 +482,7 @@ class BigQueryClient:
                 COUNT(DISTINCT gc.game_id) as game_count,
                 ROW_NUMBER() OVER (ORDER BY COUNT(DISTINCT gc.game_id) DESC) as rank
             FROM `${{project_id}}.${{dataset}}.categories` c
-            JOIN `${{project_id}}.${{dataset}}.game_categories` gc 
+            JOIN `${{project_id}}.${{core_dataset}}.game_categories` gc 
                 ON c.category_id = gc.category_id
             GROUP BY c.category_id, c.name
         )
@@ -508,7 +510,7 @@ class BigQueryClient:
                 COUNT(DISTINCT gm.game_id) as game_count,
                 ROW_NUMBER() OVER (ORDER BY COUNT(DISTINCT gm.game_id) DESC) as rank
             FROM `${{project_id}}.${{dataset}}.mechanics` m
-            JOIN `${{project_id}}.${{dataset}}.game_mechanics` gm 
+            JOIN `${{project_id}}.${{core_dataset}}.game_mechanics` gm 
                 ON m.mechanic_id = gm.mechanic_id
             GROUP BY m.mechanic_id, m.name
         )
@@ -532,7 +534,7 @@ class BigQueryClient:
         query = """
         SELECT entity_type, entity_id, name, game_count
         FROM `${project_id}.${dataset}.filter_options_combined`
-        ORDER BY entity_type, game_count DESC, name ASC
+        ORDER BY entity_type, name ASC
         """
 
         df = self.execute_query(query)
@@ -619,14 +621,14 @@ class BigQueryClient:
         # Total games
         total_games_query = """
         SELECT COUNT(DISTINCT game_id) as total_games
-        FROM `${project_id}.${dataset}.games_active_table`;
+        FROM `${project_id}.${dataset}.games_active`;
         """
         total_games = self.execute_query(total_games_query).iloc[0]["total_games"]
 
         # Games with ratings
         rated_games_query = """
         SELECT COUNT(DISTINCT game_id) as rated_games
-        FROM `${project_id}.${dataset}.games_active_table`
+        FROM `${project_id}.${dataset}.games_active`
         WHERE bayes_average IS NOT NULL 
           AND bayes_average > 0
           AND type = 'boardgame';
@@ -649,7 +651,7 @@ class BigQueryClient:
         SELECT 
             FLOOR(bayes_average * 4) / 4 as rating_bin,
             COUNT(*) as game_count
-        FROM `${project_id}.${dataset}.games_active_table`
+        FROM `${project_id}.${dataset}.games_active`
         WHERE bayes_average IS NOT NULL AND bayes_average > 0
         GROUP BY rating_bin
         ORDER BY rating_bin
@@ -661,7 +663,7 @@ class BigQueryClient:
         SELECT 
             year_published,
             COUNT(*) as game_count
-        FROM `${project_id}.${dataset}.games_active_table`
+        FROM `${project_id}.${dataset}.games_active`
         WHERE year_published BETWEEN 1970 AND 2025
         GROUP BY year_published
         ORDER BY year_published
@@ -740,7 +742,7 @@ class BigQueryClient:
             g.image,
             ff.first_fetch_timestamp as load_timestamp
         FROM first_fetches ff
-        JOIN `${{project_id}}.${{dataset}}.games_active_table` g
+        JOIN `${{project_id}}.${{dataset}}.games_active` g
             ON ff.game_id = g.game_id
         WHERE 1=1
         {date_filter}

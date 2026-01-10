@@ -4,8 +4,8 @@
 
 This document describes the updates made to the BGG Dash Viewer to use the newly added tables in the BGG Data Warehouse:
 
-1. `best_player_counts_table`: Contains information about the best player counts for each game
-2. `games_active_table`: Contains information about active games
+1. `best_player_counts`: Contains information about the best player counts for each game
+2. `games_active`: Contains information about active games
 
 ## Changes Made
 
@@ -18,16 +18,16 @@ The `BigQueryClient` class in `src/data/bigquery_client.py` has been updated to 
    - `best_player_count_only`: Filter to only include games with best player counts
 
 2. Updated the query implementation in `get_games` to:
-   - Use the `games_active_table` instead of `games_active`
-   - Add joins to the `best_player_counts_table` to identify best player counts
+   - Use the `games_active` instead of `games_active`
+   - Add joins to the `best_player_counts` to identify best player counts
    - Add flags in the result to indicate if a game is active and if a player count is a best player count
 
 3. Updated the `get_game_details` method to:
-   - Use the `games_active_table` instead of `games_active`
+   - Use the `games_active` instead of `games_active`
    - Add a flag to indicate if a game is active
    - Add a flag to indicate if a player count is a best player count
 
-4. Updated the `get_summary_stats` method to use the `games_active_table` instead of `games_active`
+4. Updated the `get_summary_stats` method to use the `games_active` instead of `games_active`
 
 ### New Features
 

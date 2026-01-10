@@ -72,22 +72,22 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
         filter_options = get_filter_options()
 
         publisher_options = [
-            {"label": f"{p['name']} ({p['game_count']})", "value": p["publisher_id"]}
+            {"label": p['name'], "value": p["publisher_id"]}
             for p in filter_options["publishers"]
         ]
 
         designer_options = [
-            {"label": f"{d['name']} ({d['game_count']})", "value": d["designer_id"]}
+            {"label": d['name'], "value": d["designer_id"]}
             for d in filter_options["designers"]
         ]
 
         category_options = [
-            {"label": f"{c['name']} ({c['game_count']})", "value": c["category_id"]}
+            {"label": c['name'], "value": c["category_id"]}
             for c in filter_options["categories"]
         ]
 
         mechanic_options = [
-            {"label": f"{m['name']} ({m['game_count']})", "value": m["mechanic_id"]}
+            {"label": m['name'], "value": m["mechanic_id"]}
             for m in filter_options["mechanics"]
         ]
 
