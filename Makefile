@@ -64,6 +64,7 @@ up:
 	@echo "  Landing page:  http://localhost:8080/"
 	@echo "  Game Search:   http://localhost:8080/app/game-search"
 	@echo "  Predictions:   http://localhost:8080/app/upcoming-predictions"
+	@echo "  Experiments:   http://localhost:8080/app/experiments"
 	@echo "  New Games:     http://localhost:8080/app/new-games"
 	@echo "  Game Ratings:  http://localhost:8080/app/game-ratings"
 	@echo ""

@@ -4,7 +4,7 @@ from datetime import datetime
 
 import dash_ag_grid as dag
 import pandas as pd
-from dash import Input, Output, State, html
+from dash import Input, Output, State, dcc, html
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 
@@ -76,10 +76,8 @@ def register_upcoming_predictions_callbacks(app, cache):
     @app.callback(
         [
             Output("predictions-data-store", "data"),
-            Output("predictions-summary-stats", "children"),
-            Output("predictions-model-details", "children"),
-            Output("year-filter-dropdown", "options"),
-            Output("year-filter-dropdown", "value"),
+            Output("predictions-page-content", "children"),
+            Output("predictions-page-loading", "children"),
         ],
         [Input("url", "pathname")],
     )
@@ -90,7 +88,7 @@ def register_upcoming_predictions_callbacks(app, cache):
             pathname: URL pathname
 
         Returns:
-            Tuple of (predictions data, summary stats, model details, year options, default year)
+            Tuple of (predictions data, page content, loading indicator)
         """
         if pathname != "/app/upcoming-predictions":
             raise PreventUpdate
@@ -98,13 +96,11 @@ def register_upcoming_predictions_callbacks(app, cache):
         predictions_data, summary_stats = _load_predictions_cached()
 
         if not predictions_data:
-            return (
-                [],
-                html.Span("No predictions available."),
-                html.Span("No model information available."),
-                [],
-                None,
+            content = html.Div(
+                "No predictions available.",
+                className="text-muted text-center py-4",
             )
+            return [], content, ""
 
         # Build simple summary display
         total = summary_stats.get("total_predictions", 0)
@@ -127,8 +123,7 @@ def register_upcoming_predictions_callbacks(app, cache):
             ]
         )
 
-        # Build model details content - helper function for formatting
-        # Format: model_name/experiment/version (e.g., rating-v2026/catboost-rating/v1)
+        # Build model details content
         def format_model_info(prefix: str) -> str:
             name = summary_stats.get(f"{prefix}_model_name", "N/A")
             version = summary_stats.get(f"{prefix}_model_version", "")
@@ -184,14 +179,71 @@ def register_upcoming_predictions_callbacks(app, cache):
         if current_year in unique_years:
             default_year = current_year
         else:
-            # Find closest future year
             numeric_years = [int(y) for y in unique_years if y != "Other"]
             if numeric_years:
                 default_year = str(max(numeric_years))
             else:
                 default_year = unique_years[0] if unique_years else None
 
-        return predictions_data, summary_content, model_details, year_options, default_year
+        # Build the full page content
+        page_content = html.Div(
+            [
+                # Summary stats with collapsible model details
+                html.Div(
+                    [
+                        html.Div(summary_content, className="text-muted"),
+                        dbc.Accordion(
+                            [
+                                dbc.AccordionItem(
+                                    model_details,
+                                    title="Model Details",
+                                ),
+                            ],
+                            start_collapsed=True,
+                            className="mt-2",
+                            style={"maxWidth": "600px"},
+                        ),
+                    ],
+                    className="mb-4",
+                ),
+                # Year filter and predictions table
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            dbc.Row(
+                                [
+                                    dbc.Col(
+                                        [
+                                            html.Label("Publication Year", className="mb-2"),
+                                            dcc.Dropdown(
+                                                id="year-filter-dropdown",
+                                                options=year_options,
+                                                value=default_year,
+                                                placeholder="Select year...",
+                                                clearable=False,
+                                            ),
+                                        ],
+                                        width=3,
+                                    ),
+                                ],
+                                className="mb-3",
+                            ),
+                            # Statistics cards for filtered year
+                            html.Div(id="predictions-year-stats", className="mb-3"),
+                            # Data table with spinner
+                            dbc.Spinner(
+                                html.Div(id="predictions-table-content"),
+                                color="primary",
+                                type="border",
+                            ),
+                        ]
+                    ),
+                    className="panel-card",
+                ),
+            ]
+        )
+
+        return predictions_data, page_content, ""
 
     @app.callback(
         [
@@ -294,11 +346,14 @@ def register_upcoming_predictions_callbacks(app, cache):
             className="mb-4",
         )
 
-        # Create BGG links for game names
-        filtered_df["name_link"] = filtered_df.apply(
-            lambda row: f"[{row['name']}](https://boardgamegeek.com/boardgame/{row['game_id']})",
-            axis=1,
-        )
+        # Create BGG links for game names with NEW badge
+        def format_name(row):
+            link = f"[{row['name']}](https://boardgamegeek.com/boardgame/{row['game_id']})"
+            if row.get("is_new_7d"):
+                return f"🆕 {link}"
+            return link
+
+        filtered_df["name_link"] = filtered_df.apply(format_name, axis=1)
 
         # Prepare display columns
         display_columns = [

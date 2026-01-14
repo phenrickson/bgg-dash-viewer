@@ -78,6 +78,13 @@ REPORTS = [
 
 MONITORING = [
     {
+        "title": "Experiments",
+        "description": "ML experiment tracking and model comparison",
+        "icon": "fas fa-flask",
+        "color": "#8b5cf6",  # violet
+        "route": "/app/experiments",
+    },
+    {
         "title": "BigQuery",
         "description": "Database statistics and table information",
         "icon": "fas fa-database",

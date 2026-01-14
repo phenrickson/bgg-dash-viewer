@@ -889,7 +889,9 @@ class BigQueryClient:
             complexity_experiment,
             rating_experiment,
             users_rated_experiment,
-            score_ts
+            score_ts,
+            first_prediction_ts,
+            is_new_7d
         FROM `${{project_id}}.predictions.bgg_predictions`
         {where_clause}
         ORDER BY predicted_geek_rating DESC
