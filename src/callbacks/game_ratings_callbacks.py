@@ -53,7 +53,7 @@ def register_dashboard_callbacks(app: dash.Dash, cache: Cache) -> None:
             bayes_average,
             average_weight,
             users_rated
-        FROM `${project_id}.${dataset}.games_active_table`
+        FROM `${project_id}.${dataset}.games_active`
         WHERE bayes_average IS NOT NULL 
           AND bayes_average > 0
           AND average_rating IS NOT NULL
