@@ -39,6 +39,7 @@ def create_header() -> html.Div:
                                     dbc.NavItem(dbc.NavLink("Game Search", href="/app/game-search")),
                                     dbc.NavItem(dbc.NavLink("New Games", href="/app/new-games")),
                                     dbc.NavItem(dbc.NavLink("Predictions", href="/app/upcoming-predictions")),
+                                    dbc.NavItem(dbc.NavLink("Experiments", href="/app/experiments")),
                                     dbc.NavItem(dbc.NavLink("Game Ratings", href="/app/game-ratings")),
                                 ],
                                 className="ms-auto",

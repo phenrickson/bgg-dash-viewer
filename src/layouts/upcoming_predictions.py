@@ -22,59 +22,14 @@ def create_upcoming_predictions_layout():
                         "Game Predictions",
                         "ML predictions for upcoming and recent games",
                     ),
-                    # Summary stats with collapsible model details
-                    html.Div(
-                        [
-                            html.Div(
-                                id="predictions-summary-stats",
-                                className="text-muted",
-                            ),
-                            dbc.Accordion(
-                                [
-                                    dbc.AccordionItem(
-                                        html.Div(id="predictions-model-details"),
-                                        title="Model Details",
-                                    ),
-                                ],
-                                start_collapsed=True,
-                                className="mt-2",
-                                style={"maxWidth": "600px"},
-                            ),
-                        ],
-                        className="mb-4",
+                    # Loading spinner for initial data load
+                    dbc.Spinner(
+                        html.Div(id="predictions-page-loading"),
+                        color="primary",
+                        type="border",
                     ),
-                    # Year filter and predictions table
-                    dbc.Card(
-                        dbc.CardBody(
-                            [
-                                dbc.Row(
-                                    [
-                                        dbc.Col(
-                                            [
-                                                html.Label("Publication Year", className="mb-2"),
-                                                dcc.Dropdown(
-                                                    id="year-filter-dropdown",
-                                                    placeholder="Select year...",
-                                                    clearable=False,
-                                                ),
-                                            ],
-                                            width=3,
-                                        ),
-                                    ],
-                                    className="mb-3",
-                                ),
-                                # Statistics cards for filtered year
-                                html.Div(id="predictions-year-stats", className="mb-3"),
-                                # Data table
-                                dbc.Spinner(
-                                    html.Div(id="predictions-table-content"),
-                                    color="primary",
-                                    type="border",
-                                ),
-                            ]
-                        ),
-                        className="panel-card",
-                    ),
+                    # Main content container (populated after data loads)
+                    html.Div(id="predictions-page-content"),
                     # Hidden store
                     dcc.Store(id="predictions-data-store"),
                 ],

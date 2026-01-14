@@ -22,6 +22,7 @@ def register_callbacks(app: dash.Dash, cache: Cache) -> None:
     from .game_ratings_callbacks import register_dashboard_callbacks
     from .new_games_callbacks import register_new_games_callbacks
     from .upcoming_predictions_callbacks import register_upcoming_predictions_callbacks
+    from .experiments_callbacks import register_experiments_callbacks
 
     # Register callbacks from each module
     logger.info("Registering search callbacks")
@@ -38,5 +39,8 @@ def register_callbacks(app: dash.Dash, cache: Cache) -> None:
 
     logger.info("Registering upcoming predictions callbacks")
     register_upcoming_predictions_callbacks(app, cache)
+
+    logger.info("Registering experiments callbacks")
+    register_experiments_callbacks(app, cache)
 
     logger.info("All callbacks registered")
