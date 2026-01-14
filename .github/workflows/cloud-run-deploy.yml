@@ -33,9 +33,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker
-        run: |
-          gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
-          gcloud artifacts repositories create ${{ env.SERVICE }} --repository-format=docker --location=${{ env.GAR_LOCATION }} --quiet || true
+        run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
 
       - name: Build and Push Container
         run: |-
