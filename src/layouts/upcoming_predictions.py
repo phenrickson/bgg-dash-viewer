@@ -19,73 +19,55 @@ def create_upcoming_predictions_layout():
             dbc.Container(
                 [
                     create_page_header(
-                        "Upcoming Predictions",
-                        "View predictions from machine learning model scoring jobs",
+                        "Game Predictions",
+                        "ML predictions for upcoming and recent games",
                     ),
-                    # Job selection card
+                    # Summary stats with collapsible model details
+                    html.Div(
+                        [
+                            html.Div(
+                                id="predictions-summary-stats",
+                                className="text-muted",
+                            ),
+                            dbc.Accordion(
+                                [
+                                    dbc.AccordionItem(
+                                        html.Div(id="predictions-model-details"),
+                                        title="Model Details",
+                                    ),
+                                ],
+                                start_collapsed=True,
+                                className="mt-2",
+                                style={"maxWidth": "600px"},
+                            ),
+                        ],
+                        className="mb-4",
+                    ),
+                    # Year filter and predictions table
                     dbc.Card(
                         dbc.CardBody(
                             [
-                                html.H4("Select Prediction Job", className="mb-3"),
                                 dbc.Row(
                                     [
                                         dbc.Col(
                                             [
-                                                html.Label("Prediction Job:", className="me-2"),
+                                                html.Label("Publication Year", className="mb-2"),
                                                 dcc.Dropdown(
-                                                    id="prediction-job-dropdown",
-                                                    placeholder="Select a job...",
-                                                    style={"minWidth": "400px"},
+                                                    id="year-filter-dropdown",
+                                                    placeholder="Select year...",
+                                                    clearable=False,
                                                 ),
                                             ],
-                                            width="auto",
-                                            className="d-flex align-items-center",
-                                        ),
-                                        dbc.Col(
-                                            dbc.Button(
-                                                [html.I(className="fas fa-sync-alt me-2"), "Refresh"],
-                                                id="refresh-predictions-btn",
-                                                color="primary",
-                                                size="sm",
-                                            ),
-                                            width="auto",
-                                            className="d-flex align-items-center",
+                                            width=3,
                                         ),
                                     ],
-                                ),
-                                html.Div(id="selected-job-details", className="mt-2"),
-                            ]
-                        ),
-                        className="mb-4 panel-card",
-                    ),
-                    # Hidden div for callback output (stats panel removed)
-                    html.Div(id="predictions-summary-stats", style={"display": "none"}),
-                    # Tabs card
-                    dbc.Card(
-                        dbc.CardBody(
-                            [
-                                dbc.Tabs(
-                                    [
-                                        dbc.Tab(
-                                            label="Predictions",
-                                            tab_id="predictions-table",
-                                        ),
-                                        dbc.Tab(
-                                            label="Jobs History",
-                                            tab_id="bigquery-jobs",
-                                        ),
-                                    ],
-                                    id="predictions-tabs",
-                                    active_tab="predictions-table",
                                     className="mb-3",
                                 ),
+                                # Statistics cards for filtered year
+                                html.Div(id="predictions-year-stats", className="mb-3"),
+                                # Data table
                                 dbc.Spinner(
                                     html.Div(id="predictions-table-content"),
-                                    color="primary",
-                                    type="border",
-                                ),
-                                dbc.Spinner(
-                                    html.Div(id="bigquery-jobs-content"),
                                     color="primary",
                                     type="border",
                                 ),
@@ -93,10 +75,8 @@ def create_upcoming_predictions_layout():
                         ),
                         className="panel-card",
                     ),
-                    # Hidden stores
-                    dcc.Store(id="predictions-jobs-store"),
-                    dcc.Store(id="selected-job-predictions-store"),
-                    dcc.Store(id="refresh-trigger-store", data=0),
+                    # Hidden store
+                    dcc.Store(id="predictions-data-store"),
                 ],
                 fluid=True,
                 className="py-4 px-4",

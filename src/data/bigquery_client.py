@@ -841,54 +841,42 @@ class BigQueryClient:
             return dict(row_dict) if row_dict else {}
         return {}
 
-    def get_prediction_summary(self) -> pd.DataFrame:
-        """Get summary of all prediction jobs.
+    def get_latest_predictions(
+        self,
+        min_year: Optional[int] = None,
+        max_year: Optional[int] = None,
+        limit: int = 10000,
+    ) -> pd.DataFrame:
+        """Get latest predictions per game from bgg_predictions.
 
-        Returns:
-            DataFrame with job summaries including:
-            - job_id: Unique identifier for the prediction job
-            - num_predictions: Number of predictions in the job
-            - latest_prediction: Timestamp of most recent prediction
-            - earliest_prediction: Timestamp of earliest prediction
-            - min_year: Minimum publication year in predictions
-            - max_year: Maximum publication year in predictions
-            - avg_predicted_rating: Average predicted geek rating
-            - hurdle_experiment: Model used for hurdle prediction
-            - complexity_experiment: Model used for complexity prediction
-            - rating_experiment: Model used for rating prediction
-            - users_rated_experiment: Model used for users rated prediction
-        """
-        query = """
-        SELECT
-            job_id,
-            COUNT(*) as num_predictions,
-            MAX(score_ts) as latest_prediction,
-            MIN(score_ts) as earliest_prediction,
-            MIN(year_published) as min_year,
-            MAX(year_published) as max_year,
-            AVG(predicted_geek_rating) as avg_predicted_rating,
-            ANY_VALUE(hurdle_experiment) as hurdle_experiment,
-            ANY_VALUE(complexity_experiment) as complexity_experiment,
-            ANY_VALUE(rating_experiment) as rating_experiment,
-            ANY_VALUE(users_rated_experiment) as users_rated_experiment
-        FROM `${project_id}.${dataset}.predictions`
-        GROUP BY job_id
-        ORDER BY latest_prediction DESC
-        """
-        return self.execute_query(query)
-
-    def query_predictions(self, job_id: str) -> pd.DataFrame:
-        """Get all predictions for a specific job.
+        The bgg_predictions table contains the most recent prediction for each game,
+        deduplicated by game_id (latest score_ts wins).
 
         Args:
-            job_id: The job ID to get predictions for
+            min_year: Optional minimum publication year filter
+            max_year: Optional maximum publication year filter
+            limit: Maximum number of predictions to return
 
         Returns:
-            DataFrame with all predictions for the specified job
+            DataFrame with latest predictions including:
+            - game_id, name, year_published
+            - predicted_hurdle_prob, predicted_complexity, predicted_rating
+            - predicted_users_rated, predicted_geek_rating
+            - model experiment info, score_ts
         """
-        query = """
+        # Build year filter
+        year_filters = []
+        if min_year is not None:
+            year_filters.append(f"year_published >= {min_year}")
+        if max_year is not None:
+            year_filters.append(f"year_published <= {max_year}")
+
+        where_clause = ""
+        if year_filters:
+            where_clause = "WHERE " + " AND ".join(year_filters)
+
+        query = f"""
         SELECT
-            job_id,
             game_id,
             name,
             year_published,
@@ -902,8 +890,42 @@ class BigQueryClient:
             rating_experiment,
             users_rated_experiment,
             score_ts
-        FROM `${project_id}.${dataset}.predictions`
-        WHERE job_id = @job_id
+        FROM `${{project_id}}.predictions.bgg_predictions`
+        {where_clause}
         ORDER BY predicted_geek_rating DESC
+        LIMIT {limit}
         """
-        return self.execute_query(query, params={"job_id": job_id})
+        return self.execute_query(query)
+
+    def get_predictions_summary_stats(self) -> Dict[str, Any]:
+        """Get summary statistics for the predictions table.
+
+        Returns:
+            Dictionary with summary stats including total count, year range,
+            average ratings, and model info (name, version, experiment).
+        """
+        query = """
+        SELECT
+            COUNT(*) as total_predictions,
+            MIN(year_published) as min_year,
+            MAX(year_published) as max_year,
+            AVG(predicted_geek_rating) as avg_predicted_rating,
+            MAX(score_ts) as latest_score_ts,
+            ANY_VALUE(hurdle_model_name) as hurdle_model_name,
+            ANY_VALUE(hurdle_model_version) as hurdle_model_version,
+            ANY_VALUE(hurdle_experiment) as hurdle_experiment,
+            ANY_VALUE(complexity_model_name) as complexity_model_name,
+            ANY_VALUE(complexity_model_version) as complexity_model_version,
+            ANY_VALUE(complexity_experiment) as complexity_experiment,
+            ANY_VALUE(rating_model_name) as rating_model_name,
+            ANY_VALUE(rating_model_version) as rating_model_version,
+            ANY_VALUE(rating_experiment) as rating_experiment,
+            ANY_VALUE(users_rated_model_name) as users_rated_model_name,
+            ANY_VALUE(users_rated_model_version) as users_rated_model_version,
+            ANY_VALUE(users_rated_experiment) as users_rated_experiment
+        FROM `${project_id}.predictions.bgg_predictions`
+        """
+        result = self.execute_query(query)
+        if isinstance(result, pd.DataFrame) and not result.empty:
+            return result.iloc[0].to_dict()
+        return {}
