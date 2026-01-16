@@ -217,14 +217,18 @@ def create_game_similarity_layout() -> html.Div:
                             # Content area
                             dbc.Col(
                                 [
-                                    # Selected game info card
-                                    dbc.Card(
-                                        dbc.CardBody(
-                                            html.Div(id="similarity-source-game-info")
+                                    # Selected game info card with loading spinner
+                                    dcc.Loading(
+                                        dbc.Card(
+                                            dbc.CardBody(
+                                                html.Div(id="similarity-source-game-info")
+                                            ),
+                                            id="similarity-source-game-card",
+                                            className="mb-4 panel-card",
+                                            style={"display": "none"},
                                         ),
-                                        id="similarity-source-game-card",
-                                        className="mb-4 panel-card",
-                                        style={"display": "none"},
+                                        type="circle",
+                                        color="#0d6efd",
                                     ),
                                     # Loading indicator
                                     dbc.Spinner(
