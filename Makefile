@@ -3,17 +3,17 @@
 # Default target
 help:
 	@echo "Available targets:"
-	@echo "  install      - Install dependencies including dev dependencies"
-	@echo "  format       - Format code with black and sort imports with ruff"
-	@echo "  lint         - Run ruff linter"
-	@echo "  type-check   - Run mypy type checker"
-	@echo "  test         - Run pytest tests"
-	@echo "  app          - Run the Dash application locally"
-	@echo "  clean        - Clean up cache files"
-	@echo "  all          - Run format, lint, type-check, and test"
-	@echo "  build        - Build Docker image"
-	@echo "  up           - Start Docker container"
-	@echo "  down         - Stop Docker container"
+	@echo "  install         - Install dependencies including dev dependencies"
+	@echo "  format          - Format code with black and sort imports with ruff"
+	@echo "  lint            - Run ruff linter"
+	@echo "  type-check      - Run mypy type checker"
+	@echo "  test            - Run pytest tests"
+	@echo "  app             - Run the Dash application locally"
+	@echo "  clean           - Clean up cache files"
+	@echo "  all             - Run format, lint, type-check, and test"
+	@echo "  build           - Build Docker image"
+	@echo "  up              - Start Docker container"
+	@echo "  down            - Stop Docker container"
 
 # Install dependencies
 install:
@@ -55,18 +55,19 @@ all: format lint type-check test
 build:
 	docker build -t bgg-dash-viewer .
 
-up:
+up: build
 	@echo "Starting container..."
 	@docker rm -f bgg-dash-viewer 2>nul || docker rm -f bgg-dash-viewer 2>/dev/null || true
 	docker run -d --name bgg-dash-viewer -p 8080:8080 --env-file .env bgg-dash-viewer
 	@echo ""
 	@echo "Container started! Access the app at:"
-	@echo "  Landing page:  http://localhost:8080/"
-	@echo "  Game Search:   http://localhost:8080/app/game-search"
-	@echo "  Predictions:   http://localhost:8080/app/upcoming-predictions"
-	@echo "  Experiments:   http://localhost:8080/app/experiments"
-	@echo "  New Games:     http://localhost:8080/app/new-games"
-	@echo "  Game Ratings:  http://localhost:8080/app/game-ratings"
+	@echo "  Landing page:     http://localhost:8080/"
+	@echo "  Game Search:      http://localhost:8080/app/game-search"
+	@echo "  Similar Games:    http://localhost:8080/app/game-similarity"
+	@echo "  Predictions:      http://localhost:8080/app/upcoming-predictions"
+	@echo "  Experiments:      http://localhost:8080/app/experiments"
+	@echo "  New Games:        http://localhost:8080/app/new-games"
+	@echo "  Game Ratings:     http://localhost:8080/app/game-ratings"
 	@echo ""
 	@echo "Stop with: make down"
 

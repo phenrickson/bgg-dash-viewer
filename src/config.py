@@ -72,3 +72,15 @@ def get_app_config() -> Dict:
         "host": os.getenv("HOST", "0.0.0.0"),
         "cache_timeout": int(os.getenv("CACHE_TIMEOUT", "3600")),
     }
+
+
+def get_similarity_service_config() -> Dict:
+    """Get similarity search service configuration.
+
+    Returns:
+        Dictionary containing similarity service configuration
+    """
+    return {
+        "url": os.getenv("SIMILARITY_SERVICE_URL", "http://localhost:8080"),
+        "timeout": int(os.getenv("SIMILARITY_SERVICE_TIMEOUT", "30")),
+    }

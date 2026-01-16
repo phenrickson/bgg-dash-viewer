@@ -37,6 +37,7 @@ def create_header() -> html.Div:
                             dbc.Nav(
                                 [
                                     dbc.NavItem(dbc.NavLink("Game Search", href="/app/game-search")),
+                                    dbc.NavItem(dbc.NavLink("Similar Games", href="/app/game-similarity")),
                                     dbc.NavItem(dbc.NavLink("New Games", href="/app/new-games")),
                                     dbc.NavItem(dbc.NavLink("Predictions", href="/app/upcoming-predictions")),
                                     dbc.NavItem(dbc.NavLink("Experiments", href="/app/experiments")),

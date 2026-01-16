@@ -31,10 +31,10 @@ FEATURES = [
     },
     {
         "title": "Game Similarity",
-        "description": "Find similar games based on mechanics and themes",
+        "description": "Find similar games using AI-powered embeddings",
         "icon": "fas fa-dice",
         "color": "#22c55e",  # green
-        "route": None,  # Coming soon
+        "route": "/app/game-similarity",
     },
     {
         "title": "Collection Models",

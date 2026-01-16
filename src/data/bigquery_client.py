@@ -328,11 +328,32 @@ class BigQueryClient:
         Returns:
             Dictionary with game details
         """
-        # Get basic game information
+        # Get game information from games_features (includes categories, mechanics, etc. as arrays)
         game_query = f"""
-        SELECT g.*
-        FROM `${{project_id}}.${{dataset}}.games_active` g
-        WHERE g.game_id = {game_id}
+        SELECT
+            gf.game_id,
+            gf.name,
+            gf.year_published,
+            gf.bayes_average,
+            gf.average_rating,
+            gf.average_weight,
+            gf.users_rated,
+            gf.min_players,
+            gf.max_players,
+            gf.min_playtime,
+            gf.max_playtime,
+            gf.min_age,
+            gf.image,
+            gf.thumbnail,
+            gf.description,
+            gf.categories,
+            gf.mechanics,
+            gf.publishers,
+            gf.designers,
+            gf.artists,
+            gf.families
+        FROM `${{project_id}}.${{dataset}}.games_features` gf
+        WHERE gf.game_id = {game_id}
         """
         game_df = self.execute_query(game_query)
 
@@ -341,66 +362,30 @@ class BigQueryClient:
 
         game_data = game_df.iloc[0].to_dict()
 
-        # Get categories
-        categories_query = f"""
-        SELECT c.category_id, c.name
-        FROM `${{project_id}}.${{dataset}}.categories` c
-        JOIN `${{project_id}}.${{core_dataset}}.game_categories` gc ON c.category_id = gc.category_id
-        WHERE gc.game_id = {game_id}
-        """
-        game_data["categories"] = self.execute_query(categories_query).to_dict("records")
-
-        # Get mechanics
-        mechanics_query = f"""
-        SELECT m.mechanic_id, m.name
-        FROM `${{project_id}}.${{dataset}}.mechanics` m
-        JOIN `${{project_id}}.${{core_dataset}}.game_mechanics` gm ON m.mechanic_id = gm.mechanic_id
-        WHERE gm.game_id = {game_id}
-        """
-        game_data["mechanics"] = self.execute_query(mechanics_query).to_dict("records")
-
-        # Get designers
-        designers_query = f"""
-        SELECT d.designer_id, d.name
-        FROM `${{project_id}}.${{dataset}}.designers` d
-        JOIN `${{project_id}}.${{core_dataset}}.game_designers` gd ON d.designer_id = gd.designer_id
-        WHERE gd.game_id = {game_id}
-        """
-        game_data["designers"] = self.execute_query(designers_query).to_dict("records")
-
-        # Get publishers
-        publishers_query = f"""
-        SELECT p.publisher_id, p.name
-        FROM `${{project_id}}.${{dataset}}.publishers` p
-        JOIN `${{project_id}}.${{core_dataset}}.game_publishers` gp ON p.publisher_id = gp.publisher_id
-        WHERE gp.game_id = {game_id}
-        """
-        game_data["publishers"] = self.execute_query(publishers_query).to_dict("records")
-
         # Get player count recommendations
         player_counts_query = f"""
-        SELECT pcr.player_count, 
-               pcr.best_votes, 
-               pcr.recommended_votes, 
+        SELECT pcr.player_count,
+               pcr.best_votes,
+               pcr.recommended_votes,
                pcr.not_recommended_votes,
-               pcr.best_percentage, 
+               pcr.best_percentage,
                pcr.recommended_percentage,
-               CASE 
-                 WHEN bpc.game_id IS NOT NULL AND 
-                      pcr.player_count >= bpc.min_best_player_count AND 
-                      pcr.player_count <= bpc.max_best_player_count 
-                 THEN TRUE 
-                 ELSE FALSE 
+               CASE
+                 WHEN bpc.game_id IS NOT NULL AND
+                      pcr.player_count >= bpc.min_best_player_count AND
+                      pcr.player_count <= bpc.max_best_player_count
+                 THEN TRUE
+                 ELSE FALSE
                END AS is_best_player_count,
-               CASE 
-                 WHEN bpc.game_id IS NOT NULL AND 
-                      pcr.player_count >= bpc.min_recommended_player_count AND 
-                      pcr.player_count <= bpc.max_recommended_player_count 
-                 THEN TRUE 
-                 ELSE FALSE 
+               CASE
+                 WHEN bpc.game_id IS NOT NULL AND
+                      pcr.player_count >= bpc.min_recommended_player_count AND
+                      pcr.player_count <= bpc.max_recommended_player_count
+                 THEN TRUE
+                 ELSE FALSE
                END AS is_recommended_player_count
         FROM `${{project_id}}.${{dataset}}.player_count_recommendations` pcr
-        LEFT JOIN `${{project_id}}.${{dataset}}.best_player_counts` bpc 
+        LEFT JOIN `${{project_id}}.${{dataset}}.best_player_counts` bpc
             ON pcr.game_id = bpc.game_id
         WHERE pcr.game_id = {game_id}
         ORDER BY pcr.player_count
