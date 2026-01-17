@@ -7,11 +7,11 @@ from ..components.header import create_header
 from ..components.footer import create_footer
 
 
-def create_similarity_filters() -> html.Div:
-    """Create the filter components for similarity search.
+def create_similarity_filters_sidebar() -> dbc.Card:
+    """Create the filter sidebar for similarity search.
 
     Returns:
-        Filter components for the sidebar.
+        Filter sidebar card.
     """
     return dbc.Card(
         dbc.CardBody(
@@ -22,19 +22,55 @@ def create_similarity_filters() -> html.Div:
                 html.Div(
                     [
                         html.Label("Select a Game"),
-                        dcc.Dropdown(
-                            id="similarity-game-dropdown",
-                            options=[],  # Populated by callback
-                            placeholder="Search for a game...",
-                            searchable=True,
-                            clearable=True,
+                        dcc.Loading(
+                            dcc.Dropdown(
+                                id="similarity-game-dropdown",
+                                options=[],
+                                placeholder="Search top 25k games...",
+                                searchable=True,
+                                clearable=True,
+                                optionHeight=35,
+                                maxHeight=300,
+                            ),
+                            type="circle",
+                            color="#6366f1",
                         ),
-                        html.Small(
-                            "Start typing to search by game name",
-                            className="text-muted",
+                        # Extended search for obscure games
+                        html.Details(
+                            [
+                                html.Summary(
+                                    "Can't find your game?",
+                                    className="text-muted small mt-2",
+                                    style={"cursor": "pointer"},
+                                ),
+                                dbc.InputGroup(
+                                    [
+                                        dbc.Input(
+                                            id="similarity-extended-search-input",
+                                            placeholder="Search all games...",
+                                            size="sm",
+                                        ),
+                                        dbc.Button(
+                                            "Search",
+                                            id="similarity-extended-search-btn",
+                                            color="secondary",
+                                            size="sm",
+                                        ),
+                                    ],
+                                    className="mt-2",
+                                    size="sm",
+                                ),
+                                html.Div(
+                                    id="similarity-extended-search-results",
+                                    className="mt-2",
+                                    style={"display": "none"},
+                                ),
+                            ],
+                            className="mt-2",
                         ),
                     ],
                     className="mb-4",
+                    style={"overflow": "visible"},
                 ),
                 # Number of Results
                 html.Div(
@@ -44,11 +80,16 @@ def create_similarity_filters() -> html.Div:
                             id="similarity-top-k-dropdown",
                             options=[
                                 {"label": "10", "value": 10},
-                                {"label": "20", "value": 20},
-                                {"label": "30", "value": 30},
+                                {"label": "25", "value": 25},
                                 {"label": "50", "value": 50},
+                                {"label": "100", "value": 100},
+                                {"label": "500", "value": 500},
+                                {"label": "1,000", "value": 1000},
+                                {"label": "5,000", "value": 5000},
+                                {"label": "10,000", "value": 10000},
+                                {"label": "25,000", "value": 25000},
                             ],
-                            value=20,
+                            value=25,
                             clearable=False,
                         ),
                     ],
@@ -86,6 +127,28 @@ def create_similarity_filters() -> html.Div:
                                                 ],
                                                 value="cosine",
                                                 clearable=False,
+                                            ),
+                                        ],
+                                        className="mb-4",
+                                    ),
+                                    # Embedding Dimensions
+                                    html.Div(
+                                        [
+                                            html.Label("Embedding Dimensions"),
+                                            dcc.Dropdown(
+                                                id="similarity-embedding-dims-dropdown",
+                                                options=[
+                                                    {"label": "64 (Full)", "value": 64},
+                                                    {"label": "32", "value": 32},
+                                                    {"label": "16", "value": 16},
+                                                    {"label": "8", "value": 8},
+                                                ],
+                                                value=64,
+                                                clearable=False,
+                                            ),
+                                            html.Small(
+                                                "Lower dimensions = faster but less precise",
+                                                className="text-muted",
                                             ),
                                         ],
                                         className="mb-4",
@@ -137,14 +200,14 @@ def create_similarity_filters() -> html.Div:
                                                 id="similarity-min-ratings-dropdown",
                                                 options=[
                                                     {"label": "Any", "value": 0},
-                                                    {"label": "10+", "value": 10},
+                                                    {"label": "25+", "value": 25},
                                                     {"label": "50+", "value": 50},
                                                     {"label": "100+", "value": 100},
                                                     {"label": "500+", "value": 500},
                                                     {"label": "1,000+", "value": 1000},
                                                     {"label": "5,000+", "value": 5000},
                                                 ],
-                                                value=0,
+                                                value=25,
                                                 clearable=False,
                                             ),
                                         ],
@@ -167,19 +230,21 @@ def create_similarity_filters() -> html.Div:
                             id="similarity-search-button",
                             color="primary",
                             className="w-100",
-                            disabled=True,  # Enabled when a game is selected
+                            disabled=True,
                         ),
                     ],
                     className="mb-3",
                 ),
-            ]
+            ],
+            style={"overflow": "visible"},
         ),
         className="mb-4 panel-card",
+        style={"overflow": "visible"},
     )
 
 
 def create_game_similarity_layout() -> html.Div:
-    """Create the game similarity search page layout.
+    """Create the game similarity search page layout with tabs.
 
     Returns:
         Game similarity page layout.
@@ -190,85 +255,184 @@ def create_game_similarity_layout() -> html.Div:
             dbc.Container(
                 [
                     # Page title
-                    dbc.Row(
-                        [
-                            dbc.Col(
-                                [
-                                    html.H2("Game Similarity Search", className="mb-2"),
-                                    html.P(
-                                        "Find games similar to your favorites using AI-powered embeddings. "
-                                        "Select a game and discover related titles based on mechanics, "
-                                        "themes, and gameplay characteristics.",
-                                        className="text-muted mb-4",
-                                    ),
-                                ]
-                            ),
-                        ],
-                        className="mb-3",
+                    html.H2("Similar Games", className="mb-2"),
+                    html.P(
+                        "Find games similar to your favorites using AI-powered embeddings.",
+                        className="text-muted mb-4",
                     ),
-                    # Main layout: sidebar + content
-                    dbc.Row(
+                    # Tabs for different views
+                    dbc.Tabs(
                         [
-                            # Sidebar - Filters
-                            dbc.Col(
-                                create_similarity_filters(),
-                                className="filters-sidebar",
-                            ),
-                            # Content area
-                            dbc.Col(
-                                [
-                                    # Selected game info card with loading spinner
-                                    dcc.Loading(
-                                        dbc.Card(
-                                            dbc.CardBody(
-                                                html.Div(id="similarity-source-game-info")
+                            dbc.Tab(
+                                label="Game Neighbors",
+                                tab_id="tab-neighbors",
+                                children=[
+                                    html.Div(
+                                        [
+                                            # Game selector for neighbors tab
+                                            dbc.Card(
+                                                dbc.CardBody(
+                                                    [
+                                                        html.Label(
+                                                            "Select a Game",
+                                                            className="fw-bold mb-2",
+                                                        ),
+                                                        dcc.Loading(
+                                                            dcc.Dropdown(
+                                                                id="neighbors-game-dropdown",
+                                                                options=[],
+                                                                placeholder="Search top 25k games...",
+                                                                searchable=True,
+                                                                clearable=True,
+                                                                optionHeight=35,
+                                                                maxHeight=300,
+                                                            ),
+                                                            type="circle",
+                                                            color="#6366f1",
+                                                        ),
+                                                        # Extended search for obscure games
+                                                        html.Details(
+                                                            [
+                                                                html.Summary(
+                                                                    "Can't find your game?",
+                                                                    className="text-muted small mt-2",
+                                                                    style={"cursor": "pointer"},
+                                                                ),
+                                                                dbc.InputGroup(
+                                                                    [
+                                                                        dbc.Input(
+                                                                            id="neighbors-extended-search-input",
+                                                                            placeholder="Search all games...",
+                                                                            size="sm",
+                                                                        ),
+                                                                        dbc.Button(
+                                                                            "Search",
+                                                                            id="neighbors-extended-search-btn",
+                                                                            color="secondary",
+                                                                            size="sm",
+                                                                        ),
+                                                                    ],
+                                                                    className="mt-2",
+                                                                    size="sm",
+                                                                ),
+                                                                html.Div(
+                                                                    id="neighbors-extended-search-results",
+                                                                    className="mt-2",
+                                                                    style={"display": "none"},
+                                                                ),
+                                                            ],
+                                                            className="mt-2",
+                                                        ),
+                                                    ],
+                                                    style={"overflow": "visible"},
+                                                ),
+                                                className="mb-4 panel-card",
+                                                style={"overflow": "visible"},
                                             ),
-                                            id="similarity-source-game-card",
-                                            className="mb-4 panel-card",
-                                            style={"display": "none"},
-                                        ),
-                                        type="circle",
-                                        color="#0d6efd",
-                                    ),
-                                    # Loading indicator
-                                    dbc.Spinner(
-                                        html.Div(id="similarity-loading"),
-                                        color="primary",
-                                        type="border",
-                                    ),
-                                    # Results card
-                                    dbc.Card(
-                                        dbc.CardBody(
+                                            # Source game card
+                                            dcc.Loading(
+                                                html.Div(
+                                                    id="neighbors-source-card-container",
+                                                    style={"display": "none"},
+                                                ),
+                                                type="circle",
+                                                color="#0d6efd",
+                                            ),
+                                            # Neighbors cards container
                                             html.Div(
-                                                id="similarity-results-container",
+                                                id="neighbors-results-container",
                                                 children=[
                                                     html.Div(
                                                         [
                                                             html.I(
-                                                                className="fas fa-search fa-3x text-muted mb-3"
+                                                                className="fas fa-users fa-3x text-muted mb-3"
                                                             ),
                                                             html.H5(
-                                                                "Select a Game to Get Started",
+                                                                "Select a Game",
                                                                 className="text-muted",
                                                             ),
                                                             html.P(
-                                                                "Use the search on the left to find a game, "
-                                                                "then click 'Find Similar Games' to discover "
-                                                                "related titles.",
+                                                                "Choose a game above to see its most similar neighbors.",
                                                                 className="text-muted",
                                                             ),
                                                         ],
                                                         className="text-center py-5",
                                                     )
                                                 ],
-                                            )
-                                        ),
-                                        className="panel-card",
+                                            ),
+                                        ],
+                                        className="pt-4",
+                                        style={"overflow": "visible"},
+                                    ),
+                                ],
+                                style={"overflow": "visible"},
+                            ),
+                            dbc.Tab(
+                                label="Similarity Search",
+                                tab_id="tab-search",
+                                children=[
+                                    html.Div(
+                                        [
+                                            # Sidebar + Content layout
+                                            dbc.Row(
+                                                [
+                                                    # Sidebar - Filters
+                                                    dbc.Col(
+                                                        create_similarity_filters_sidebar(),
+                                                        className="filters-sidebar",
+                                                    ),
+                                                    # Content area
+                                                    dbc.Col(
+                                                        [
+                                                            # Loading indicator
+                                                            dbc.Spinner(
+                                                                html.Div(id="similarity-loading"),
+                                                                color="primary",
+                                                                type="border",
+                                                            ),
+                                                            # Results card
+                                                            dbc.Card(
+                                                                dbc.CardBody(
+                                                                    html.Div(
+                                                                        id="similarity-results-container",
+                                                                        children=[
+                                                                            html.Div(
+                                                                                [
+                                                                                    html.I(
+                                                                                        className="fas fa-search fa-3x text-muted mb-3"
+                                                                                    ),
+                                                                                    html.H5(
+                                                                                        "Select a Game to Get Started",
+                                                                                        className="text-muted",
+                                                                                    ),
+                                                                                    html.P(
+                                                                                        "Use the search on the left to find a game, "
+                                                                                        "then click 'Search' to find similar titles.",
+                                                                                        className="text-muted",
+                                                                                    ),
+                                                                                ],
+                                                                                className="text-center py-5",
+                                                                            )
+                                                                        ],
+                                                                    )
+                                                                ),
+                                                                className="panel-card",
+                                                            ),
+                                                        ],
+                                                    ),
+                                                ],
+                                                className="flex-nowrap",
+                                            ),
+                                        ],
+                                        className="pt-4",
                                     ),
                                 ],
                             ),
                         ],
-                        className="flex-nowrap",
+                        id="similarity-tabs",
+                        active_tab="tab-neighbors",
+                        className="mb-3",
+                        style={"overflow": "visible"},
                     ),
                 ],
                 fluid=True,
@@ -277,6 +441,7 @@ def create_game_similarity_layout() -> html.Div:
             create_footer(),
             # Store for selected game data
             dcc.Store(id="similarity-selected-game-store"),
+            dcc.Store(id="neighbors-selected-game-store"),
         ],
         className="d-flex flex-column min-vh-100",
     )

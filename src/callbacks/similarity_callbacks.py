@@ -19,40 +19,18 @@ from ..components.ag_grid_config import (
     get_grid_style,
     get_grid_class_name,
 )
+from ..components.game_card import create_game_info_card
 
 logger = logging.getLogger(__name__)
 
+# Default minimum ratings for similarity search results
+DEFAULT_MIN_RATINGS = 100
 
-def get_similarity_results_column_defs() -> list[dict[str, Any]]:
-    """Get column definitions for similarity search results.
 
-    Returns:
-        List of column definitions.
-    """
-    return [
-        {
-            "field": "thumbnail",
-            "headerName": "",
-            "width": 60,
-            "cellRenderer": "ThumbnailImage",
-            "sortable": False,
-            "filter": False,
-        },
-        {
-            "field": "year_published",
-            "headerName": "Year",
-            "width": 80,
-            "filter": "agNumberColumnFilter",
-        },
-        {
-            "field": "name",
-            "headerName": "Name",
-            "flex": 2,
-            "minWidth": 200,
-            "filter": "agTextColumnFilter",
-            "cellRenderer": "ExternalLink",
-        },
-        {
+def get_similarity_results_column_defs(distance_type: str = "cosine") -> list[dict[str, Any]]:
+    """Get column definitions for similarity search results."""
+    if distance_type == "cosine":
+        distance_col = {
             "field": "distance",
             "headerName": "Similarity",
             "width": 100,
@@ -62,138 +40,360 @@ def get_similarity_results_column_defs() -> list[dict[str, Any]]:
             "cellStyle": {
                 "function": "(1 - params.value) >= 0.9 ? {'color': 'var(--bs-success)', 'fontWeight': 'bold'} : (1 - params.value) < 0.7 ? {'color': 'var(--bs-warning)'} : {}"
             },
-        },
-        {
-            "field": "geek_rating",
-            "headerName": "Geek Rating",
-            "width": 110,
-            "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"},
+        }
+    elif distance_type == "euclidean":
+        distance_col = {
+            "field": "distance",
+            "headerName": "Distance",
+            "width": 100,
+            "valueFormatter": {"function": "d3.format('.3f')(params.value)"},
             "filter": "agNumberColumnFilter",
+            "sort": "asc",
             "cellStyle": {
-                "function": "params.value >= 8.0 ? {'color': 'var(--bs-success)', 'fontWeight': 'bold'} : params.value < 6.0 ? {'color': 'var(--bs-danger)'} : {}"
+                "function": "params.value <= 1.0 ? {'color': 'var(--bs-success)', 'fontWeight': 'bold'} : params.value > 3.0 ? {'color': 'var(--bs-warning)'} : {}"
             },
-        },
-        {
-            "field": "average_rating",
-            "headerName": "Avg Rating",
+        }
+    else:
+        distance_col = {
+            "field": "distance",
+            "headerName": "Similarity",
             "width": 100,
-            "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"},
+            "valueFormatter": {"function": "d3.format('.3f')(-params.value)"},
             "filter": "agNumberColumnFilter",
-        },
-        {
-            "field": "complexity",
-            "headerName": "Complexity",
-            "width": 100,
-            "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"},
-            "filter": "agNumberColumnFilter",
-        },
-        {
-            "field": "users_rated",
-            "headerName": "Ratings",
-            "width": 100,
-            "valueFormatter": {"function": "params.value ? d3.format(',')(params.value) : '-'"},
-            "filter": "agNumberColumnFilter",
-        },
+            "sort": "asc",
+            "cellStyle": {
+                "function": "-params.value >= 0.9 ? {'color': 'var(--bs-success)', 'fontWeight': 'bold'} : -params.value < 0.5 ? {'color': 'var(--bs-warning)'} : {}"
+            },
+        }
+
+    return [
+        {"field": "thumbnail", "headerName": "", "width": 60, "cellRenderer": "ThumbnailImage", "sortable": False, "filter": False},
+        {"field": "year_published", "headerName": "Year", "width": 80, "filter": "agNumberColumnFilter"},
+        {"field": "name", "headerName": "Name", "flex": 2, "minWidth": 200, "filter": "agTextColumnFilter", "cellRenderer": "ExternalLink"},
+        distance_col,
+        {"field": "geek_rating", "headerName": "Geek Rating", "width": 110, "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"}, "filter": "agNumberColumnFilter", "cellStyle": {"function": "params.value >= 8.0 ? {'color': 'var(--bs-success)', 'fontWeight': 'bold'} : params.value < 6.0 ? {'color': 'var(--bs-danger)'} : {}"}},
+        {"field": "average_rating", "headerName": "Avg Rating", "width": 100, "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"}, "filter": "agNumberColumnFilter"},
+        {"field": "complexity", "headerName": "Complexity", "width": 100, "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"}, "filter": "agNumberColumnFilter"},
+        {"field": "users_rated", "headerName": "Ratings", "width": 100, "valueFormatter": {"function": "params.value ? d3.format(',')(params.value) : '-'"}, "filter": "agNumberColumnFilter"},
     ]
 
 
 def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
-    """Register similarity search callbacks.
+    """Register similarity search callbacks."""
 
-    Args:
-        app: Dash application instance
-        cache: Flask-Caching instance
-    """
-    # Lazy-load clients
     def get_bq_client() -> BigQueryClient:
-        """Get or create BigQuery client instance."""
         if not hasattr(get_bq_client, "_client"):
             get_bq_client._client = BigQueryClient()
         return get_bq_client._client
 
     def get_similarity_client():
-        """Get or create Similarity Search client instance."""
         if not hasattr(get_similarity_client, "_client"):
             get_similarity_client._client = create_similarity_client()
         return get_similarity_client._client
 
-    @cache.memoize(timeout=3600)  # Cache for 1 hour
-    def get_game_options() -> list[dict[str, Any]]:
-        """Get game options for the dropdown.
+    @cache.memoize(timeout=86400)
+    def get_top_games() -> list[dict[str, Any]]:
+        """Load top 25k games from pre-computed dropdown table - cached for 24 hours."""
+        logger.info("Loading top games for dropdown")
+        try:
+            # Use pre-computed table for fast loading (created by dataform)
+            query = """
+            SELECT game_id, name, year_published
+            FROM `${project_id}.${dataset}.game_dropdown_options`
+            """
+            df = get_bq_client().execute_query(query)
+            logger.info(f"Loaded {len(df)} top games for dropdown")
+            options = []
+            for _, row in df.iterrows():
+                year = f" ({int(row['year_published'])})" if pd.notna(row["year_published"]) else ""
+                label = f"{row['name']}{year}"
+                options.append({"label": label, "value": int(row["game_id"])})
+            return options
+        except Exception as e:
+            logger.exception(f"Error loading games: {e}")
+            return []
 
-        Returns:
-            List of game options with label and value.
-        """
-        logger.info("Fetching game options for similarity dropdown")
-        query = """
-        SELECT game_id, name, year_published, bayes_average
-        FROM `${project_id}.${dataset}.games_active`
-        WHERE bayes_average IS NOT NULL AND bayes_average > 0
-        ORDER BY bayes_average DESC
-        LIMIT 10000
+    @cache.memoize(timeout=3600)
+    def search_all_games(search_term: str) -> list[dict[str, Any]]:
+        """Search all games by name - for finding obscure games not in top 25k."""
+        if not search_term or len(search_term) < 3:
+            return []
+        logger.info(f"Searching all games for: {search_term}")
+        try:
+            safe_term = search_term.replace("'", "''")
+            query = f"""
+            SELECT game_id, name, year_published
+            FROM `${{project_id}}.${{dataset}}.games_active`
+            WHERE LOWER(name) LIKE LOWER('%{safe_term}%')
+            ORDER BY COALESCE(bayes_average, 0) DESC
+            LIMIT 50
+            """
+            df = get_bq_client().execute_query(query)
+            logger.info(f"Found {len(df)} games matching '{search_term}'")
+            options = []
+            for _, row in df.iterrows():
+                year = f" ({int(row['year_published'])})" if pd.notna(row["year_published"]) else ""
+                label = f"{row['name']}{year}"
+                options.append({"label": label, "value": int(row["game_id"])})
+            return options
+        except Exception as e:
+            logger.exception(f"Error searching games: {e}")
+            return []
+
+    # =========================================================================
+    # Load Games Once on Page Load
+    # =========================================================================
+
+    @app.callback(
+        [
+            Output("neighbors-game-dropdown", "options"),
+            Output("similarity-game-dropdown", "options"),
+        ],
+        Input("similarity-tabs", "active_tab"),
+        prevent_initial_call=False,
+    )
+    def load_game_options(active_tab):
+        """Load top games once on page load."""
+        logger.info("Loading game options for dropdowns")
+        options = get_top_games()
+        return options, options
+
+    # =========================================================================
+    # Extended Search Callbacks (for games not in top 25k)
+    # =========================================================================
+
+    @app.callback(
+        [
+            Output("neighbors-extended-search-results", "children"),
+            Output("neighbors-extended-search-results", "style"),
+        ],
+        Input("neighbors-extended-search-btn", "n_clicks"),
+        State("neighbors-extended-search-input", "value"),
+        prevent_initial_call=True,
+    )
+    def search_neighbors_extended(n_clicks, search_term):
+        """Search all games when user can't find in dropdown."""
+        if not n_clicks or not search_term or len(search_term) < 3:
+            return [], {"display": "none"}
+
+        results = search_all_games(search_term)
+        if not results:
+            return [html.Small("No games found.", className="text-muted")], {"display": "block"}
+
+        # Create clickable buttons for each result
+        buttons = []
+        for opt in results[:10]:  # Limit to 10 results
+            buttons.append(
+                dbc.Button(
+                    opt["label"],
+                    id={"type": "neighbors-search-result", "index": opt["value"]},
+                    color="link",
+                    size="sm",
+                    className="text-start p-1 d-block",
+                )
+            )
+        return buttons, {"display": "block"}
+
+    @app.callback(
+        Output("neighbors-game-dropdown", "value"),
+        Input({"type": "neighbors-search-result", "index": dash.ALL}, "n_clicks"),
+        State({"type": "neighbors-search-result", "index": dash.ALL}, "id"),
+        prevent_initial_call=True,
+    )
+    def select_neighbors_search_result(n_clicks, ids):
+        """Select a game from extended search results."""
+        if not any(n_clicks):
+            return no_update
+        # Find which button was clicked
+        ctx = dash.callback_context
+        if not ctx.triggered:
+            return no_update
+        triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
+        import json
+        game_id = json.loads(triggered_id)["index"]
+        return game_id
+
+    @app.callback(
+        [
+            Output("similarity-extended-search-results", "children"),
+            Output("similarity-extended-search-results", "style"),
+        ],
+        Input("similarity-extended-search-btn", "n_clicks"),
+        State("similarity-extended-search-input", "value"),
+        prevent_initial_call=True,
+    )
+    def search_similarity_extended(n_clicks, search_term):
+        """Search all games when user can't find in dropdown."""
+        if not n_clicks or not search_term or len(search_term) < 3:
+            return [], {"display": "none"}
+
+        results = search_all_games(search_term)
+        if not results:
+            return [html.Small("No games found.", className="text-muted")], {"display": "block"}
+
+        buttons = []
+        for opt in results[:10]:
+            buttons.append(
+                dbc.Button(
+                    opt["label"],
+                    id={"type": "similarity-search-result", "index": opt["value"]},
+                    color="link",
+                    size="sm",
+                    className="text-start p-1 d-block",
+                )
+            )
+        return buttons, {"display": "block"}
+
+    @app.callback(
+        Output("similarity-game-dropdown", "value"),
+        Input({"type": "similarity-search-result", "index": dash.ALL}, "n_clicks"),
+        State({"type": "similarity-search-result", "index": dash.ALL}, "id"),
+        prevent_initial_call=True,
+    )
+    def select_similarity_search_result(n_clicks, ids):
+        """Select a game from extended search results."""
+        if not any(n_clicks):
+            return no_update
+        ctx = dash.callback_context
+        if not ctx.triggered:
+            return no_update
+        triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
+        import json
+        game_id = json.loads(triggered_id)["index"]
+        return game_id
+
+    @cache.memoize(timeout=3600)
+    def get_game_features(game_id: int) -> dict[str, Any] | None:
+        query = f"""
+        SELECT game_id, name, year_published, bayes_average, average_weight, thumbnail,
+               min_players, max_players, min_playtime, max_playtime,
+               categories, mechanics, families
+        FROM `${{project_id}}.${{dataset}}.games_features`
+        WHERE game_id = {game_id}
         """
         df = get_bq_client().execute_query(query)
+        if not df.empty:
+            return df.iloc[0].to_dict()
+        return None
 
-        options = []
-        for _, row in df.iterrows():
-            year = f" ({int(row['year_published'])})" if pd.notna(row["year_published"]) else ""
-            label = f"{row['name']}{year}"
-            options.append({"label": label, "value": int(row["game_id"])})
+    # =========================================================================
+    # Neighbors Tab Callbacks
+    # =========================================================================
 
-        return options
+    @app.callback(
+        Output("neighbors-selected-game-store", "data"),
+        Input("neighbors-game-dropdown", "value"),
+    )
+    def handle_neighbors_game_selection(game_id: int | None) -> dict | None:
+        if game_id is None:
+            return None
+        try:
+            return get_game_features(game_id)
+        except Exception as e:
+            logger.warning("Could not fetch game info: %s", str(e))
+            return None
 
     @app.callback(
         [
-            Output("similarity-game-dropdown", "options"),
-            Output("similarity-game-dropdown", "value"),
+            Output("neighbors-source-card-container", "children"),
+            Output("neighbors-source-card-container", "style"),
+            Output("neighbors-results-container", "children"),
         ],
-        Input("url", "pathname"),
+        Input("neighbors-selected-game-store", "data"),
     )
-    def populate_game_dropdown(pathname: str) -> tuple[list[dict[str, Any]], int | None]:
-        """Populate the game dropdown when the page loads.
-
-        Args:
-            pathname: Current URL path.
-
-        Returns:
-            Tuple of (list of game options, default selected value).
-        """
-        if pathname != "/app/game-similarity":
-            return [], None
+    def display_game_neighbors(game_data: dict | None) -> tuple[Any, dict, Any]:
+        if game_data is None:
+            return (
+                None,
+                {"display": "none"},
+                html.Div(
+                    [
+                        html.I(className="fas fa-users fa-3x text-muted mb-3"),
+                        html.H5("Select a Game", className="text-muted"),
+                        html.P("Type a game name above to search and see similar neighbors.", className="text-muted"),
+                    ],
+                    className="text-center py-5",
+                ),
+            )
 
         try:
-            options = get_game_options()
-            # Default to first game in the list
-            default_value = options[0]["value"] if options else None
-            return options, default_value
+            game_id = game_data.get("game_id")
+            if game_id is None:
+                return (None, {"display": "none"}, dbc.Alert("Invalid game data.", color="warning"))
+
+            source_card_content = dbc.Card(
+                dbc.CardBody(create_game_info_card(game_data)),
+                className="mb-4 panel-card border-primary",
+                style={"borderWidth": "2px"},
+            )
+
+            # Default to 25+ ratings filter for neighbors
+            filters = SimilarityFilters(min_users_rated=DEFAULT_MIN_RATINGS)
+
+            client = get_similarity_client()
+            logger.info(f"Finding neighbors for game_id={game_id}, name={game_data.get('name')}")
+            neighbors_df = client.find_similar_games(
+                game_id=game_id,
+                top_k=10,
+                distance_type="euclidean",
+                filters=filters,
+            )
+            logger.info(f"Found {len(neighbors_df)} neighbors for game_id={game_id}")
+
+            if neighbors_df.empty:
+                return (
+                    source_card_content,
+                    {"display": "block"},
+                    dbc.Alert(
+                        [html.Strong("No similar games found. "), f"This game (ID: {game_id}) may not have embeddings generated yet."],
+                        color="warning",
+                    ),
+                )
+
+            neighbor_cards = []
+            for _, row in neighbors_df.iterrows():
+                distance = row["distance"]
+                # Use data directly from similarity query - no extra queries needed
+                neighbor_data = {
+                    "game_id": int(row["game_id"]),
+                    "name": row["name"],
+                    "year_published": row.get("year_published"),
+                    "bayes_average": row.get("geek_rating"),
+                    "average_weight": row.get("complexity"),
+                    "thumbnail": row.get("thumbnail"),
+                    "users_rated": row.get("users_rated"),
+                    # These aren't in similarity table, so leave empty
+                    "categories": [],
+                    "mechanics": [],
+                    "families": [],
+                }
+                card_content = create_game_info_card(neighbor_data)
+                if card_content:
+                    neighbor_card = dbc.Card(
+                        [
+                            dbc.CardHeader(
+                                html.Span(f"#{len(neighbor_cards) + 1}", className="fw-bold"),
+                                className="py-2",
+                            ),
+                            dbc.CardBody(card_content),
+                        ],
+                        className="mb-3 panel-card",
+                    )
+                    neighbor_cards.append(neighbor_card)
+
+            return (
+                source_card_content,
+                {"display": "block"},
+                html.Div([html.H4(f"Top {len(neighbor_cards)} Similar Games", className="mb-3 mt-2"), html.Div(neighbor_cards)]),
+            )
+
         except Exception as e:
-            logger.exception("Error fetching game options: %s", str(e))
-            return [], None
+            logger.exception("Error loading neighbors: %s", str(e))
+            return (None, {"display": "none"}, dbc.Alert(f"Error loading neighbors: {str(e)}", color="danger"))
 
-    @app.callback(
-        [
-            Output("similarity-filter-collapse", "is_open"),
-            Output("similarity-filter-chevron", "className"),
-        ],
-        Input("similarity-filter-toggle", "n_clicks"),
-        State("similarity-filter-collapse", "is_open"),
-    )
-    def toggle_filter_collapse(n_clicks: int | None, is_open: bool) -> tuple[bool, str]:
-        """Toggle the filter collapse section.
-
-        Args:
-            n_clicks: Number of clicks on toggle button.
-            is_open: Current collapse state.
-
-        Returns:
-            Tuple of (new collapse state, chevron icon class).
-        """
-        if n_clicks is None:
-            return False, "fas fa-chevron-down ms-2"
-
-        new_state = not is_open
-        chevron_class = "fas fa-chevron-up ms-2" if new_state else "fas fa-chevron-down ms-2"
-        return new_state, chevron_class
+    # =========================================================================
+    # Similarity Search Tab Callbacks
+    # =========================================================================
 
     @app.callback(
         [
@@ -203,196 +403,29 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
         Input("similarity-game-dropdown", "value"),
     )
     def handle_game_selection(game_id: int | None) -> tuple[bool, dict | None]:
-        """Handle game selection to enable/disable search button.
-
-        Args:
-            game_id: Selected game ID.
-
-        Returns:
-            Tuple of (button disabled state, selected game data).
-        """
         if game_id is None:
             return True, None
-
-        # Fetch game info from games_features for preview card (includes categories, mechanics, etc.)
         try:
-            query = f"""
-            SELECT game_id, name, year_published, bayes_average, average_weight, thumbnail,
-                   min_players, max_players, min_playtime, max_playtime,
-                   categories, mechanics, families
-            FROM `${{project_id}}.${{dataset}}.games_features`
-            WHERE game_id = {game_id}
-            """
-            df = get_bq_client().execute_query(query)
-            if not df.empty:
-                game_data = df.iloc[0].to_dict()
+            game_data = get_game_features(game_id)
+            if game_data:
                 return False, game_data
         except Exception as e:
-            logger.warning("Could not fetch game info for preview: %s", str(e))
-
-        # Enable button even if preview fails
+            logger.warning("Could not fetch game info: %s", str(e))
         return False, None
 
     @app.callback(
         [
-            Output("similarity-source-game-card", "style"),
-            Output("similarity-source-game-info", "children"),
+            Output("similarity-filter-collapse", "is_open"),
+            Output("similarity-filter-chevron", "className"),
         ],
-        Input("similarity-selected-game-store", "data"),
+        Input("similarity-filter-toggle", "n_clicks"),
+        State("similarity-filter-collapse", "is_open"),
+        prevent_initial_call=True,
     )
-    def display_selected_game(game_data: dict | None) -> tuple[dict, Any]:
-        """Display information about the selected source game.
-
-        Args:
-            game_data: Selected game data from store.
-
-        Returns:
-            Tuple of (card style, card content).
-        """
-        if game_data is None or game_data.get("name") is None:
-            return {"display": "none"}, None
-
-        # Build game info display
-        game_id = game_data.get("game_id", "")
-        thumbnail = game_data.get("thumbnail", "")
-        name = game_data.get("name", "")
-        year = game_data.get("year_published", "")
-        rating = game_data.get("bayes_average", 0)
-        complexity = game_data.get("average_weight", 0)
-        min_players = game_data.get("min_players")
-        max_players = game_data.get("max_players")
-        min_playtime = game_data.get("min_playtime")
-        max_playtime = game_data.get("max_playtime")
-        categories = game_data.get("categories", []) or []
-        mechanics = game_data.get("mechanics", []) or []
-        families = game_data.get("families", []) or []
-
-        # Format player count string
-        if min_players and max_players:
-            if min_players == max_players:
-                players_str = f"{int(min_players)} players"
-            elif max_players >= 8:
-                players_str = f"{int(min_players)}-8+ players"
-            else:
-                players_str = f"{int(min_players)}-{int(max_players)} players"
-        elif min_players:
-            players_str = f"{int(min_players)}+ players"
-        elif max_players:
-            players_str = f"Up to {int(max_players)} players"
-        else:
-            players_str = None
-
-        # Format playtime string
-        if min_playtime and max_playtime:
-            if min_playtime == max_playtime:
-                playtime_str = f"{int(min_playtime)} min"
-            else:
-                playtime_str = f"{int(min_playtime)}-{int(max_playtime)} min"
-        elif min_playtime:
-            playtime_str = f"{int(min_playtime)}+ min"
-        elif max_playtime:
-            playtime_str = f"Up to {int(max_playtime)} min"
-        else:
-            playtime_str = None
-
-        # Build BGG link
-        bgg_url = f"https://boardgamegeek.com/boardgame/{game_id}"
-        title_text = f"{name} ({int(year)})" if year else name
-
-        # Helper to create badge list with limit
-        def create_badges(items: list, color: str, max_items: int = 5) -> list:
-            badges = []
-            for item in items[:max_items]:
-                badges.append(
-                    dbc.Badge(item, color=color, className="me-1 mb-1", pill=True)
-                )
-            if len(items) > max_items:
-                badges.append(
-                    dbc.Badge(f"+{len(items) - max_items} more", color="secondary", className="me-1 mb-1", pill=True)
-                )
-            return badges
-
-        content = dbc.Row(
-            [
-                dbc.Col(
-                    html.Img(
-                        src=thumbnail,
-                        style={"height": "140px", "width": "140px", "objectFit": "cover"},
-                        className="rounded shadow",
-                    )
-                    if thumbnail
-                    else html.Div(),
-                    width="auto",
-                ),
-                dbc.Col(
-                    [
-                        # Clickable title
-                        html.H4(
-                            html.A(
-                                title_text,
-                                href=bgg_url,
-                                target="_blank",
-                                rel="noopener noreferrer",
-                                style={"textDecoration": "none"},
-                            ),
-                            className="mb-2",
-                        ),
-                        # Rating, complexity, players, and playtime badges
-                        html.Div(
-                            [
-                                dbc.Badge(
-                                    f"Rating: {rating:.1f}" if rating else "Unrated",
-                                    color="success" if rating and rating >= 7 else "secondary",
-                                    className="me-2 mb-2",
-                                ),
-                                dbc.Badge(
-                                    f"Complexity: {complexity:.1f}" if complexity else "N/A",
-                                    color="info",
-                                    className="me-2 mb-2",
-                                ),
-                                dbc.Badge(
-                                    players_str if players_str else "N/A",
-                                    color="primary",
-                                    className="me-2 mb-2",
-                                ),
-                                dbc.Badge(
-                                    playtime_str if playtime_str else "N/A",
-                                    color="secondary",
-                                    className="me-2 mb-2",
-                                ),
-                            ],
-                            className="mb-2",
-                        ),
-                        # Categories
-                        html.Div(
-                            [
-                                html.Small("Categories: ", className="text-muted me-1"),
-                                *create_badges(categories, "primary", max_items=4),
-                            ],
-                            className="mb-1",
-                        ) if categories else None,
-                        # Mechanics
-                        html.Div(
-                            [
-                                html.Small("Mechanics: ", className="text-muted me-1"),
-                                *create_badges(mechanics, "warning", max_items=4),
-                            ],
-                            className="mb-1",
-                        ) if mechanics else None,
-                        # Families
-                        html.Div(
-                            [
-                                html.Small("Families: ", className="text-muted me-1"),
-                                *create_badges(families, "dark", max_items=3),
-                            ],
-                        ) if families else None,
-                    ],
-                ),
-            ],
-            align="start",
-        )
-
-        return {"display": "block"}, content
+    def toggle_filter_collapse(n_clicks: int, is_open: bool) -> tuple[bool, str]:
+        new_is_open = not is_open
+        chevron_class = "fas fa-chevron-up ms-2" if new_is_open else "fas fa-chevron-down ms-2"
+        return new_is_open, chevron_class
 
     @app.callback(
         [
@@ -404,6 +437,7 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             State("similarity-game-dropdown", "value"),
             State("similarity-top-k-dropdown", "value"),
             State("similarity-distance-dropdown", "value"),
+            State("similarity-embedding-dims-dropdown", "value"),
             State("similarity-year-slider", "value"),
             State("similarity-complexity-slider", "value"),
             State("similarity-min-ratings-dropdown", "value"),
@@ -415,62 +449,40 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
         game_id: int | None,
         top_k: int,
         distance_type: str,
+        embedding_dims: int,
         year_range: list[int],
         complexity_range: list[float],
         min_ratings: int,
     ) -> tuple[Any, str]:
-        """Search for similar games.
-
-        Args:
-            n_clicks: Button click count.
-            game_id: Selected game ID.
-            top_k: Number of results to return.
-            year_range: Min/max year filter.
-            complexity_range: Min/max complexity filter.
-            min_ratings: Minimum user ratings filter.
-
-        Returns:
-            Tuple of (results container, loading indicator).
-        """
         if not n_clicks or game_id is None:
             return no_update, ""
 
         logger.info(f"Searching for games similar to game_id={game_id}")
 
         try:
-            # Build filters
+            # Use default min ratings if not specified
+            effective_min_ratings = min_ratings if min_ratings > 0 else DEFAULT_MIN_RATINGS
+
             filters = SimilarityFilters(
                 min_year=year_range[0] if year_range else None,
                 max_year=year_range[1] if year_range else None,
                 min_complexity=complexity_range[0] if complexity_range else None,
                 max_complexity=complexity_range[1] if complexity_range else None,
-                min_users_rated=min_ratings if min_ratings > 0 else None,
+                min_users_rated=effective_min_ratings,
             )
 
-            # Call similarity service
             client = get_similarity_client()
             results_df = client.find_similar_games(
                 game_id=game_id,
                 top_k=top_k,
                 distance_type=distance_type,
                 filters=filters,
+                embedding_dims=embedding_dims,
             )
 
             if results_df.empty:
-                return (
-                    html.Div(
-                        dbc.Alert(
-                            "No similar games found. Try adjusting your filters.",
-                            color="warning",
-                        ),
-                        className="py-4",
-                    ),
-                    "",
-                )
+                return (html.Div(dbc.Alert("No similar games found. Try adjusting your filters.", color="warning"), className="py-4"), "")
 
-            # Thumbnail and Name are rendered by custom cell renderers
-
-            # Create results grid
             grid_options = get_default_grid_options()
             grid_options["domLayout"] = "normal"
             grid_options["rowHeight"] = 50
@@ -478,44 +490,29 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             grid = dag.AgGrid(
                 id="similarity-results-table",
                 rowData=results_df.to_dict("records"),
-                columnDefs=get_similarity_results_column_defs(),
+                columnDefs=get_similarity_results_column_defs(distance_type),
                 defaultColDef=get_default_column_def(),
                 dashGridOptions=grid_options,
                 className=get_grid_class_name(),
                 style=get_grid_style("calc(100vh - 400px)"),
             )
 
-            # Results header
-            header = html.Div(
-                [
-                    html.H5(f"Found {len(results_df)} Similar Games", className="mb-3"),
-                    html.P(
-                        "Similarity is based on game mechanics, themes, and characteristics. "
-                        "Higher percentages indicate more similar games.",
-                        className="text-muted small mb-3",
-                    ),
-                ],
-            )
+            if distance_type == "cosine":
+                metric_explanation = "Higher percentages indicate more similar games."
+            elif distance_type == "euclidean":
+                metric_explanation = "Lower distance values indicate more similar games."
+            else:
+                metric_explanation = "Higher values indicate more similar games."
+
+            header = html.Div([html.H5(f"Found {len(results_df)} Similar Games", className="mb-3"), html.P(metric_explanation, className="text-muted small mb-3")])
 
             return html.Div([header, grid]), ""
 
         except Exception as e:
             logger.exception("Error searching for similar games: %s", str(e))
-
-            # Check if it's a connection error
             error_msg = str(e)
             if "Connection" in error_msg or "refused" in error_msg.lower():
-                error_detail = (
-                    "Could not connect to the similarity search service. "
-                    "Please ensure the service is running."
-                )
+                error_detail = "Could not connect to the similarity search service."
             else:
                 error_detail = f"An error occurred: {error_msg}"
-
-            return (
-                html.Div(
-                    dbc.Alert(error_detail, color="danger"),
-                    className="py-4",
-                ),
-                "",
-            )
+            return (html.Div(dbc.Alert(error_detail, color="danger"), className="py-4"), "")

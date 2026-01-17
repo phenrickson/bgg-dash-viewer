@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from google.cloud import bigquery
+from google.oauth2 import service_account
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,7 @@ class BaseSimilarityClient(ABC):
         top_k: int = 10,
         distance_type: str = "cosine",
         filters: Optional[SimilarityFilters] = None,
+        embedding_dims: Optional[int] = None,
     ) -> pd.DataFrame:
         """Find games similar to a given game."""
         pass
@@ -74,6 +76,7 @@ class BaseSimilarityClient(ABC):
         top_k: int = 10,
         distance_type: str = "cosine",
         filters: Optional[SimilarityFilters] = None,
+        embedding_dims: Optional[int] = None,
     ) -> pd.DataFrame:
         """Find games similar to a set of games."""
         pass
@@ -94,8 +97,25 @@ class BigQuerySimilarityClient(BaseSimilarityClient):
         self.table_id = table_id or os.getenv(
             "SIMILARITY_TABLE_ID", self.DEFAULT_TABLE
         )
-        self.client = bigquery.Client()
-        logger.info(f"BigQuerySimilarityClient initialized with table={self.table_id}")
+        # Extract project from table_id (format: project.dataset.table)
+        project_id = self.table_id.split(".")[0]
+        self.client = self._initialize_client(project_id)
+        logger.info(f"BigQuerySimilarityClient initialized with table={self.table_id}, project={project_id}")
+
+    def _initialize_client(self, project_id: str) -> bigquery.Client:
+        """Initialize the BigQuery client with credentials.
+
+        Args:
+            project_id: GCP project ID.
+
+        Returns:
+            Configured BigQuery client.
+        """
+        credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        if credentials_path and os.path.exists(credentials_path):
+            credentials = service_account.Credentials.from_service_account_file(credentials_path)
+            return bigquery.Client(credentials=credentials, project=project_id)
+        return bigquery.Client(project=project_id)
 
     def _build_filter_clause(self, filters: Optional[SimilarityFilters]) -> str:
         """Build SQL WHERE clause from filters."""
@@ -126,12 +146,21 @@ class BigQuerySimilarityClient(BaseSimilarityClient):
 
         return " AND " + " AND ".join(conditions) if conditions else ""
 
+    def _get_embedding_column(self, embedding_dims: Optional[int] = None) -> str:
+        """Get the embedding column name for the requested dimensions."""
+        if embedding_dims is None or embedding_dims == 64:
+            return "embedding"
+        if embedding_dims in [8, 16, 32]:
+            return f"embedding_{embedding_dims}"
+        return "embedding"
+
     def find_similar_games(
         self,
         game_id: int,
         top_k: int = 10,
         distance_type: str = "cosine",
         filters: Optional[SimilarityFilters] = None,
+        embedding_dims: Optional[int] = None,
     ) -> pd.DataFrame:
         """Find games similar to a given game using BigQuery ML.DISTANCE.
 
@@ -140,24 +169,26 @@ class BigQuerySimilarityClient(BaseSimilarityClient):
             top_k: Number of similar games to return.
             distance_type: Distance metric (cosine, euclidean, dot_product).
             filters: Optional filters for year, rating, complexity, etc.
+            embedding_dims: Embedding dimensions to use (8, 16, 32, or 64/None for full).
 
         Returns:
             DataFrame with similar games.
         """
-        logger.info(f"Finding similar games for game_id={game_id}, top_k={top_k}")
+        logger.info(f"Finding similar games for game_id={game_id}, top_k={top_k}, dims={embedding_dims}")
 
         filter_clause = self._build_filter_clause(filters)
         distance_type_upper = distance_type.upper()
+        emb_col = self._get_embedding_column(embedding_dims)
 
         query = f"""
         WITH source_game AS (
-            SELECT embedding, game_id as source_game_id
+            SELECT {emb_col} as embedding, game_id as source_game_id
             FROM `{self.table_id}`
             WHERE game_id = @game_id
             LIMIT 1
         ),
         candidates AS (
-            SELECT game_id, name, year_published, embedding,
+            SELECT game_id, name, year_published, {emb_col} as embedding,
                    users_rated, average_rating, geek_rating, complexity, thumbnail
             FROM `{self.table_id}`
             WHERE game_id != @game_id{filter_clause}
@@ -194,6 +225,7 @@ class BigQuerySimilarityClient(BaseSimilarityClient):
         top_k: int = 10,
         distance_type: str = "cosine",
         filters: Optional[SimilarityFilters] = None,
+        embedding_dims: Optional[int] = None,
     ) -> pd.DataFrame:
         """Find games similar to a set of games (using average embedding).
 
@@ -202,19 +234,21 @@ class BigQuerySimilarityClient(BaseSimilarityClient):
             top_k: Number of similar games to return.
             distance_type: Distance metric.
             filters: Optional filters.
+            embedding_dims: Embedding dimensions to use (8, 16, 32, or 64/None for full).
 
         Returns:
             DataFrame with similar games.
         """
-        logger.info(f"Finding games like game_ids={game_ids}, top_k={top_k}")
+        logger.info(f"Finding games like game_ids={game_ids}, top_k={top_k}, dims={embedding_dims}")
 
         filter_clause = self._build_filter_clause(filters)
         distance_type_upper = distance_type.upper()
         game_ids_str = ",".join(str(g) for g in game_ids)
+        emb_col = self._get_embedding_column(embedding_dims)
 
         query = f"""
         WITH source_games AS (
-            SELECT embedding
+            SELECT {emb_col} as embedding
             FROM `{self.table_id}`
             WHERE game_id IN ({game_ids_str})
         ),
@@ -230,7 +264,7 @@ class BigQuerySimilarityClient(BaseSimilarityClient):
             FROM avg_embedding
         ),
         candidates AS (
-            SELECT game_id, name, year_published, embedding,
+            SELECT game_id, name, year_published, {emb_col} as embedding,
                    users_rated, average_rating, geek_rating, complexity, thumbnail
             FROM `{self.table_id}`
             WHERE game_id NOT IN ({game_ids_str}){filter_clause}
@@ -292,6 +326,7 @@ class ServiceSimilarityClient(BaseSimilarityClient):
         top_k: int = 10,
         distance_type: str = "cosine",
         filters: Optional[SimilarityFilters] = None,
+        embedding_dims: Optional[int] = None,
     ) -> pd.DataFrame:
         """Find games similar to a given game via the service."""
         payload: Dict[str, Any] = {
@@ -300,10 +335,13 @@ class ServiceSimilarityClient(BaseSimilarityClient):
             "distance_type": distance_type,
         }
 
+        if embedding_dims:
+            payload["embedding_dims"] = embedding_dims
+
         if filters:
             payload.update(filters.to_dict())
 
-        logger.info(f"Finding similar games for game_id={game_id}, top_k={top_k}")
+        logger.info(f"Finding similar games for game_id={game_id}, top_k={top_k}, dims={embedding_dims}")
 
         response = self._requests.post(
             f"{self.base_url}/similar",
@@ -326,6 +364,7 @@ class ServiceSimilarityClient(BaseSimilarityClient):
         top_k: int = 10,
         distance_type: str = "cosine",
         filters: Optional[SimilarityFilters] = None,
+        embedding_dims: Optional[int] = None,
     ) -> pd.DataFrame:
         """Find games similar to a set of games via the service."""
         payload: Dict[str, Any] = {
@@ -334,10 +373,13 @@ class ServiceSimilarityClient(BaseSimilarityClient):
             "distance_type": distance_type,
         }
 
+        if embedding_dims:
+            payload["embedding_dims"] = embedding_dims
+
         if filters:
             payload.update(filters.to_dict())
 
-        logger.info(f"Finding games like game_ids={game_ids}, top_k={top_k}")
+        logger.info(f"Finding games like game_ids={game_ids}, top_k={top_k}, dims={embedding_dims}")
 
         response = self._requests.post(
             f"{self.base_url}/similar",
