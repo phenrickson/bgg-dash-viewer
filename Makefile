@@ -68,6 +68,7 @@ up: build
 	@echo "  Experiments:      http://localhost:8080/app/experiments"
 	@echo "  New Games:        http://localhost:8080/app/new-games"
 	@echo "  Game Ratings:     http://localhost:8080/app/game-ratings"
+	@echo "  BigQuery:         http://localhost:8080/app/bigquery-monitoring"
 	@echo ""
 	@echo "Stop with: make down"
 

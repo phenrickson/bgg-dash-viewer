@@ -27,6 +27,9 @@ class SimilarityFilters:
     max_geek_rating: Optional[float] = None
     min_complexity: Optional[float] = None
     max_complexity: Optional[float] = None
+    # Relative complexity filtering (relative to query game)
+    complexity_mode: Optional[str] = None  # 'within_band', 'less_complex', 'more_complex'
+    complexity_band: Optional[float] = None  # Default 0.5 on server side
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert filters to dictionary, excluding None values."""
@@ -41,6 +44,8 @@ class SimilarityFilters:
             "max_geek_rating": self.max_geek_rating,
             "min_complexity": self.min_complexity,
             "max_complexity": self.max_complexity,
+            "complexity_mode": self.complexity_mode,
+            "complexity_band": self.complexity_band,
         }.items() if v is not None}
 
     def has_filters(self) -> bool:
@@ -51,6 +56,7 @@ class SimilarityFilters:
             self.min_rating, self.max_rating,
             self.min_geek_rating, self.max_geek_rating,
             self.min_complexity, self.max_complexity,
+            self.complexity_mode,
         ])
 
 
@@ -65,6 +71,8 @@ class BaseSimilarityClient(ABC):
         distance_type: str = "cosine",
         filters: Optional[SimilarityFilters] = None,
         embedding_dims: Optional[int] = None,
+        include_embeddings: bool = False,
+        include_umap: bool = False,
     ) -> pd.DataFrame:
         """Find games similar to a given game."""
         pass
@@ -77,6 +85,8 @@ class BaseSimilarityClient(ABC):
         distance_type: str = "cosine",
         filters: Optional[SimilarityFilters] = None,
         embedding_dims: Optional[int] = None,
+        include_embeddings: bool = False,
+        include_umap: bool = False,
     ) -> pd.DataFrame:
         """Find games similar to a set of games."""
         pass
@@ -117,8 +127,85 @@ class BigQuerySimilarityClient(BaseSimilarityClient):
             return bigquery.Client(credentials=credentials, project=project_id)
         return bigquery.Client(project=project_id)
 
-    def _build_filter_clause(self, filters: Optional[SimilarityFilters]) -> str:
-        """Build SQL WHERE clause from filters."""
+    def _get_game_complexity(self, game_id: int) -> Optional[float]:
+        """Fetch the complexity of a game from the similarity search table.
+
+        Args:
+            game_id: The game ID to look up.
+
+        Returns:
+            The game's complexity, or None if not found.
+        """
+        # Query from the same table used for similarity search for consistency
+        query = f"""
+        SELECT complexity
+        FROM `{self.table_id}`
+        WHERE game_id = @game_id
+        LIMIT 1
+        """
+
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("game_id", "INT64", game_id),
+            ]
+        )
+
+        try:
+            result = self.client.query(query, job_config=job_config).to_dataframe()
+            if len(result) > 0 and result["complexity"].iloc[0] is not None:
+                return float(result["complexity"].iloc[0])
+            return None
+        except Exception as e:
+            logger.warning(f"Could not fetch complexity for game {game_id}: {e}")
+            return None
+
+    def _compute_complexity_bounds(
+        self,
+        query_complexity: float,
+        mode: str,
+        band: float,
+    ) -> tuple[Optional[float], Optional[float]]:
+        """Compute min/max complexity based on relative mode.
+
+        Args:
+            query_complexity: The query game's complexity.
+            mode: One of 'within_band', 'less_complex', 'more_complex'.
+            band: The complexity band value.
+
+        Returns:
+            Tuple of (min_complexity, max_complexity).
+        """
+        if mode == "within_band":
+            return (
+                max(1.0, query_complexity - band),
+                min(5.0, query_complexity + band),
+            )
+        elif mode == "less_complex":
+            return (
+                max(1.0, query_complexity - band),
+                query_complexity,
+            )
+        elif mode == "more_complex":
+            return (
+                query_complexity,
+                min(5.0, query_complexity + band),
+            )
+        else:
+            logger.warning(f"Invalid complexity_mode: {mode}")
+            return (None, None)
+
+    def _build_filter_clause(
+        self,
+        filters: Optional[SimilarityFilters],
+        source_complexity_ref: Optional[str] = None,
+    ) -> str:
+        """Build SQL WHERE clause from filters.
+
+        Args:
+            filters: Filter settings.
+            source_complexity_ref: SQL reference to source game complexity (e.g., 's.complexity')
+                for relative complexity filtering.
+        """
         if not filters or not filters.has_filters():
             return ""
 
@@ -139,10 +226,23 @@ class BigQuerySimilarityClient(BaseSimilarityClient):
             conditions.append(f"geek_rating >= {filters.min_geek_rating}")
         if filters.max_geek_rating is not None:
             conditions.append(f"geek_rating <= {filters.max_geek_rating}")
-        if filters.min_complexity is not None:
-            conditions.append(f"complexity >= {filters.min_complexity}")
-        if filters.max_complexity is not None:
-            conditions.append(f"complexity <= {filters.max_complexity}")
+
+        # Handle relative complexity filtering if source_complexity_ref provided
+        if filters.complexity_mode and source_complexity_ref:
+            band = filters.complexity_band if filters.complexity_band is not None else 0.5
+            if filters.complexity_mode == "within_band":
+                conditions.append(f"complexity >= {source_complexity_ref} - {band}")
+                conditions.append(f"complexity <= {source_complexity_ref} + {band}")
+            elif filters.complexity_mode == "less_complex":
+                conditions.append(f"complexity <= {source_complexity_ref} - {band}")
+            elif filters.complexity_mode == "more_complex":
+                conditions.append(f"complexity >= {source_complexity_ref} + {band}")
+        else:
+            # Absolute complexity filtering
+            if filters.min_complexity is not None:
+                conditions.append(f"complexity >= {filters.min_complexity}")
+            if filters.max_complexity is not None:
+                conditions.append(f"complexity <= {filters.max_complexity}")
 
         return " AND " + " AND ".join(conditions) if conditions else ""
 
@@ -161,6 +261,8 @@ class BigQuerySimilarityClient(BaseSimilarityClient):
         distance_type: str = "cosine",
         filters: Optional[SimilarityFilters] = None,
         embedding_dims: Optional[int] = None,
+        include_embeddings: bool = False,
+        include_umap: bool = False,
     ) -> pd.DataFrame:
         """Find games similar to a given game using BigQuery ML.DISTANCE.
 
@@ -170,13 +272,49 @@ class BigQuerySimilarityClient(BaseSimilarityClient):
             distance_type: Distance metric (cosine, euclidean, dot_product).
             filters: Optional filters for year, rating, complexity, etc.
             embedding_dims: Embedding dimensions to use (8, 16, 32, or 64/None for full).
+            include_embeddings: Not supported in BigQuery mode.
+            include_umap: Not supported in BigQuery mode.
 
         Returns:
             DataFrame with similar games.
         """
+        if include_embeddings or include_umap:
+            logger.warning("include_embeddings/include_umap not supported in BigQuery mode")
         logger.info(f"Finding similar games for game_id={game_id}, top_k={top_k}, dims={embedding_dims}")
 
-        filter_clause = self._build_filter_clause(filters)
+        # Handle relative complexity filtering
+        effective_filters = filters
+        if filters and filters.complexity_mode:
+            query_complexity = self._get_game_complexity(game_id)
+            if query_complexity is not None:
+                band = filters.complexity_band if filters.complexity_band is not None else 0.5
+                min_comp, max_comp = self._compute_complexity_bounds(
+                    query_complexity, filters.complexity_mode, band
+                )
+                logger.info(
+                    f"Applied complexity_mode={filters.complexity_mode} "
+                    f"(query={query_complexity:.2f}, band={band}) -> [{min_comp:.2f}, {max_comp:.2f}]"
+                )
+                # Create new filters with computed absolute complexity bounds
+                effective_filters = SimilarityFilters(
+                    min_year=filters.min_year,
+                    max_year=filters.max_year,
+                    min_users_rated=filters.min_users_rated,
+                    max_users_rated=filters.max_users_rated,
+                    min_rating=filters.min_rating,
+                    max_rating=filters.max_rating,
+                    min_geek_rating=filters.min_geek_rating,
+                    max_geek_rating=filters.max_geek_rating,
+                    min_complexity=min_comp,
+                    max_complexity=max_comp,
+                )
+            else:
+                logger.warning(
+                    f"complexity_mode requested but query game {game_id} "
+                    "has no complexity value - ignoring"
+                )
+
+        filter_clause = self._build_filter_clause(effective_filters)
         distance_type_upper = distance_type.upper()
         emb_col = self._get_embedding_column(embedding_dims)
 
@@ -226,6 +364,8 @@ class BigQuerySimilarityClient(BaseSimilarityClient):
         distance_type: str = "cosine",
         filters: Optional[SimilarityFilters] = None,
         embedding_dims: Optional[int] = None,
+        include_embeddings: bool = False,
+        include_umap: bool = False,
     ) -> pd.DataFrame:
         """Find games similar to a set of games (using average embedding).
 
@@ -235,11 +375,19 @@ class BigQuerySimilarityClient(BaseSimilarityClient):
             distance_type: Distance metric.
             filters: Optional filters.
             embedding_dims: Embedding dimensions to use (8, 16, 32, or 64/None for full).
+            include_embeddings: Not supported in BigQuery mode.
+            include_umap: Not supported in BigQuery mode.
 
         Returns:
             DataFrame with similar games.
         """
+        if include_embeddings or include_umap:
+            logger.warning("include_embeddings/include_umap not supported in BigQuery mode")
         logger.info(f"Finding games like game_ids={game_ids}, top_k={top_k}, dims={embedding_dims}")
+
+        # complexity_mode is not supported for multi-game queries (matches service behavior)
+        if filters and filters.complexity_mode:
+            logger.warning("complexity_mode not supported for find_games_like - ignoring")
 
         filter_clause = self._build_filter_clause(filters)
         distance_type_upper = distance_type.upper()
@@ -327,6 +475,8 @@ class ServiceSimilarityClient(BaseSimilarityClient):
         distance_type: str = "cosine",
         filters: Optional[SimilarityFilters] = None,
         embedding_dims: Optional[int] = None,
+        include_embeddings: bool = False,
+        include_umap: bool = False,
     ) -> pd.DataFrame:
         """Find games similar to a given game via the service."""
         payload: Dict[str, Any] = {
@@ -337,6 +487,12 @@ class ServiceSimilarityClient(BaseSimilarityClient):
 
         if embedding_dims:
             payload["embedding_dims"] = embedding_dims
+
+        if include_embeddings:
+            payload["include_embeddings"] = True
+
+        if include_umap:
+            payload["include_umap"] = True
 
         if filters:
             payload.update(filters.to_dict())
@@ -365,6 +521,8 @@ class ServiceSimilarityClient(BaseSimilarityClient):
         distance_type: str = "cosine",
         filters: Optional[SimilarityFilters] = None,
         embedding_dims: Optional[int] = None,
+        include_embeddings: bool = False,
+        include_umap: bool = False,
     ) -> pd.DataFrame:
         """Find games similar to a set of games via the service."""
         payload: Dict[str, Any] = {
@@ -375,6 +533,12 @@ class ServiceSimilarityClient(BaseSimilarityClient):
 
         if embedding_dims:
             payload["embedding_dims"] = embedding_dims
+
+        if include_embeddings:
+            payload["include_embeddings"] = True
+
+        if include_umap:
+            payload["include_umap"] = True
 
         if filters:
             payload.update(filters.to_dict())
@@ -415,19 +579,65 @@ class ServiceSimilarityClient(BaseSimilarityClient):
         data = response.json()
         return data.get("models", [])
 
+    def get_embedding_profile(
+        self,
+        game_ids: List[int],
+        embedding_dims: int = 64,
+        include_umap: bool = False,
+        model_version: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Get embedding profiles for multiple games.
+
+        Args:
+            game_ids: List of game IDs to get embeddings for.
+            embedding_dims: Embedding dimensions (8, 16, 32, or 64).
+            include_umap: Include UMAP 2D coordinates.
+            model_version: Specific model version, or None for latest.
+
+        Returns:
+            Dict with 'games' list containing embedding data, 'embedding_dim', 'model_version'.
+        """
+        payload: Dict[str, Any] = {
+            "game_ids": game_ids,
+            "embedding_dims": embedding_dims,
+            "include_umap": include_umap,
+        }
+
+        if model_version is not None:
+            payload["model_version"] = model_version
+
+        logger.info(f"Getting embedding profile for {len(game_ids)} games, dims={embedding_dims}")
+
+        response = self._requests.post(
+            f"{self.base_url}/embedding_profile",
+            json=payload,
+            timeout=self.timeout
+        )
+        response.raise_for_status()
+        return response.json()
+
 
 def get_similarity_client() -> BaseSimilarityClient:
     """Factory function to get the appropriate similarity client.
 
-    Returns BigQuerySimilarityClient by default (local dev).
-    Returns ServiceSimilarityClient if SIMILARITY_SERVICE_URL is set.
+    Returns BigQuerySimilarityClient if:
+    - USE_BIGQUERY_CLIENT=true is set, OR
+    - SIMILARITY_SERVICE_URL is not set
+
+    Returns ServiceSimilarityClient if SIMILARITY_SERVICE_URL is set
+    and USE_BIGQUERY_CLIENT is not true.
 
     Returns:
         Configured similarity client.
     """
+    # Allow forcing BigQuery mode even when service URL is set
+    force_bigquery = os.getenv("USE_BIGQUERY_CLIENT", "").lower() in ("true", "1", "yes")
     service_url = os.getenv("SIMILARITY_SERVICE_URL")
 
-    if service_url:
+    if force_bigquery:
+        logger.info("Using BigQuerySimilarityClient (forced via USE_BIGQUERY_CLIENT)")
+        return BigQuerySimilarityClient()
+    elif service_url:
         timeout = int(os.getenv("SIMILARITY_SERVICE_TIMEOUT", "30"))
         logger.info(f"Using ServiceSimilarityClient with URL: {service_url}")
         return ServiceSimilarityClient(base_url=service_url, timeout=timeout)

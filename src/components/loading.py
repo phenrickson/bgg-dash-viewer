@@ -23,13 +23,14 @@ def create_spinner(
     Returns:
         Standardized spinner component.
     """
-    return dbc.Spinner(
-        children,
-        id=spinner_id,
-        color=SPINNER_CONFIG["color"],
-        type=SPINNER_CONFIG["type"],
-        fullscreen=fullscreen,
-    )
+    kwargs = {
+        "color": SPINNER_CONFIG["color"],
+        "type": SPINNER_CONFIG["type"],
+        "fullscreen": fullscreen,
+    }
+    if spinner_id is not None:
+        kwargs["id"] = spinner_id
+    return dbc.Spinner(children, **kwargs)
 
 
 def create_loading_placeholder(message: str = "Loading...") -> html.Div:

@@ -5,6 +5,7 @@ from dash import dcc, html
 
 from ..components.header import create_header, create_page_header
 from ..components.footer import create_footer
+from ..components.loading import create_spinner
 
 
 def create_experiments_layout() -> html.Div:
@@ -123,10 +124,8 @@ def _create_metrics_tab() -> html.Div:
                 className="mb-3",
             ),
             # Metrics table
-            dbc.Spinner(
+            create_spinner(
                 html.Div(id="metrics-table-container"),
-                color="primary",
-                type="border",
             ),
             # Performance chart
             html.Div(
@@ -226,10 +225,8 @@ def _create_feature_importance_tab() -> html.Div:
                 className="mb-4",
             ),
             # Overall feature importance chart
-            dbc.Spinner(
+            create_spinner(
                 html.Div(id="feature-importance-chart-container"),
-                color="primary",
-                type="border",
             ),
             # Category breakdown
             html.Div(
@@ -286,10 +283,8 @@ def _create_predictions_tab() -> html.Div:
                 className="mb-4",
             ),
             # Loading spinner
-            dbc.Spinner(
+            create_spinner(
                 html.Div(id="predictions-loading"),
-                color="primary",
-                type="border",
             ),
             # Results container
             html.Div(id="predictions-results-container"),

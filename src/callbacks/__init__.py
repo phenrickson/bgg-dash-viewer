@@ -24,6 +24,7 @@ def register_callbacks(app: dash.Dash, cache: Cache) -> None:
     from .upcoming_predictions_callbacks import register_upcoming_predictions_callbacks
     from .experiments_callbacks import register_experiments_callbacks
     from .similarity_callbacks import register_similarity_callbacks
+    from .bigquery_monitoring_callbacks import register_bigquery_monitoring_callbacks
 
     # Register callbacks from each module
     logger.info("Registering search callbacks")
@@ -46,5 +47,8 @@ def register_callbacks(app: dash.Dash, cache: Cache) -> None:
 
     logger.info("Registering similarity callbacks")
     register_similarity_callbacks(app, cache)
+
+    logger.info("Registering BigQuery monitoring callbacks")
+    register_bigquery_monitoring_callbacks(app, cache)
 
     logger.info("All callbacks registered")

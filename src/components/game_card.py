@@ -2,8 +2,10 @@
 
 from typing import Any
 
-from dash import html, dcc
+from dash import html
 import dash_bootstrap_components as dbc
+
+from .loading import create_spinner
 
 
 def create_badge_list(items: list, color: str, max_items: int = 5) -> list:
@@ -18,8 +20,18 @@ def create_badge_list(items: list, color: str, max_items: int = 5) -> list:
         List of dbc.Badge components.
     """
     badges = []
+    # Use dark text for light-colored badges
+    text_color = "dark" if color == "light" else None
     for item in items[:max_items]:
-        badges.append(dbc.Badge(item, color=color, className="me-1 mb-1", pill=True))
+        badges.append(
+            dbc.Badge(
+                item,
+                color=color,
+                text_color=text_color,
+                className="me-1 mb-1",
+                pill=True,
+            )
+        )
     if len(items) > max_items:
         badges.append(
             dbc.Badge(
@@ -154,7 +166,8 @@ def create_game_info_card(
             [
                 dbc.Badge(
                     f"Rating: {rating:.1f}" if rating else "Unrated",
-                    color="success" if rating and rating >= 7 else "secondary",
+                    color="success" if rating and rating >= 7 else "light",
+                    text_color="dark" if rating and rating < 7 else None,
                     className="me-2 mb-2",
                 ),
                 dbc.Badge(
@@ -162,52 +175,44 @@ def create_game_info_card(
                     color="info",
                     className="me-2 mb-2",
                 ),
-                dbc.Badge(
-                    players_str if players_str else "N/A",
-                    color="primary",
-                    className="me-2 mb-2",
-                ),
-                dbc.Badge(
-                    playtime_str if playtime_str else "N/A",
-                    color="secondary",
-                    className="me-2 mb-2",
-                ),
-            ],
+            ]
+            + ([dbc.Badge(players_str, color="light", text_color="dark", className="me-2 mb-2")] if players_str else [])
+            + ([dbc.Badge(playtime_str, color="light", text_color="dark", className="me-2 mb-2")] if playtime_str else []),
             className="mb-2",
         ),
     ]
 
-    # Categories
+    # Categories - use secondary (gray) for dark mode readability
     if show_categories and len(categories) > 0:
         info_sections.append(
             html.Div(
                 [
                     html.Small("Categories: ", className="text-muted me-1"),
-                    *create_badge_list(categories, "primary", max_items=max_categories),
+                    *create_badge_list(categories, "secondary", max_items=max_categories),
                 ],
                 className="mb-1",
             )
         )
 
-    # Mechanics
+    # Mechanics - use cyan/teal instead of yellow for readability
     if show_mechanics and len(mechanics) > 0:
         info_sections.append(
             html.Div(
                 [
                     html.Small("Mechanics: ", className="text-muted me-1"),
-                    *create_badge_list(mechanics, "warning", max_items=max_mechanics),
+                    *create_badge_list(mechanics, "info", max_items=max_mechanics),
                 ],
                 className="mb-1",
             )
         )
 
-    # Families
+    # Families - use secondary (gray) for dark mode readability
     if show_families and len(families) > 0:
         info_sections.append(
             html.Div(
                 [
                     html.Small("Families: ", className="text-muted me-1"),
-                    *create_badge_list(families, "dark", max_items=max_families),
+                    *create_badge_list(families, "secondary", max_items=max_families),
                 ],
             )
         )
@@ -219,9 +224,9 @@ def create_game_info_card(
                 html.Img(
                     src=thumbnail,
                     style={
-                        "height": f"{image_size}px",
-                        "width": f"{image_size}px",
-                        "objectFit": "cover",
+                        "maxHeight": f"{image_size}px",
+                        "maxWidth": f"{image_size}px",
+                        "objectFit": "contain",
                     },
                     className="rounded shadow",
                 )
@@ -240,9 +245,7 @@ def create_game_info_card(
 def create_game_info_card_with_loading(
     card_id: str,
     content_id: str,
-    loading_type: str = "circle",
-    loading_color: str = "#0d6efd",
-) -> dcc.Loading:
+) -> dbc.Spinner:
     """Create a game info card wrapper with loading spinner.
 
     Use this in layouts, then update the content via callback.
@@ -250,19 +253,15 @@ def create_game_info_card_with_loading(
     Args:
         card_id: ID for the outer card element.
         content_id: ID for the inner content div (target for callback).
-        loading_type: Dash loading spinner type ("circle", "dot", "default").
-        loading_color: Color for the loading spinner.
 
     Returns:
-        dcc.Loading component wrapping a dbc.Card.
+        Standardized spinner component wrapping a dbc.Card.
     """
-    return dcc.Loading(
+    return create_spinner(
         dbc.Card(
             dbc.CardBody(html.Div(id=content_id)),
             id=card_id,
             className="mb-4 panel-card",
             style={"display": "none"},
         ),
-        type=loading_type,
-        color=loading_color,
     )

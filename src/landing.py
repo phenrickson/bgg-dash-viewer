@@ -31,7 +31,7 @@ FEATURES = [
     },
     {
         "title": "Game Similarity",
-        "description": "Find similar games using AI-powered embeddings",
+        "description": "Find similar games based on game characteristics",
         "icon": "fas fa-dice",
         "color": "#22c55e",  # green
         "route": "/app/game-similarity",
@@ -89,7 +89,7 @@ MONITORING = [
         "description": "Database statistics and table information",
         "icon": "fas fa-database",
         "color": "#14b8a6",  # teal
-        "route": None,  # Coming soon
+        "route": "/app/bigquery-monitoring",
     },
     {
         "title": "ETL",

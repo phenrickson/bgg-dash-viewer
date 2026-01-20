@@ -67,7 +67,6 @@ def get_similarity_results_column_defs(distance_type: str = "cosine") -> list[di
         }
 
     return [
-        {"field": "thumbnail", "headerName": "", "width": 60, "cellRenderer": "ThumbnailImage", "sortable": False, "filter": False},
         {"field": "year_published", "headerName": "Year", "width": 80, "filter": "agNumberColumnFilter"},
         {"field": "name", "headerName": "Name", "flex": 2, "minWidth": 200, "filter": "agTextColumnFilter", "cellRenderer": "ExternalLink"},
         distance_col,
@@ -100,6 +99,7 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             query = """
             SELECT game_id, name, year_published
             FROM `${project_id}.${dataset}.game_dropdown_options`
+            ORDER BY COALESCE(bayes_average, 0) DESC
             """
             df = get_bq_client().execute_query(query)
             logger.info(f"Loaded {len(df)} top games for dropdown")
@@ -123,7 +123,7 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             safe_term = search_term.replace("'", "''")
             query = f"""
             SELECT game_id, name, year_published
-            FROM `${{project_id}}.${{dataset}}.games_active`
+            FROM `${{project_id}}.${{dataset}}.games_features`
             WHERE LOWER(name) LIKE LOWER('%{safe_term}%')
             ORDER BY COALESCE(bayes_average, 0) DESC
             LIMIT 50
@@ -276,22 +276,37 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             return df.iloc[0].to_dict()
         return None
 
+    def get_source_game_for_similarity(game_id: int) -> pd.DataFrame:
+        """Get source game data from similarity search table for prepending to results."""
+        query = f"""
+        SELECT game_id, name, year_published, users_rated, average_rating,
+               geek_rating, complexity, thumbnail
+        FROM `${{project_id}}.${{dataset}}.game_similarity_search`
+        WHERE game_id = {game_id}
+        """
+        return get_bq_client().execute_query(query)
+
     # =========================================================================
     # Neighbors Tab Callbacks
     # =========================================================================
 
     @app.callback(
-        Output("neighbors-selected-game-store", "data"),
+        [
+            Output("neighbors-search-button", "disabled"),
+            Output("neighbors-selected-game-store", "data"),
+        ],
         Input("neighbors-game-dropdown", "value"),
     )
-    def handle_neighbors_game_selection(game_id: int | None) -> dict | None:
+    def handle_neighbors_game_selection(game_id: int | None) -> tuple[bool, dict | None]:
+        """Enable search button and store game data when a game is selected."""
         if game_id is None:
-            return None
+            return True, None
         try:
-            return get_game_features(game_id)
+            game_data = get_game_features(game_id)
+            return False, game_data
         except Exception as e:
             logger.warning("Could not fetch game info: %s", str(e))
-            return None
+            return False, None
 
     @app.callback(
         [
@@ -299,10 +314,16 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             Output("neighbors-source-card-container", "style"),
             Output("neighbors-results-container", "children"),
         ],
-        Input("neighbors-selected-game-store", "data"),
+        Input("neighbors-search-button", "n_clicks"),
+        State("neighbors-game-dropdown", "value"),
+        prevent_initial_call=True,
+        running=[
+            (Output("neighbors-search-button", "disabled"), True, False),
+            (Output("neighbors-search-button", "children"), "Searching...", "Find Similar Games"),
+        ],
     )
-    def display_game_neighbors(game_data: dict | None) -> tuple[Any, dict, Any]:
-        if game_data is None:
+    def display_game_neighbors(n_clicks: int, game_id: int | None) -> tuple[Any, dict, Any]:
+        if game_id is None:
             return (
                 None,
                 {"display": "none"},
@@ -310,32 +331,44 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
                     [
                         html.I(className="fas fa-users fa-3x text-muted mb-3"),
                         html.H5("Select a Game", className="text-muted"),
-                        html.P("Type a game name above to search and see similar neighbors.", className="text-muted"),
+                        html.P("Select a game and click 'Find Similar Games' to see results.", className="text-muted"),
                     ],
                     className="text-center py-5",
                 ),
             )
 
         try:
-            game_id = game_data.get("game_id")
-            if game_id is None:
-                return (None, {"display": "none"}, dbc.Alert("Invalid game data.", color="warning"))
+            # Fetch fresh game data directly from dropdown value
+            game_data = get_game_features(game_id)
+            if game_data is None:
+                return (
+                    None,
+                    {"display": "none"},
+                    dbc.Alert("Could not load game data.", color="warning"),
+                )
 
-            source_card_content = dbc.Card(
-                dbc.CardBody(create_game_info_card(game_data)),
-                className="mb-4 panel-card border-primary",
-                style={"borderWidth": "2px"},
+            source_card_content = html.Div([
+                html.H4("Selected Game", className="mb-3"),
+                dbc.Card(
+                    dbc.CardBody(create_game_info_card(game_data)),
+                    className="mb-4 panel-card border-primary",
+                    style={"borderWidth": "2px"},
+                ),
+            ])
+
+            # Default filters: 25+ ratings, within complexity band of ±0.5
+            filters = SimilarityFilters(
+                min_users_rated=DEFAULT_MIN_RATINGS,
+                complexity_mode="within_band",
+                complexity_band=0.5,
             )
-
-            # Default to 25+ ratings filter for neighbors
-            filters = SimilarityFilters(min_users_rated=DEFAULT_MIN_RATINGS)
 
             client = get_similarity_client()
             logger.info(f"Finding neighbors for game_id={game_id}, name={game_data.get('name')}")
             neighbors_df = client.find_similar_games(
                 game_id=game_id,
                 top_k=10,
-                distance_type="euclidean",
+                distance_type="cosine",
                 filters=filters,
             )
             logger.info(f"Found {len(neighbors_df)} neighbors for game_id={game_id}")
@@ -350,36 +383,49 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
                     ),
                 )
 
+            # Get full game data for all neighbors from games_features
+            neighbor_ids = neighbors_df["game_id"].tolist()
+            neighbor_ids_str = ",".join(str(int(g)) for g in neighbor_ids)
+            query = f"""
+            SELECT game_id, name, year_published, bayes_average, average_weight, thumbnail,
+                   min_players, max_players, min_playtime, max_playtime,
+                   categories, mechanics, families
+            FROM `${{project_id}}.${{dataset}}.games_features`
+            WHERE game_id IN ({neighbor_ids_str})
+            """
+            features_df = get_bq_client().execute_query(query)
+            features_map = {int(row["game_id"]): row.to_dict() for _, row in features_df.iterrows()}
+
             neighbor_cards = []
             for _, row in neighbors_df.iterrows():
+                neighbor_id = int(row["game_id"])
                 distance = row["distance"]
-                # Use data directly from similarity query - no extra queries needed
-                neighbor_data = {
-                    "game_id": int(row["game_id"]),
-                    "name": row["name"],
-                    "year_published": row.get("year_published"),
-                    "bayes_average": row.get("geek_rating"),
-                    "average_weight": row.get("complexity"),
-                    "thumbnail": row.get("thumbnail"),
-                    "users_rated": row.get("users_rated"),
-                    # These aren't in similarity table, so leave empty
-                    "categories": [],
-                    "mechanics": [],
-                    "families": [],
-                }
-                card_content = create_game_info_card(neighbor_data)
-                if card_content:
-                    neighbor_card = dbc.Card(
-                        [
-                            dbc.CardHeader(
-                                html.Span(f"#{len(neighbor_cards) + 1}", className="fw-bold"),
-                                className="py-2",
-                            ),
-                            dbc.CardBody(card_content),
-                        ],
-                        className="mb-3 panel-card",
-                    )
-                    neighbor_cards.append(neighbor_card)
+                similarity_pct = (1 - distance) * 100  # Cosine: similarity = 1 - distance
+                neighbor_data = features_map.get(neighbor_id)
+                if neighbor_data:
+                    card_content = create_game_info_card(neighbor_data)
+                    if card_content:
+                        neighbor_card = dbc.Card(
+                            [
+                                dbc.CardHeader(
+                                    html.Div(
+                                        [
+                                            html.Span(f"#{len(neighbor_cards) + 1}", className="fw-bold"),
+                                            dbc.Badge(
+                                                f"{similarity_pct:.1f}% similar",
+                                                color="success" if similarity_pct >= 90 else "info",
+                                                className="ms-2",
+                                            ),
+                                        ],
+                                        className="d-flex align-items-center",
+                                    ),
+                                    className="py-2",
+                                ),
+                                dbc.CardBody(card_content),
+                            ],
+                            className="mb-3 panel-card",
+                        )
+                        neighbor_cards.append(neighbor_card)
 
             return (
                 source_card_content,
@@ -429,6 +475,22 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
 
     @app.callback(
         [
+            Output("similarity-complexity-band-container", "style"),
+            Output("similarity-complexity-absolute-container", "style"),
+        ],
+        Input("similarity-complexity-mode-dropdown", "value"),
+    )
+    def toggle_complexity_ui(complexity_mode: str) -> tuple[dict, dict]:
+        """Show/hide complexity controls based on selected mode."""
+        if complexity_mode == "absolute":
+            # Show absolute range slider, hide band slider
+            return {"display": "none"}, {"display": "block"}
+        else:
+            # Show band slider, hide absolute range slider
+            return {"display": "block"}, {"display": "none"}
+
+    @app.callback(
+        [
             Output("similarity-results-container", "children"),
             Output("similarity-loading", "children"),
         ],
@@ -439,6 +501,8 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             State("similarity-distance-dropdown", "value"),
             State("similarity-embedding-dims-dropdown", "value"),
             State("similarity-year-slider", "value"),
+            State("similarity-complexity-mode-dropdown", "value"),
+            State("similarity-complexity-band-slider", "value"),
             State("similarity-complexity-slider", "value"),
             State("similarity-min-ratings-dropdown", "value"),
         ],
@@ -451,25 +515,39 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
         distance_type: str,
         embedding_dims: int,
         year_range: list[int],
+        complexity_mode: str,
+        complexity_band: float,
         complexity_range: list[float],
         min_ratings: int,
     ) -> tuple[Any, str]:
         if not n_clicks or game_id is None:
             return no_update, ""
 
-        logger.info(f"Searching for games similar to game_id={game_id}")
+        logger.info(f"Searching for games similar to game_id={game_id}, complexity_mode={complexity_mode}")
 
         try:
             # Use default min ratings if not specified
             effective_min_ratings = min_ratings if min_ratings > 0 else DEFAULT_MIN_RATINGS
 
-            filters = SimilarityFilters(
-                min_year=year_range[0] if year_range else None,
-                max_year=year_range[1] if year_range else None,
-                min_complexity=complexity_range[0] if complexity_range else None,
-                max_complexity=complexity_range[1] if complexity_range else None,
-                min_users_rated=effective_min_ratings,
-            )
+            # Build filters based on complexity mode
+            if complexity_mode == "absolute":
+                # Use absolute complexity range
+                filters = SimilarityFilters(
+                    min_year=year_range[0] if year_range else None,
+                    max_year=year_range[1] if year_range else None,
+                    min_complexity=complexity_range[0] if complexity_range else None,
+                    max_complexity=complexity_range[1] if complexity_range else None,
+                    min_users_rated=effective_min_ratings,
+                )
+            else:
+                # Use relative complexity mode (within_band, less_complex, more_complex)
+                filters = SimilarityFilters(
+                    min_year=year_range[0] if year_range else None,
+                    max_year=year_range[1] if year_range else None,
+                    complexity_mode=complexity_mode,
+                    complexity_band=complexity_band,
+                    min_users_rated=effective_min_ratings,
+                )
 
             client = get_similarity_client()
             results_df = client.find_similar_games(
@@ -479,6 +557,12 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
                 filters=filters,
                 embedding_dims=embedding_dims,
             )
+
+            # Prepend source game with distance=0 (100% similarity)
+            source_game_df = get_source_game_for_similarity(game_id)
+            if not source_game_df.empty:
+                source_game_df["distance"] = 0.0
+                results_df = pd.concat([source_game_df, results_df], ignore_index=True)
 
             if results_df.empty:
                 return (html.Div(dbc.Alert("No similar games found. Try adjusting your filters.", color="warning"), className="py-4"), "")

@@ -6,6 +6,7 @@ import dash_bootstrap_components as dbc
 
 from ..components.header import create_header, create_page_header
 from ..components.footer import create_footer
+from ..components.loading import create_spinner
 
 
 def create_new_games_layout() -> html.Div:
@@ -65,10 +66,8 @@ def create_new_games_layout() -> html.Div:
                     ], className="mb-4"),
 
                     # Loading spinner
-                    dbc.Spinner(
+                    create_spinner(
                         html.Div(id="new-games-loading"),
-                        color="primary",
-                        type="border",
                     ),
 
                     # Results container

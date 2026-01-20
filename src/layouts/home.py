@@ -5,6 +5,7 @@ import dash_bootstrap_components as dbc
 
 from ..components.header import create_header, create_page_header
 from ..components.footer import create_footer
+from ..components.loading import create_spinner
 
 
 def create_home_layout() -> html.Div:
@@ -112,9 +113,8 @@ def create_home_layout() -> html.Div:
                                     html.Div(
                                         [
                                             html.H3("Overview"),
-                                            dbc.Spinner(
+                                            create_spinner(
                                                 html.Div(id="summary-stats-container"),
-                                                color="primary",
                                             ),
                                         ],
                                         className="mb-4",
