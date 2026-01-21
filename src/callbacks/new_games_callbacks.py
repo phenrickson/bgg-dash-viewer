@@ -193,6 +193,7 @@ def register_new_games_callbacks(app: dash.Dash, cache: Cache) -> None:
                 xaxis_title="Date",
                 yaxis_title="New Games Count",
                 height=300,
+                showlegend=False,
                 **{k: v for k, v in layout_defaults.items() if k != 'template'},
                 xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)'),
                 yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.1)'),
@@ -257,7 +258,7 @@ def register_new_games_callbacks(app: dash.Dash, cache: Cache) -> None:
                         html.H4("Latest New Games Added", className="mb-3"),
                         grid,
                     ]),
-                    className="panel-card",
+                    className="mb-4 panel-card",
                 ),
             ])
 

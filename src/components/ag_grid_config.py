@@ -18,7 +18,6 @@ def get_default_grid_options() -> dict[str, Any]:
         "animateRows": True,
         "rowSelection": "single",
         "suppressCellFocus": True,
-        "domLayout": "autoHeight",
     }
 
 
