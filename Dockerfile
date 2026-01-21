@@ -14,9 +14,9 @@ RUN pip install --no-cache-dir uv
 # Copy dependency files and README (required by pyproject.toml metadata)
 COPY pyproject.toml uv.lock README.md ./
 
-# Install dependencies to a virtual environment
-RUN uv venv /opt/venv && \
-    uv pip install --python /opt/venv/bin/python .
+# Install dependencies to a virtual environment using lock file
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
+RUN uv sync --frozen --no-dev --no-install-project
 
 # Final stage
 FROM python:3.12-slim

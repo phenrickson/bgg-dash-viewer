@@ -37,7 +37,7 @@ def get_similarity_results_column_defs(distance_type: str = "cosine") -> list[di
         distance_col = {
             "field": "distance",
             "headerName": "Similarity",
-            "width": 100,
+            "width": 115,
             "valueFormatter": {"function": "d3.format('.1%')(1 - params.value)"},
             "filter": "agNumberColumnFilter",
             "sort": "asc",
@@ -49,7 +49,7 @@ def get_similarity_results_column_defs(distance_type: str = "cosine") -> list[di
         distance_col = {
             "field": "distance",
             "headerName": "Distance",
-            "width": 100,
+            "width": 115,
             "valueFormatter": {"function": "d3.format('.3f')(params.value)"},
             "filter": "agNumberColumnFilter",
             "sort": "asc",
@@ -61,7 +61,7 @@ def get_similarity_results_column_defs(distance_type: str = "cosine") -> list[di
         distance_col = {
             "field": "distance",
             "headerName": "Similarity",
-            "width": 100,
+            "width": 115,
             "valueFormatter": {"function": "d3.format('.3f')(-params.value)"},
             "filter": "agNumberColumnFilter",
             "sort": "asc",
@@ -71,13 +71,13 @@ def get_similarity_results_column_defs(distance_type: str = "cosine") -> list[di
         }
 
     return [
-        {"field": "year_published", "headerName": "Year", "width": 80, "filter": "agNumberColumnFilter"},
-        {"field": "name", "headerName": "Name", "flex": 2, "minWidth": 200, "filter": "agTextColumnFilter", "cellRenderer": "ExternalLink"},
+        {"field": "year_published", "headerName": "Year", "width": 90, "filter": "agNumberColumnFilter"},
+        {"field": "name", "headerName": "Name", "flex": 1, "minWidth": 180, "filter": "agTextColumnFilter", "cellRenderer": "ExternalLink"},
         distance_col,
-        {"field": "geek_rating", "headerName": "Geek Rating", "width": 110, "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"}, "filter": "agNumberColumnFilter", "cellStyle": {"function": "params.value >= 8.0 ? {'color': 'var(--bs-success)', 'fontWeight': 'bold'} : params.value < 6.0 ? {'color': 'var(--bs-danger)'} : {}"}},
-        {"field": "average_rating", "headerName": "Avg Rating", "width": 100, "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"}, "filter": "agNumberColumnFilter"},
-        {"field": "complexity", "headerName": "Complexity", "width": 100, "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"}, "filter": "agNumberColumnFilter"},
-        {"field": "users_rated", "headerName": "Ratings", "width": 100, "valueFormatter": {"function": "params.value ? d3.format(',')(params.value) : '-'"}, "filter": "agNumberColumnFilter"},
+        {"field": "geek_rating", "headerName": "Geek Rating", "width": 120, "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"}, "filter": "agNumberColumnFilter", "cellStyle": {"function": "params.value >= 8.0 ? {'color': 'var(--bs-success)', 'fontWeight': 'bold'} : params.value < 6.0 ? {'color': 'var(--bs-danger)'} : {}"}},
+        {"field": "average_rating", "headerName": "Avg Rating", "width": 115, "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"}, "filter": "agNumberColumnFilter"},
+        {"field": "complexity", "headerName": "Complexity", "width": 115, "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"}, "filter": "agNumberColumnFilter"},
+        {"field": "users_rated", "headerName": "Ratings", "width": 110, "valueFormatter": {"function": "params.value ? d3.format(',')(params.value) : '-'"}, "filter": "agNumberColumnFilter"},
     ]
 
 
@@ -168,6 +168,7 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             Output("tab-neighbors-content", "style"),
             Output("tab-compare-content", "style"),
             Output("tab-search-content", "style"),
+            Output("advanced-filters-container", "style"),
         ],
         Input("similarity-tabs", "active_tab"),
     )
@@ -176,23 +177,20 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
         neighbors_style = {"display": "block"} if active_tab == "tab-neighbors" else {"display": "none"}
         compare_style = {"display": "block"} if active_tab == "tab-compare" else {"display": "none"}
         search_style = {"display": "block"} if active_tab == "tab-search" else {"display": "none"}
-        return neighbors_style, compare_style, search_style
+        filters_style = {"display": "block"} if active_tab == "tab-search" else {"display": "none"}
+        return neighbors_style, compare_style, search_style, filters_style
 
     # =========================================================================
     # Shared Game Selector (for all tabs)
     # =========================================================================
 
     @app.callback(
-        [
-            Output("shared-search-button", "disabled"),
-            Output("similarity-search-button", "disabled"),
-        ],
+        Output("shared-search-button", "disabled"),
         Input("shared-game-dropdown", "value"),
     )
     def handle_shared_game_selection(game_id: int | None):
-        """Enable search buttons when a game is selected."""
-        disabled = game_id is None
-        return disabled, disabled
+        """Enable search button when a game is selected."""
+        return game_id is None
 
     @app.callback(
         Output("shared-search-collapse", "is_open"),
@@ -609,13 +607,13 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             Output("similarity-results-container", "children"),
             Output("similarity-loading", "children"),
         ],
-        Input("similarity-search-button", "n_clicks"),
+        Input("shared-search-button", "n_clicks"),
         [
+            State("similarity-tabs", "active_tab"),
             State("shared-game-dropdown", "value"),
             State("similarity-top-k-dropdown", "value"),
             State("similarity-distance-dropdown", "value"),
             State("similarity-embedding-dims-dropdown", "value"),
-            State("similarity-year-slider", "value"),
             State("similarity-complexity-mode-dropdown", "value"),
             State("similarity-complexity-band-slider", "value"),
             State("similarity-complexity-slider", "value"),
@@ -625,16 +623,19 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
     )
     def search_similar_games(
         n_clicks: int,
+        active_tab: str,
         game_id: int | None,
         top_k: int,
         distance_type: str,
         embedding_dims: int,
-        year_range: list[int],
         complexity_mode: str,
         complexity_band: float,
         complexity_range: list[float],
         min_ratings: int,
     ) -> tuple[Any, str]:
+        # Only run on Advanced Search tab
+        if active_tab != "tab-search":
+            return no_update, no_update
         if not n_clicks or game_id is None:
             return no_update, ""
 
@@ -652,8 +653,8 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
                     top_k=top_k,
                     distance_type=distance_type,
                     embedding_dims=embedding_dims,
-                    min_year=year_range[0] if year_range else None,
-                    max_year=year_range[1] if year_range else None,
+                    min_year=None,
+                    max_year=None,
                     min_users_rated=effective_min_ratings,
                     complexity_mode=None,
                     complexity_band=None,
@@ -667,8 +668,8 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
                     top_k=top_k,
                     distance_type=distance_type,
                     embedding_dims=embedding_dims,
-                    min_year=year_range[0] if year_range else None,
-                    max_year=year_range[1] if year_range else None,
+                    min_year=None,
+                    max_year=None,
                     min_users_rated=effective_min_ratings,
                     complexity_mode=complexity_mode,
                     complexity_band=complexity_band,
