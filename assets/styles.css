@@ -75,6 +75,20 @@ body {
 .filters-sidebar {
     flex: 0 0 280px;
     max-width: 280px;
+    overflow: visible !important;
+}
+
+/* Allow dropdown menus to overflow sidebar */
+.filters-sidebar .dash-dropdown,
+.filters-sidebar .Select {
+    position: relative;
+}
+
+.filters-sidebar .Select-menu-outer,
+.filters-sidebar .dash-dropdown [class*="menu"] {
+    min-width: 350px !important;
+    width: max-content !important;
+    max-width: 500px !important;
 }
 
 .card-title {
@@ -171,10 +185,25 @@ body {
 }
 
 /* ==========================================================================
+   Dropdown Overflow Fix
+   ========================================================================== */
+
+/* Ensure dropdown menus can overflow their containers */
+.card,
+.card-body,
+.tab-content,
+.tab-pane,
+.panel-card {
+    overflow: visible !important;
+}
+
+/* ==========================================================================
    Dropdown Styles (Dark Mode)
    ========================================================================== */
 
-.Select-control {
+/* Modern Dash dropdown styles */
+.Select-control,
+.dash-dropdown .Select-control {
     background-color: var(--bs-gray-800) !important;
     color: var(--bs-light) !important;
     border-color: var(--bs-gray-700) !important;
@@ -189,10 +218,12 @@ body {
     box-shadow: 0 0 0 1px var(--bs-primary);
 }
 
-.Select-menu-outer {
+.Select-menu-outer,
+.dash-dropdown .Select-menu-outer {
     background-color: var(--bs-gray-800) !important;
     color: var(--bs-light) !important;
     border-color: var(--bs-gray-700) !important;
+    z-index: 9999 !important;
 }
 
 .Select-option {
@@ -215,6 +246,103 @@ body {
 
 .Select-placeholder {
     color: var(--bs-gray-500) !important;
+}
+
+/* Virtualized dropdown option styling */
+.VirtualizedSelectOption,
+.VirtualizedSelectFocusedOption {
+    display: flex !important;
+    align-items: center !important;
+    padding: 8px 12px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-light) !important;
+    cursor: pointer !important;
+}
+
+.VirtualizedSelectFocusedOption {
+    background-color: var(--bs-gray-700) !important;
+}
+
+.VirtualizedSelectSelectedOption {
+    background-color: var(--bs-primary) !important;
+}
+
+/* Dropdown menu container */
+.Select-menu,
+.VirtualizedSelectMenu {
+    background-color: var(--bs-gray-800) !important;
+}
+
+/* Ensure proper z-index for dropdown menu */
+.dash-dropdown .Select.is-open {
+    z-index: 9999 !important;
+}
+
+/* Modern Dash Dropdown (dcc.Dropdown) - React-Select v5+ */
+.dash-dropdown .Select-input input {
+    color: var(--bs-light) !important;
+}
+
+/* Override for virtualized dropdown list items */
+.dash-dropdown [class*="option"],
+.dash-dropdown [class*="Option"],
+.VirtualizedSelectOption,
+div[class*="MenuList"] > div,
+div[class*="menuList"] > div {
+    background-color: var(--bs-gray-800) !important;
+    color: var(--bs-light) !important;
+}
+
+div[class*="MenuList"] > div:hover,
+div[class*="menuList"] > div:hover {
+    background-color: var(--bs-gray-700) !important;
+}
+
+/* Dropdown menu container background */
+div[class*="MenuList"],
+div[class*="menuList"],
+.dash-dropdown [class*="menu"] {
+    background-color: var(--bs-gray-800) !important;
+}
+
+/* Single value and placeholder text */
+.dash-dropdown [class*="singleValue"],
+.dash-dropdown [class*="placeholder"] {
+    color: var(--bs-light) !important;
+}
+
+.dash-dropdown [class*="placeholder"] {
+    color: var(--bs-gray-500) !important;
+}
+
+/* Input text while typing */
+.dash-dropdown [class*="input"] input,
+.dash-dropdown input {
+    color: var(--bs-light) !important;
+}
+
+/* Control (the main dropdown box) */
+.dash-dropdown [class*="control"] {
+    background-color: var(--bs-gray-800) !important;
+    border-color: var(--bs-gray-700) !important;
+}
+
+.dash-dropdown [class*="control"]:hover {
+    border-color: var(--bs-gray-600) !important;
+}
+
+/* Indicator icons (dropdown arrow, clear button) */
+.dash-dropdown [class*="indicatorContainer"] svg,
+.dash-dropdown [class*="Indicator"] svg {
+    fill: var(--bs-gray-400) !important;
+}
+
+/* No options message */
+.dash-dropdown [class*="noOptionsMessage"] {
+    color: var(--bs-gray-400) !important;
 }
 
 /* ==========================================================================

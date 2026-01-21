@@ -6,6 +6,7 @@ import dash_bootstrap_components as dbc
 from ..components.header import create_header
 from ..components.footer import create_footer
 from ..components.filters import create_filters
+from ..components.loading import create_spinner
 
 
 def create_game_search_layout() -> html.Div:
@@ -50,10 +51,8 @@ def create_game_search_layout() -> html.Div:
                                         className="mb-4 panel-card",
                                     ),
                                     # Loading indicator
-                                    dbc.Spinner(
+                                    create_spinner(
                                         html.Div(id="loading-search-results"),
-                                        color="primary",
-                                        type="border",
                                     ),
                                     # Table card
                                     dbc.Card(

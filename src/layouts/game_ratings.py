@@ -5,6 +5,7 @@ import dash_bootstrap_components as dbc
 
 from ..components.header import create_header, create_page_header
 from ..components.footer import create_footer
+from ..components.loading import create_spinner
 from ..components.metrics_cards import create_metrics_cards
 
 
@@ -54,9 +55,8 @@ def create_dashboard_layout() -> html.Div:
                                                     "Games published from 1975 to present",
                                                     className="text-muted small",
                                                 ),
-                                                dbc.Spinner(
+                                                create_spinner(
                                                     dcc.Graph(id="rating-by-year-chart"),
-                                                    color="primary",
                                                 ),
                                             ]
                                         ),
@@ -91,9 +91,8 @@ def create_dashboard_layout() -> html.Div:
                                                     "Relationship between game complexity and rating",
                                                     className="text-muted small",
                                                 ),
-                                                dbc.Spinner(
+                                                create_spinner(
                                                     dcc.Graph(id="weight-vs-rating-chart"),
-                                                    color="primary",
                                                 ),
                                             ]
                                         ),
@@ -133,9 +132,8 @@ def create_dashboard_layout() -> html.Div:
                                                     "User rating trends over time",
                                                     className="text-muted small",
                                                 ),
-                                                dbc.Spinner(
+                                                create_spinner(
                                                     dcc.Graph(id="complexity-by-year-chart"),
-                                                    color="primary",
                                                 ),
                                             ]
                                         ),
@@ -170,9 +168,8 @@ def create_dashboard_layout() -> html.Div:
                                                     "Relationship between average rating and number of user ratings",
                                                     className="text-muted small",
                                                 ),
-                                                dbc.Spinner(
+                                                create_spinner(
                                                     dcc.Graph(id="rating-vs-users-chart"),
-                                                    color="primary",
                                                 ),
                                             ]
                                         ),

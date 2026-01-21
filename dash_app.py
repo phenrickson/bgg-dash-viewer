@@ -125,6 +125,8 @@ def display_page(pathname: str) -> Any:
     from src.layouts.new_games import create_new_games_layout
     from src.layouts.upcoming_predictions import create_upcoming_predictions_layout
     from src.layouts.experiments import create_experiments_layout
+    from src.layouts.game_similarity import create_game_similarity_layout
+    from src.layouts.bigquery_monitoring import create_bigquery_monitoring_layout
 
     logger.info(f"Routing to: {pathname}")
 
@@ -139,6 +141,10 @@ def display_page(pathname: str) -> Any:
         return create_upcoming_predictions_layout()
     elif pathname == "/app/experiments":
         return create_experiments_layout()
+    elif pathname == "/app/game-similarity":
+        return create_game_similarity_layout()
+    elif pathname == "/app/bigquery-monitoring":
+        return create_bigquery_monitoring_layout()
     elif pathname and pathname.startswith("/app/game/"):
         try:
             game_id = int(pathname.split("/")[-1])

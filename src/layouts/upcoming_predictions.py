@@ -5,6 +5,7 @@ from dash import dcc, html
 
 from ..components.header import create_header, create_page_header
 from ..components.footer import create_footer
+from ..components.loading import create_spinner
 
 
 def create_upcoming_predictions_layout():
@@ -23,10 +24,8 @@ def create_upcoming_predictions_layout():
                         "ML predictions for upcoming and recent games",
                     ),
                     # Loading spinner for initial data load
-                    dbc.Spinner(
+                    create_spinner(
                         html.Div(id="predictions-page-loading"),
-                        color="primary",
-                        type="border",
                     ),
                     # Main content container (populated after data loads)
                     html.Div(id="predictions-page-content"),
