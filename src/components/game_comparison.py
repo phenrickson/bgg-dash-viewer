@@ -66,7 +66,12 @@ def create_feature_comparison(
             )
         return badges
 
-    # Build game headers (15% larger)
+    # Build game headers (15% larger) with BGG links
+    source_game_id = source_game.get("game_id")
+    source_bgg_url = f"https://boardgamegeek.com/boardgame/{source_game_id}" if source_game_id else "#"
+    neighbor_game_id = neighbor_game.get("game_id")
+    neighbor_bgg_url = f"https://boardgamegeek.com/boardgame/{neighbor_game_id}" if neighbor_game_id else "#"
+
     source_header = html.Div([
         html.Img(
             src=source_game.get("thumbnail", ""),
@@ -74,7 +79,17 @@ def create_feature_comparison(
             className="rounded me-3",
         ) if source_game.get("thumbnail") else None,
         html.Div([
-            html.H4(source_game.get("name", "Source Game"), className="mb-0", style={"fontSize": "1.4rem"}),
+            html.H4(
+                html.A(
+                    source_game.get("name", "Source Game"),
+                    href=source_bgg_url,
+                    target="_blank",
+                    className="text-decoration-none",
+                    style={"color": "inherit"},
+                ),
+                className="mb-0",
+                style={"fontSize": "1.4rem"},
+            ),
             html.Span(
                 f"({source_game.get('year_published', '')})" if source_game.get("year_published") else "",
                 className="text-muted",
@@ -90,7 +105,17 @@ def create_feature_comparison(
             className="rounded me-3",
         ) if neighbor_game.get("thumbnail") else None,
         html.Div([
-            html.H4(neighbor_game.get("name", "Neighbor Game"), className="mb-0", style={"fontSize": "1.4rem"}),
+            html.H4(
+                html.A(
+                    neighbor_game.get("name", "Neighbor Game"),
+                    href=neighbor_bgg_url,
+                    target="_blank",
+                    className="text-decoration-none",
+                    style={"color": "inherit"},
+                ),
+                className="mb-0",
+                style={"fontSize": "1.4rem"},
+            ),
             html.Span(
                 f"({neighbor_game.get('year_published', '')})" if neighbor_game.get("year_published") else "",
                 className="text-muted",
