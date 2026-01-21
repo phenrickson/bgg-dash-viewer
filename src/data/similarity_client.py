@@ -442,6 +442,59 @@ class BigQuerySimilarityClient(BaseSimilarityClient):
         result = self.client.query(query, job_config=job_config).to_dataframe()
         return result
 
+    def get_embedding_profile(
+        self,
+        game_ids: List[int],
+        embedding_dims: int = 64,
+        include_umap: bool = False,
+        model_version: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Get embedding profiles for multiple games.
+
+        Args:
+            game_ids: List of game IDs to get embeddings for.
+            embedding_dims: Embedding dimensions (8, 16, 32, or 64).
+            include_umap: Include UMAP 2D coordinates (not supported in BQ mode).
+            model_version: Specific model version (not used in BQ mode).
+
+        Returns:
+            Dict with 'games' list containing embedding data, 'embedding_dim'.
+        """
+        if include_umap:
+            logger.warning("include_umap not supported in BigQuery mode - ignoring")
+
+        emb_col = self._get_embedding_column(embedding_dims)
+        game_ids_str = ",".join(str(g) for g in game_ids)
+
+        query = f"""
+        SELECT
+            game_id,
+            name,
+            year_published,
+            complexity,
+            {emb_col} as embedding
+        FROM `{self.table_id}`
+        WHERE game_id IN ({game_ids_str})
+        """
+
+        result = self.client.query(query).to_dataframe()
+
+        games = []
+        for _, row in result.iterrows():
+            games.append({
+                "game_id": int(row["game_id"]),
+                "name": row.get("name"),
+                "year_published": row.get("year_published"),
+                "complexity": row.get("complexity"),
+                "embedding": list(row["embedding"]) if row["embedding"] is not None else None,
+            })
+
+        return {
+            "games": games,
+            "embedding_dim": embedding_dims,
+            "model_version": 0,  # Not tracked in BQ mode
+        }
+
 
 class ServiceSimilarityClient(BaseSimilarityClient):
     """HTTP client for the embeddings service."""
