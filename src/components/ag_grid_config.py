@@ -72,69 +72,69 @@ def get_search_results_column_defs() -> list[dict[str, Any]]:
         {
             "field": "year_published",
             "headerName": "Year",
-            "flex": 1,
-            "minWidth": 70,
+            "width": 70,
             "filter": "agNumberColumnFilter",
+            "cellStyle": {"textAlign": "center"},
         },
         {
             "field": "name",
             "headerName": "Name",
             "cellRenderer": "markdown",
-            "flex": 3,
-            "minWidth": 150,
+            "flex": 2,
+            "minWidth": 250,
             "filter": "agTextColumnFilter",
         },
         {
             "field": "bayes_average",
-            "headerName": "Geek Rating",
-            "flex": 1,
-            "minWidth": 90,
+            "headerName": "Geek\nRating",
+            "wrapHeaderText": True,
+            "minWidth": 100,
             "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
             "filter": "agNumberColumnFilter",
             "cellStyle": {
-                "function": "params.value >= 8.0 ? {'color': 'var(--bs-success)', 'fontWeight': 'bold'} : params.value < 6.0 ? {'color': 'var(--bs-danger)'} : {}"
+                "function": "params.value == null ? {textAlign: 'center'} : params.value >= 6.5 ? {color: '#0d6efd', fontWeight: 'bold', textAlign: 'center'} : params.value < 5.5 ? {color: '#dc3545', textAlign: 'center'} : {textAlign: 'center'}"
             },
         },
         {
             "field": "average_rating",
-            "headerName": "Avg Rating",
-            "flex": 1,
-            "minWidth": 90,
+            "headerName": "Average\nRating",
+            "wrapHeaderText": True,
+            "minWidth": 100,
             "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
             "filter": "agNumberColumnFilter",
             "cellStyle": {
-                "function": "params.value >= 8.0 ? {'color': 'var(--bs-success)', 'fontWeight': 'bold'} : params.value < 6.0 ? {'color': 'var(--bs-danger)'} : {}"
+                "function": "params.value == null ? {textAlign: 'center'} : params.value >= 7.5 ? {color: '#0d6efd', fontWeight: 'bold', textAlign: 'center'} : params.value < 5.5 ? {color: '#dc3545', textAlign: 'center'} : {textAlign: 'center'}"
             },
         },
         {
             "field": "average_weight",
             "headerName": "Complexity",
-            "flex": 1,
-            "minWidth": 90,
+            "minWidth": 100,
             "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
             "filter": "agNumberColumnFilter",
+            "cellStyle": {"textAlign": "center"},
         },
         {
-            "field": "users_rated",
-            "headerName": "User Ratings",
-            "flex": 1,
+            "field": "playtime",
+            "headerName": "Playing\nTime",
+            "wrapHeaderText": True,
             "minWidth": 100,
-            "valueFormatter": {"function": "d3.format(',')(params.value)"},
-            "filter": "agNumberColumnFilter",
+            "valueGetter": {
+                "function": "params.data.min_playtime === params.data.max_playtime ? (params.data.min_playtime || '-') + 'm' : (params.data.min_playtime || '?') + '-' + (params.data.max_playtime || '?') + 'm'"
+            },
+            "filter": "agTextColumnFilter",
+            "cellStyle": {"textAlign": "center"},
         },
         {
-            "field": "best_player_counts",
-            "headerName": "Best Players",
+            "field": "players",
+            "headerName": "Player\nCounts",
+            "wrapHeaderText": True,
+            "headerClass": "ag-header-center",
             "flex": 1,
-            "minWidth": 90,
+            "minWidth": 120,
             "filter": "agTextColumnFilter",
-        },
-        {
-            "field": "recommended_player_counts",
-            "headerName": "Rec. Players",
-            "flex": 1,
-            "minWidth": 90,
-            "filter": "agTextColumnFilter",
+            "cellRenderer": "PlayerCountPills",
+            "cellStyle": {"textAlign": "center"},
         },
     ]
 

@@ -113,6 +113,10 @@ app.server.register_blueprint(auth_bp)
 @app.server.before_request
 def require_login():
     """Require authentication for all /app/ routes."""
+    # Skip auth in local development
+    if app_config["debug"]:
+        return None
+
     # Skip auth check for public paths
     public_prefixes = ("/", "/login", "/register", "/logout", "/static", "/_dash", "/assets")
     if request.path == "/" or any(request.path.startswith(p) for p in public_prefixes[1:]):
