@@ -32,7 +32,7 @@ def get_user_repo() -> UserRepository:
 def login():
     """Login page and handler."""
     if current_user.is_authenticated:
-        return redirect("/app/")
+        return redirect("/")
 
     if request.method == "POST":
         email = request.form.get("email", "").strip()
@@ -46,7 +46,7 @@ def login():
             user_repo.update_last_login(user.user_id)
             logger.info(f"User logged in: {email}")
 
-            next_page = request.args.get("next", "/app/")
+            next_page = request.args.get("next", "/")
             return redirect(next_page)
         else:
             flash("Invalid email or password", "error")
@@ -59,7 +59,7 @@ def login():
 def register():
     """Registration page and handler."""
     if current_user.is_authenticated:
-        return redirect("/app/")
+        return redirect("/")
 
     if request.method == "POST":
         email = request.form.get("email", "").strip()
@@ -89,7 +89,7 @@ def register():
             if user:
                 login_user(user)
                 logger.info(f"New user registered: {email}")
-                return redirect("/app/")
+                return redirect("/")
             else:
                 flash("Registration failed. Please try again.", "error")
 
