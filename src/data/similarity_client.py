@@ -91,6 +91,15 @@ class BaseSimilarityClient(ABC):
         """Find games similar to a set of games."""
         pass
 
+    @abstractmethod
+    def get_embedding_info(self) -> Dict[str, Any]:
+        """Get information about the embedding model being used.
+
+        Returns:
+            Dict with 'embedding_model', 'embedding_version', 'embedding_dim', 'algorithm'.
+        """
+        pass
+
 
 class BigQuerySimilarityClient(BaseSimilarityClient):
     """Direct BigQuery client for similarity search - no service required."""
@@ -442,6 +451,42 @@ class BigQuerySimilarityClient(BaseSimilarityClient):
         result = self.client.query(query, job_config=job_config).to_dataframe()
         return result
 
+    def get_embedding_info(self) -> Dict[str, Any]:
+        """Get information about the embedding model being used.
+
+        Returns:
+            Dict with 'embedding_model', 'embedding_version', 'embedding_dim', 'algorithm'.
+        """
+        query = f"""
+        SELECT DISTINCT
+            embedding_model,
+            embedding_version,
+            embedding_dim,
+            algorithm
+        FROM `{self.table_id}`
+        LIMIT 1
+        """
+
+        try:
+            result = self.client.query(query).to_dataframe()
+            if not result.empty:
+                row = result.iloc[0]
+                return {
+                    "embedding_model": row.get("embedding_model"),
+                    "embedding_version": int(row.get("embedding_version")) if row.get("embedding_version") is not None else None,
+                    "embedding_dim": int(row.get("embedding_dim")) if row.get("embedding_dim") is not None else None,
+                    "algorithm": row.get("algorithm"),
+                }
+        except Exception as e:
+            logger.warning(f"Could not fetch embedding info: {e}")
+
+        return {
+            "embedding_model": None,
+            "embedding_version": None,
+            "embedding_dim": None,
+            "algorithm": None,
+        }
+
     def get_embedding_profile(
         self,
         game_ids: List[int],
@@ -621,6 +666,29 @@ class ServiceSimilarityClient(BaseSimilarityClient):
         )
         response.raise_for_status()
         return response.json()
+
+    def get_embedding_info(self) -> Dict[str, Any]:
+        """Get information about the embedding model being used.
+
+        Returns:
+            Dict with 'embedding_model', 'embedding_version', 'embedding_dim', 'algorithm'.
+        """
+        try:
+            # Try to get model info from the service
+            response = self._requests.get(
+                f"{self.base_url}/model_info",
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.warning(f"Could not fetch embedding info from service: {e}")
+            return {
+                "embedding_model": None,
+                "embedding_version": None,
+                "embedding_dim": None,
+                "algorithm": None,
+            }
 
     def list_models(self) -> List[Dict[str, Any]]:
         """List available embedding models."""

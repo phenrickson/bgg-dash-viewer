@@ -159,6 +159,77 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
         logger.info("Loading game options for dropdown")
         return get_top_games()
 
+    @cache.memoize(timeout=86400)
+    def get_embedding_info() -> dict[str, Any]:
+        """Get embedding model info - cached for 24 hours."""
+        logger.info("Fetching embedding model info")
+        try:
+            client = get_similarity_client()
+            return client.get_embedding_info()
+        except Exception as e:
+            logger.exception(f"Error fetching embedding info: {e}")
+            return {}
+
+    @app.callback(
+        Output("embedding-model-info", "children"),
+        Input("similarity-tabs", "active_tab"),
+        prevent_initial_call=False,
+    )
+    def display_embedding_info(active_tab):
+        """Display embedding model info on page load."""
+        info = get_embedding_info()
+        if not info or not info.get("embedding_model"):
+            return None
+
+        model_name = info.get("embedding_model", "Unknown")
+        version = info.get("embedding_version")
+        dim = info.get("embedding_dim")
+        algorithm = info.get("algorithm")
+
+        # Build info badges
+        badges = []
+        badges.append(
+            dbc.Badge(
+                [html.I(className="fas fa-brain me-1"), f"Model: {model_name}"],
+                color="secondary",
+                className="me-2",
+            )
+        )
+        if version is not None:
+            badges.append(
+                dbc.Badge(
+                    [html.I(className="fas fa-code-branch me-1"), f"v{version}"],
+                    color="info",
+                    className="me-2",
+                )
+            )
+        if dim is not None:
+            badges.append(
+                dbc.Badge(
+                    [html.I(className="fas fa-vector-square me-1"), f"{dim}d"],
+                    color="light",
+                    text_color="dark",
+                    className="me-2",
+                )
+            )
+        if algorithm:
+            badges.append(
+                dbc.Badge(
+                    [html.I(className="fas fa-cog me-1"), algorithm],
+                    color="light",
+                    text_color="dark",
+                    className="me-2",
+                )
+            )
+
+        return html.Div(
+            [
+                html.Small("Embedding: ", className="text-muted me-1"),
+                *badges,
+            ],
+            className="d-flex align-items-center",
+        )
+
     # =========================================================================
     # Tab Content Switching
     # =========================================================================

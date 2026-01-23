@@ -200,7 +200,12 @@ def create_game_similarity_layout() -> html.Div:
                     html.H2("Similar Games", className="mb-2"),
                     html.P(
                         "Find games similar to your favorites based on game features such as complexity, mechanics, categories and more.",
-                        className="text-muted mb-4",
+                        className="text-muted mb-2",
+                    ),
+                    # Embedding model info display
+                    html.Div(
+                        id="embedding-model-info",
+                        className="mb-4",
                     ),
                     # Tabs (navigation only, content managed separately)
                     dbc.Tabs(
