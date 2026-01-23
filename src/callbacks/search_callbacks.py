@@ -4,22 +4,21 @@ import logging
 from typing import Any
 
 import dash
-from dash import html
-from dash.dependencies import Input, Output, State
 import dash_ag_grid as dag
 import dash_bootstrap_components as dbc
-from flask_caching import Cache
 import pandas as pd
+from dash import html
+from dash.dependencies import Input, Output, State
+from flask_caching import Cache
 
-from ..data.bigquery_client import BigQueryClient
-from ..components.metrics_cards import create_metrics_cards
 from ..components.ag_grid_config import (
-    get_default_grid_options,
     get_default_column_def,
-    get_grid_style,
+    get_default_grid_options,
     get_grid_class_name,
+    get_grid_style,
     get_search_results_column_defs,
 )
+from ..data.bigquery_client import BigQueryClient
 
 logger = logging.getLogger(__name__)
 
@@ -102,9 +101,8 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
         [
             Output("search-results-container", "children"),
             Output("loading-search-results", "children"),
-            Output("search-metrics-cards-container", "children"),
         ],
-        [Input("search-button", "n_clicks"), Input("filter-options-container", "children")],
+        [Input("search-button", "n_clicks")],
         [
             State("publisher-dropdown", "value"),
             State("designer-dropdown", "value"),
@@ -118,8 +116,7 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
         ],
     )
     def search_games(
-        n_clicks: int,
-        filter_options_trigger: str,
+        n_clicks: int | None,
         publishers: list[int] | None,
         designers: list[int] | None,
         categories: list[int] | None,
@@ -134,7 +131,6 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
 
         Args:
             n_clicks: Number of times the search button has been clicked
-            filter_options_trigger: Trigger for filter options loading
             publishers: Selected publisher IDs
             designers: Selected designer IDs
             categories: Selected category IDs
@@ -146,18 +142,26 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
             results_per_page: Number of results to display per page
 
         Returns:
-            Tuple of (search results container, loading indicator, metrics cards)
+            Tuple of (search results container, loading indicator)
         """
-        ctx = dash.callback_context
-        trigger_id = ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else None
-
-        # Skip search if this is just the initial page load with "init" value
-        if trigger_id == "filter-options-container" and filter_options_trigger == "init":
-            return html.Div(), "", html.Div()
+        # Show placeholder on initial load (before user clicks search)
+        if not n_clicks:
+            placeholder = html.Div(
+                [
+                    html.I(className="fas fa-search fa-3x text-muted mb-3"),
+                    html.H5("Ready to Search", className="text-muted"),
+                    html.P(
+                        "Use the filters on the left and click 'Search Games' to find board games.",
+                        className="text-muted",
+                    ),
+                ],
+                className="d-flex flex-column align-items-center justify-content-center",
+                style={"minHeight": "300px"},
+            )
+            return placeholder, ""
 
         logger.info("Searching for games with filters")
         try:
-            # Get games from BigQuery
             games_df = get_bq_client().get_games(
                 limit=results_per_page,
                 publishers=publishers,
@@ -176,11 +180,8 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                 ),
                 player_count=player_count,
                 player_count_type=player_count_type if player_count is not None else None,
-                best_player_count_only=False,  # We're using the new player_count_type parameter instead
+                best_player_count_only=False,
             )
-
-            # Create metrics cards
-            metrics_cards = create_metrics_cards(games_df)
 
             if games_df.empty:
                 return (
@@ -191,7 +192,6 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                         )
                     ),
                     "",
-                    html.Div(),  # Empty metrics cards for no results
                 )
 
             # Make the game name a clickable link to BGG
@@ -214,7 +214,7 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                 style=get_grid_style("calc(100vh - 350px)"),
             )
 
-            return grid, "", metrics_cards
+            return grid, ""
 
         except Exception as e:
             logger.exception("Error searching for games: %s", str(e))
@@ -226,5 +226,4 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                     )
                 ),
                 "",
-                html.Div(),  # Empty metrics cards for error case
             )

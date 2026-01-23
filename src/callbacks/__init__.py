@@ -1,12 +1,13 @@
 """Callbacks package for the Board Game Data Explorer."""
 
 import logging
-from typing import Any
 
 import dash
 from flask_caching import Cache
 
 logger = logging.getLogger(__name__)
+
+__all__ = ["register_callbacks"]
 
 
 def register_callbacks(app: dash.Dash, cache: Cache) -> None:

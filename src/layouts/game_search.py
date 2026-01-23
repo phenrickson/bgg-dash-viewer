@@ -43,13 +43,6 @@ def create_game_search_layout() -> html.Div:
                             # Content area
                             dbc.Col(
                                 [
-                                    # KPIs card
-                                    dbc.Card(
-                                        dbc.CardBody(
-                                            html.Div(id="search-metrics-cards-container")
-                                        ),
-                                        className="mb-4 panel-card",
-                                    ),
                                     # Loading indicator
                                     create_spinner(
                                         html.Div(id="loading-search-results"),

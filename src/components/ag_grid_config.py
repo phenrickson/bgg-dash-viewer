@@ -72,69 +72,85 @@ def get_search_results_column_defs() -> list[dict[str, Any]]:
         {
             "field": "year_published",
             "headerName": "Year",
-            "flex": 1,
-            "minWidth": 70,
+            "width": 80,
             "filter": "agNumberColumnFilter",
+            "cellStyle": {"textAlign": "center"},
         },
         {
             "field": "name",
             "headerName": "Name",
             "cellRenderer": "markdown",
-            "flex": 3,
-            "minWidth": 150,
+            "width": 320,
             "filter": "agTextColumnFilter",
         },
         {
             "field": "bayes_average",
             "headerName": "Geek Rating",
-            "flex": 1,
-            "minWidth": 90,
+            "width": 110,
             "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
             "filter": "agNumberColumnFilter",
             "cellStyle": {
-                "function": "params.value >= 8.0 ? {'color': 'var(--bs-success)', 'fontWeight': 'bold'} : params.value < 6.0 ? {'color': 'var(--bs-danger)'} : {}"
+                "function": """
+                    (function() {
+                        var v = params.value;
+                        if (v == null) return {textAlign: 'center'};
+                        var min = 5.0, max = 8.5;
+                        var t = Math.max(0, Math.min(1, (v - min) / (max - min)));
+                        var r = Math.round(239 - t * 140);
+                        var g = Math.round(68 + t * 34);
+                        var b = Math.round(68 + t * 173);
+                        return {color: 'rgb(' + r + ',' + g + ',' + b + ')', fontWeight: '500', textAlign: 'center'};
+                    })()
+                """
             },
         },
         {
             "field": "average_rating",
-            "headerName": "Avg Rating",
-            "flex": 1,
-            "minWidth": 90,
+            "headerName": "Average Rating",
+            "width": 120,
             "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
             "filter": "agNumberColumnFilter",
             "cellStyle": {
-                "function": "params.value >= 8.0 ? {'color': 'var(--bs-success)', 'fontWeight': 'bold'} : params.value < 6.0 ? {'color': 'var(--bs-danger)'} : {}"
+                "function": """
+                    (function() {
+                        var v = params.value;
+                        if (v == null) return {textAlign: 'center'};
+                        var min = 5.0, max = 9.0;
+                        var t = Math.max(0, Math.min(1, (v - min) / (max - min)));
+                        var r = Math.round(239 - t * 140);
+                        var g = Math.round(68 + t * 34);
+                        var b = Math.round(68 + t * 173);
+                        return {color: 'rgb(' + r + ',' + g + ',' + b + ')', fontWeight: '500', textAlign: 'center'};
+                    })()
+                """
             },
         },
         {
             "field": "average_weight",
             "headerName": "Complexity",
-            "flex": 1,
-            "minWidth": 90,
+            "width": 110,
             "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
             "filter": "agNumberColumnFilter",
+            "cellStyle": {"textAlign": "center"},
         },
         {
-            "field": "users_rated",
-            "headerName": "User Ratings",
-            "flex": 1,
-            "minWidth": 100,
-            "valueFormatter": {"function": "d3.format(',')(params.value)"},
-            "filter": "agNumberColumnFilter",
-        },
-        {
-            "field": "best_player_counts",
-            "headerName": "Best Players",
-            "flex": 1,
-            "minWidth": 90,
+            "field": "playtime",
+            "headerName": "Playing Time",
+            "width": 115,
+            "valueGetter": {
+                "function": "params.data.min_playtime === params.data.max_playtime ? (params.data.min_playtime || '-') + 'm' : (params.data.min_playtime || '?') + '-' + (params.data.max_playtime || '?') + 'm'"
+            },
             "filter": "agTextColumnFilter",
+            "cellStyle": {"textAlign": "center"},
         },
         {
-            "field": "recommended_player_counts",
-            "headerName": "Rec. Players",
-            "flex": 1,
-            "minWidth": 90,
+            "field": "players",
+            "headerName": "Player Counts",
+            "headerClass": "ag-header-center",
+            "width": 150,
             "filter": "agTextColumnFilter",
+            "cellRenderer": "PlayerCountPills",
+            "cellStyle": {"textAlign": "center"},
         },
     ]
 
