@@ -51,7 +51,7 @@ jobs:
             --cpu 1 \
             --max-instances 10 \
             --service-account bgg-data-warehouse@${{ env.PROJECT_ID }}.iam.gserviceaccount.com \
-            --set-env-vars="ENVIRONMENT=prod,HOST=0.0.0.0,DEBUG=False,CACHE_TIMEOUT=3600,GCP_PROJECT_ID=${{ env.PROJECT_ID }}"
+            --set-env-vars="ENVIRONMENT=prod,HOST=0.0.0.0,DEBUG=False,CACHE_TIMEOUT=3600,GCP_PROJECT_ID=${{ env.PROJECT_ID }},SECRET_KEY=${{ secrets.SECRET_KEY }}"
 
       - name: Show Output
         run: echo ${{ steps.deploy.outputs.url }}
