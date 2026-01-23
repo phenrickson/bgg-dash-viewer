@@ -29,6 +29,8 @@ dependencies = [
     "gunicorn>=21.2.0", # For production deployment
     "vizro>=0.1.34", # For Vizro Bootstrap theme
     "scikit-learn>=1.8.0",
+    "flask-login>=0.6.3",
+    "bcrypt>=4.1.0",
 ]
 
 [project.optional-dependencies]
