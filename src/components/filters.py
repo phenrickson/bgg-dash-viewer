@@ -19,8 +19,7 @@ def create_filters() -> html.Div:
             dbc.Card(
                 dbc.CardBody(
                     [
-                        html.H4("Search Filters", className="card-title mb-3"),
-                        html.Hr(),
+                        html.H4("Search Filters", className="card-title"),
                         # Year Range Filter
                         html.Div(
                             [
@@ -40,9 +39,9 @@ def create_filters() -> html.Div:
                                     allowCross=False,
                                     tooltip={"placement": "bottom", "always_visible": False},
                                 ),
-                                html.Div(id="year-range-output", className="mt-2 text-muted"),
+                                html.Div(id="year-range-output", className="mt-2 text-muted small"),
                             ],
-                            className="mb-4",
+                            className="filter-section",
                         ),
                         # Complexity Range Filter
                         html.Div(
@@ -64,15 +63,14 @@ def create_filters() -> html.Div:
                                     allowCross=False,
                                     tooltip={"placement": "bottom", "always_visible": False},
                                 ),
-                                html.Div(id="complexity-range-output", className="mt-2 text-muted"),
+                                html.Div(id="complexity-range-output", className="mt-2 text-muted small"),
                             ],
-                            className="mb-4",
+                            className="filter-section",
                         ),
                         # Player Count Filter
                         html.Div(
                             [
                                 html.Label("Player Count"),
-                                # Player count toggle moved above the dropdown
                                 dbc.ButtonGroup(
                                     [
                                         dbc.Button(
@@ -91,104 +89,112 @@ def create_filters() -> html.Div:
                                             size="sm",
                                         ),
                                     ],
-                                    className="mb-2",
+                                    className="mb-2 d-flex",
                                 ),
                                 dcc.Dropdown(
                                     id="player-count-dropdown",
                                     options=[
-                                        {"label": "1", "value": 1},
-                                        {"label": "2", "value": 2},
-                                        {"label": "3", "value": 3},
-                                        {"label": "4", "value": 4},
-                                        {"label": "5", "value": 5},
-                                        {"label": "6", "value": 6},
-                                        {"label": "7", "value": 7},
-                                        {"label": "8", "value": 8},
-                                    ],  # Hard-coded player count options
-                                    placeholder="Select player count...",
+                                        {"label": "1 Player", "value": 1},
+                                        {"label": "2 Players", "value": 2},
+                                        {"label": "3 Players", "value": 3},
+                                        {"label": "4 Players", "value": 4},
+                                        {"label": "5 Players", "value": 5},
+                                        {"label": "6 Players", "value": 6},
+                                        {"label": "7 Players", "value": 7},
+                                        {"label": "8+ Players", "value": 8},
+                                    ],
+                                    placeholder="All player counts",
                                     clearable=True,
                                 ),
-                                html.Div(id="player-count-output", className="mt-2 text-muted"),
-                                # Hidden div to store the current player count type
+                                html.Div(id="player-count-output", className="mt-2 text-muted small"),
                                 html.Div(
                                     id="player-count-type-store",
                                     style={"display": "none"},
                                     children="best",
                                 ),
                             ],
-                            className="mb-4",
+                            className="filter-section",
                         ),
-                        # Publisher Dropdown
-                        html.Div(
+                        # Collapsible Advanced Filters
+                        dbc.Accordion(
                             [
-                                html.Label("Publishers"),
-                                dcc.Dropdown(
-                                    id="publisher-dropdown",
-                                    options=[],  # Will be populated by callback
-                                    multi=True,
-                                    placeholder="Select publishers...",
+                                dbc.AccordionItem(
+                                    [
+                                        html.Div(
+                                            [
+                                                html.Label("Publishers"),
+                                                dcc.Dropdown(
+                                                    id="publisher-dropdown",
+                                                    options=[],
+                                                    multi=True,
+                                                    placeholder="Search publishers...",
+                                                ),
+                                            ],
+                                            className="mb-3",
+                                        ),
+                                        html.Div(
+                                            [
+                                                html.Label("Designers"),
+                                                dcc.Dropdown(
+                                                    id="designer-dropdown",
+                                                    options=[],
+                                                    multi=True,
+                                                    placeholder="Search designers...",
+                                                ),
+                                            ],
+                                            className="mb-3",
+                                        ),
+                                        html.Div(
+                                            [
+                                                html.Label("Categories"),
+                                                dcc.Dropdown(
+                                                    id="category-dropdown",
+                                                    options=[],
+                                                    multi=True,
+                                                    placeholder="Search categories...",
+                                                ),
+                                            ],
+                                            className="mb-3",
+                                        ),
+                                        html.Div(
+                                            [
+                                                html.Label("Mechanics"),
+                                                dcc.Dropdown(
+                                                    id="mechanic-dropdown",
+                                                    options=[],
+                                                    multi=True,
+                                                    placeholder="Search mechanics...",
+                                                ),
+                                            ],
+                                        ),
+                                    ],
+                                    title="More Filters",
+                                    item_id="advanced-filters",
                                 ),
                             ],
-                            className="mb-4",
-                        ),
-                        # Designer Dropdown
-                        html.Div(
-                            [
-                                html.Label("Designers"),
-                                dcc.Dropdown(
-                                    id="designer-dropdown",
-                                    options=[],  # Will be populated by callback
-                                    multi=True,
-                                    placeholder="Select designers...",
-                                ),
-                            ],
-                            className="mb-4",
-                        ),
-                        # Category Dropdown
-                        html.Div(
-                            [
-                                html.Label("Categories"),
-                                dcc.Dropdown(
-                                    id="category-dropdown",
-                                    options=[],  # Will be populated by callback
-                                    multi=True,
-                                    placeholder="Select categories...",
-                                ),
-                            ],
-                            className="mb-4",
-                        ),
-                        # Mechanic Dropdown
-                        html.Div(
-                            [
-                                html.Label("Mechanics"),
-                                dcc.Dropdown(
-                                    id="mechanic-dropdown",
-                                    options=[],  # Will be populated by callback
-                                    multi=True,
-                                    placeholder="Select mechanics...",
-                                ),
-                            ],
+                            id="advanced-filters-accordion",
+                            start_collapsed=True,
+                            flush=True,
                             className="mb-4",
                         ),
                         # Search Results
                         html.Div(
                             [
-                                html.Label("Search Results"),
+                                html.Label("Results Limit"),
                                 dcc.Dropdown(
                                     id="results-per-page",
                                     options=[
-                                        {"label": "100", "value": 100},
-                                        {"label": "500", "value": 500},
-                                        {"label": "1,000", "value": 1000},
-                                        {"label": "10,000", "value": 10000},
-                                        {"label": "25,000", "value": 25000},
+                                        {"label": "100 games", "value": 100},
+                                        {"label": "500 games", "value": 500},
+                                        {"label": "1,000 games", "value": 1000},
+                                        {"label": "10,000 games", "value": 10000},
+                                        {"label": "25,000 games", "value": 25000},
                                     ],
                                     value=100,
                                     clearable=False,
-                                    placeholder="Select number of results...",
                                 ),
                             ],
-                            className="mb-4",
+                            className="filter-section",
                         ),
                         # Search Button
                         html.Div(
@@ -202,7 +208,7 @@ def create_filters() -> html.Div:
                             ],
                             className="mb-3",
                         ),
-                        # Reset Filters Button (hidden by default, shown by callback)
+                        # Reset Filters Button
                         html.Div(
                             [
                                 dbc.Button(
@@ -211,6 +217,7 @@ def create_filters() -> html.Div:
                                     color="secondary",
                                     outline=True,
                                     className="w-100",
+                                    size="sm",
                                 ),
                             ],
                             id="reset-filters-container",
