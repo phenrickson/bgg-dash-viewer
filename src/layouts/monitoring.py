@@ -1,4 +1,4 @@
-"""Layout for the BigQuery monitoring page."""
+"""Layout for the monitoring page."""
 
 import dash_bootstrap_components as dbc
 from dash import dcc, html
@@ -8,11 +8,11 @@ from ..components.footer import create_footer
 from ..components.loading import create_spinner
 
 
-def create_bigquery_monitoring_layout() -> html.Div:
-    """Create the layout for the BigQuery monitoring page.
+def create_monitoring_layout() -> html.Div:
+    """Create the layout for the monitoring page.
 
     Returns:
-        Dash component tree for the BigQuery monitoring page
+        Dash component tree for the monitoring page
     """
     return html.Div(
         [
@@ -20,8 +20,8 @@ def create_bigquery_monitoring_layout() -> html.Div:
             dbc.Container(
                 [
                     create_page_header(
-                        "BigQuery Monitoring",
-                        "Database statistics and data catalog",
+                        "Monitoring",
+                        "Platform statistics, deployed models, and data catalog",
                     ),
                     # Tabs for different views
                     dbc.Tabs(
@@ -30,6 +30,11 @@ def create_bigquery_monitoring_layout() -> html.Div:
                                 _create_metrics_tab(),
                                 label="Overview",
                                 tab_id="metrics-tab",
+                            ),
+                            dbc.Tab(
+                                _create_models_tab(),
+                                label="Models",
+                                tab_id="models-tab",
                             ),
                             dbc.Tab(
                                 _create_catalog_tab(),
@@ -87,6 +92,44 @@ def _create_metrics_tab() -> html.Div:
             # Main metrics cards
             create_spinner(
                 html.Div(id="bigquery-metrics-container"),
+            ),
+        ],
+        className="p-3",
+    )
+
+
+def _create_models_tab() -> html.Div:
+    """Create the deployed models tab content."""
+    return html.Div(
+        [
+            # Refresh button row
+            dbc.Row(
+                [
+                    dbc.Col(
+                        dbc.Button(
+                            [
+                                html.I(className="fas fa-sync-alt me-2"),
+                                "Refresh",
+                            ],
+                            id="models-refresh-btn",
+                            color="primary",
+                            size="sm",
+                        ),
+                        width="auto",
+                    ),
+                    dbc.Col(
+                        html.Div(
+                            id="models-last-updated",
+                            className="text-muted pt-1",
+                        ),
+                        width="auto",
+                    ),
+                ],
+                className="mb-4",
+            ),
+            # Model info cards
+            create_spinner(
+                html.Div(id="models-container"),
             ),
         ],
         className="p-3",

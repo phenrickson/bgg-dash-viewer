@@ -85,25 +85,11 @@ MONITORING = [
         "route": "/app/experiments",
     },
     {
-        "title": "BigQuery",
-        "description": "Database statistics and table information",
-        "icon": "fas fa-database",
+        "title": "Platform",
+        "description": "Deployed models, data stats, and infrastructure",
+        "icon": "fas fa-server",
         "color": "#14b8a6",  # teal
-        "route": "/app/bigquery-monitoring",
-    },
-    {
-        "title": "ETL",
-        "description": "Data pipeline monitoring and job status",
-        "icon": "fas fa-cogs",
-        "color": "#6366f1",  # indigo
-        "route": None,  # Coming soon
-    },
-    {
-        "title": "Deployments",
-        "description": "Application deployment status and logs",
-        "icon": "fas fa-rocket",
-        "color": "#f59e0b",  # amber
-        "route": None,  # Coming soon
+        "route": "/app/monitoring",
     },
 ]
 

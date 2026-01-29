@@ -1,4 +1,4 @@
-"""Callbacks for the BigQuery monitoring page."""
+"""Callbacks for the monitoring page."""
 
 import logging
 from datetime import datetime
@@ -11,13 +11,13 @@ from dash.dependencies import Input, Output, State
 from flask_caching import Cache
 
 from ..data.bigquery_client import BigQueryClient
-from ..layouts.bigquery_monitoring import create_metric_card
+from ..layouts.monitoring import create_metric_card
 
 logger = logging.getLogger(__name__)
 
 
-def register_bigquery_monitoring_callbacks(app: dash.Dash, cache: Cache) -> None:
-    """Register callbacks for the BigQuery monitoring page.
+def register_monitoring_callbacks(app: dash.Dash, cache: Cache) -> None:
+    """Register callbacks for the monitoring page.
 
     Args:
         app: Dash application instance
@@ -93,6 +93,60 @@ def register_bigquery_monitoring_callbacks(app: dash.Dash, cache: Cache) -> None
             logger.error(f"Error fetching BigQuery table counts: {e}")
             return {
                 "counts": {},
+                "timestamp": datetime.now().isoformat(),
+                "status": "error",
+                "error": str(e),
+            }
+
+    @cache.memoize(timeout=300)  # Cache for 5 minutes
+    def get_deployed_models() -> Dict[str, Any]:
+        """Fetch information about deployed ML models from the monitoring view.
+
+        Returns:
+            Dictionary with model info organized by category and type
+        """
+        try:
+            client = BigQueryClient()
+
+            # Query the consolidated deployed_models view from Dataform
+            query = """
+            SELECT
+                model_category,
+                model_type,
+                model_name,
+                model_version,
+                experiment,
+                algorithm,
+                embedding_dim,
+                document_method,
+                games_count,
+                last_updated
+            FROM `${project_id}.monitoring.deployed_models`
+            ORDER BY model_category, model_type, last_updated DESC
+            """
+
+            df = client.execute_query(query)
+
+            if df.empty:
+                return {
+                    "models": [],
+                    "timestamp": datetime.now().isoformat(),
+                    "status": "success",
+                }
+
+            # Convert to list of records
+            models = df.to_dict("records")
+
+            return {
+                "models": models,
+                "timestamp": datetime.now().isoformat(),
+                "status": "success",
+            }
+
+        except Exception as e:
+            logger.error(f"Error fetching deployed models info: {e}")
+            return {
+                "models": [],
                 "timestamp": datetime.now().isoformat(),
                 "status": "error",
                 "error": str(e),
@@ -282,6 +336,190 @@ def register_bigquery_monitoring_callbacks(app: dash.Dash, cache: Cache) -> None
             last_updated = "Last updated: Unknown"
 
         return data, cards, last_updated
+
+    # -------------------------------------------------------------------------
+    # Models Tab Callbacks
+    # -------------------------------------------------------------------------
+
+    def _format_timestamp(ts) -> str:
+        """Format a timestamp for display."""
+        if ts is None:
+            return "Unknown"
+        try:
+            if hasattr(ts, "strftime"):
+                return ts.strftime("%Y-%m-%d %H:%M")
+            return str(ts)[:16]
+        except Exception:
+            return str(ts)[:16] if ts else "Unknown"
+
+    def _create_model_card(
+        title: str,
+        model_name: str,
+        version: Any,
+        details: List[Tuple[str, str]],
+        games_count: int,
+        last_updated: Any,
+    ) -> dbc.Card:
+        """Create a card displaying model information."""
+        detail_items = []
+        for label, value in details:
+            if value:
+                detail_items.append(
+                    html.Div(
+                        [
+                            html.Span(f"{label}: ", className="text-muted"),
+                            html.Span(str(value), className="font-monospace"),
+                        ],
+                        className="small",
+                    )
+                )
+
+        return dbc.Card(
+            [
+                dbc.CardHeader(
+                    html.Div(
+                        [
+                            html.H6(title, className="mb-0 me-2"),
+                            dbc.Badge(
+                                f"v{version}" if version else "unknown",
+                                color="info",
+                                className="ms-auto",
+                            ),
+                        ],
+                        className="d-flex align-items-center",
+                    )
+                ),
+                dbc.CardBody(
+                    [
+                        html.Div(
+                            [
+                                html.Strong(model_name or "Unknown", className="font-monospace"),
+                            ],
+                            className="mb-2",
+                        ),
+                        *detail_items,
+                        html.Hr(className="my-2"),
+                        html.Div(
+                            [
+                                html.Span(f"{games_count:,} games", className="text-muted small"),
+                                html.Span(" | ", className="text-muted small"),
+                                html.Span(
+                                    f"Updated: {_format_timestamp(last_updated)}",
+                                    className="text-muted small",
+                                ),
+                            ]
+                        ),
+                    ]
+                ),
+            ],
+            className="panel-card h-100",
+        )
+
+    # Mapping of model_type to display title
+    MODEL_TYPE_TITLES = {
+        "hurdle": "Hurdle Model",
+        "complexity": "Complexity Model",
+        "rating": "Rating Model",
+        "users_rated": "Users Rated Model",
+        "game_embedding": "Game Embeddings",
+        "text_embedding": "Text Embeddings",
+    }
+
+    @app.callback(
+        [
+            Output("models-container", "children"),
+            Output("models-last-updated", "children"),
+        ],
+        [Input("models-refresh-btn", "n_clicks")],
+        prevent_initial_call=False,
+    )
+    def update_models_display(
+        n_clicks: Optional[int],
+    ) -> Tuple[Any, str]:
+        """Update deployed models display on page load or refresh."""
+        # Clear cache if refresh button was clicked
+        if n_clicks and n_clicks > 0:
+            cache.delete_memoized(get_deployed_models)
+
+        data = get_deployed_models()
+
+        if data["status"] == "error":
+            error_content = dbc.Alert(
+                f"Error loading model info: {data.get('error', 'Unknown error')}",
+                color="danger",
+            )
+            return error_content, f"Error at {data['timestamp']}"
+
+        models = data.get("models", [])
+        if not models:
+            return (
+                dbc.Alert("No model information available.", color="warning"),
+                "Last updated: Unknown",
+            )
+
+        # Group models by category
+        prediction_models = [m for m in models if m["model_category"] == "prediction"]
+        embedding_models = [m for m in models if m["model_category"] == "embedding"]
+
+        cards = []
+
+        # Prediction models section
+        if prediction_models:
+            cards.append(html.H5("Prediction Models", className="mb-3"))
+            pred_cols = []
+            for model in prediction_models:
+                details = [("Experiment", model.get("experiment"))]
+                pred_cols.append(
+                    dbc.Col(
+                        _create_model_card(
+                            title=MODEL_TYPE_TITLES.get(model["model_type"], model["model_type"]),
+                            model_name=model.get("model_name"),
+                            version=model.get("model_version"),
+                            details=details,
+                            games_count=model.get("games_count", 0),
+                            last_updated=model.get("last_updated"),
+                        ),
+                        md=3,
+                        className="mb-3",
+                    )
+                )
+            cards.append(dbc.Row(pred_cols))
+
+        # Embedding models section
+        if embedding_models:
+            cards.append(html.H5("Embedding Models", className="mb-3 mt-4"))
+            emb_cols = []
+            for model in embedding_models:
+                details = [
+                    ("Algorithm", model.get("algorithm")),
+                    ("Dimensions", model.get("embedding_dim")),
+                ]
+                if model.get("document_method"):
+                    details.append(("Document Method", model.get("document_method")))
+                emb_cols.append(
+                    dbc.Col(
+                        _create_model_card(
+                            title=MODEL_TYPE_TITLES.get(model["model_type"], model["model_type"]),
+                            model_name=model.get("model_name"),
+                            version=model.get("model_version"),
+                            details=details,
+                            games_count=model.get("games_count", 0),
+                            last_updated=model.get("last_updated"),
+                        ),
+                        md=4,
+                        className="mb-3",
+                    )
+                )
+            cards.append(dbc.Row(emb_cols))
+
+        # Format timestamp
+        try:
+            ts = datetime.fromisoformat(data["timestamp"])
+            last_updated = f"Last updated: {ts.strftime('%Y-%m-%d %H:%M:%S')}"
+        except (ValueError, KeyError):
+            last_updated = "Last updated: Unknown"
+
+        return html.Div(cards), last_updated
 
     # -------------------------------------------------------------------------
     # Data Catalog Tab Callbacks
