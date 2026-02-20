@@ -42,7 +42,7 @@ def login():
         user = user_repo.get_by_email(email)
 
         if user and user.is_active and verify_password(password, user.password_hash):
-            login_user(user)
+            login_user(user, remember=True)
             user_repo.update_last_login(user.user_id)
             logger.info(f"User logged in: {email}")
 
@@ -87,7 +87,7 @@ def register():
             hashed = hash_password(password)
             user = user_repo.create(email, hashed, display_name)
             if user:
-                login_user(user)
+                login_user(user, remember=True)
                 logger.info(f"New user registered: {email}")
                 return redirect("/")
             else:

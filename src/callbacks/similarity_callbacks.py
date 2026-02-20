@@ -1,6 +1,7 @@
 """Similarity search callbacks for the Board Game Data Explorer."""
 
 import logging
+import math
 from typing import Any
 
 import dash
@@ -9,7 +10,10 @@ from dash.dependencies import Input, Output, State
 import dash_ag_grid as dag
 import dash_bootstrap_components as dbc
 from flask_caching import Cache
+import numpy as np
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 
 from ..data.bigquery_client import BigQueryClient
 from ..data.similarity_client import get_similarity_client as create_similarity_client, SimilarityFilters
@@ -239,6 +243,7 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             Output("tab-neighbors-content", "style"),
             Output("tab-compare-content", "style"),
             Output("tab-search-content", "style"),
+            Output("tab-explore-content", "style"),
             Output("advanced-filters-container", "style"),
         ],
         Input("similarity-tabs", "active_tab"),
@@ -248,8 +253,9 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
         neighbors_style = {"display": "block"} if active_tab == "tab-neighbors" else {"display": "none"}
         compare_style = {"display": "block"} if active_tab == "tab-compare" else {"display": "none"}
         search_style = {"display": "block"} if active_tab == "tab-search" else {"display": "none"}
+        explore_style = {"display": "block"} if active_tab == "tab-explore" else {"display": "none"}
         filters_style = {"display": "block"} if active_tab == "tab-search" else {"display": "none"}
-        return neighbors_style, compare_style, search_style, filters_style
+        return neighbors_style, compare_style, search_style, explore_style, filters_style
 
     # =========================================================================
     # Shared Game Selector (for all tabs)
@@ -845,3 +851,193 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             ),
             className="panel-card",
         )
+
+    # =========================================================================
+    # Explore Embeddings Tab
+    # =========================================================================
+
+    @cache.memoize(timeout=3600)
+    def get_cached_coordinates():
+        """Get game coordinates - cached for 1 hour."""
+        return get_bq_client().get_game_coordinates(min_ratings=100)
+
+    @app.callback(
+        Output("explore-highlight-dropdown", "options"),
+        Input("similarity-tabs", "active_tab"),
+    )
+    def load_highlight_options(active_tab: str):
+        """Load game options for highlight dropdown when Explore tab is selected."""
+        if active_tab != "tab-explore":
+            return no_update
+        df = get_cached_coordinates()
+        if df.empty:
+            return []
+        options = []
+        for _, row in df.iterrows():
+            year = f" ({int(row['year_published'])})" if pd.notna(row["year_published"]) else ""
+            options.append({"label": f"{row['name']}{year}", "value": int(row["game_id"])})
+        return sorted(options, key=lambda x: x["label"])
+
+    @app.callback(
+        Output("explore-plot-container", "children"),
+        [
+            Input("similarity-tabs", "active_tab"),
+            Input("explore-color-dropdown", "value"),
+            Input("explore-highlight-dropdown", "value"),
+        ],
+    )
+    def render_explore_plot(active_tab: str, color_by: str, highlight_game_id: int | None):
+        """Render the embedding explorer plot when tab is selected."""
+        if active_tab != "tab-explore":
+            return no_update
+
+        try:
+            df = get_cached_coordinates()
+            if df.empty:
+                return dbc.Alert("No coordinate data available.", color="warning")
+
+            # Computed columns - smaller base size for less overlap
+            df["log_users_rated"] = np.log10(df["users_rated"].clip(lower=1))
+            df["size"] = 2 + df["log_users_rated"] * 1.5  # Range ~3.5 to ~9.5
+
+            # Color range and label settings
+            color_ranges = {
+                "average_rating": (4, 9),
+                "geek_rating": (5, 8),
+                "complexity": (1, 5),
+                "log_users_rated": (1.5, 5),
+            }
+            color_labels = {
+                "average_rating": "Avg Rating",
+                "geek_rating": "Geek Rating",
+                "complexity": "Complexity",
+                "log_users_rated": "Popularity",
+            }
+
+            # Build the scatter plot with WebGL for performance
+            if color_by and color_by != "none":
+                range_min, range_max = color_ranges.get(color_by, (None, None))
+                fig = px.scatter(
+                    df,
+                    x="umap_1",
+                    y="umap_2",
+                    color=color_by,
+                    color_continuous_scale="plasma",
+                    range_color=[range_min, range_max] if range_min is not None else None,
+                    render_mode="webgl",
+                    labels={color_by: color_labels.get(color_by, color_by)},
+                )
+            else:
+                fig = px.scatter(
+                    df,
+                    x="umap_1",
+                    y="umap_2",
+                    render_mode="webgl",
+                )
+
+            fig.update_layout(
+                height=700,
+                template="plotly_dark",
+                xaxis=dict(visible=False),
+                yaxis=dict(visible=False),
+                margin=dict(l=20, r=20, t=20, b=20),
+            )
+
+            # Build customdata for tooltip
+            customdata = df[["name", "year_published", "average_rating", "geek_rating", "complexity", "users_rated"]].values
+            hovertemplate = (
+                "<b>%{customdata[0]}</b> (%{customdata[1]:.0f})<br>"
+                "Rating: %{customdata[2]:.1f} | Geek: %{customdata[3]:.1f}<br>"
+                "Complexity: %{customdata[4]:.1f} | Ratings: %{customdata[5]:,}"
+                "<extra></extra>"
+            )
+
+            fig.update_traces(
+                marker=dict(size=df["size"], opacity=0.5),
+                hovertemplate=hovertemplate,
+                customdata=customdata,
+            )
+
+            # Highlight selected games (up to 20)
+            if highlight_game_id:
+                game_ids = highlight_game_id if isinstance(highlight_game_id, list) else [highlight_game_id]
+                game_ids = game_ids[:20]  # Limit to 20
+
+                # Vary annotation positions to reduce overlap
+                angle_offsets = [0, 45, -45, 90, -90, 135, -135, 180]
+
+                for idx, gid in enumerate(game_ids):
+                    highlight_row = df[df["game_id"] == gid]
+                    if highlight_row.empty:
+                        continue
+
+                    row = highlight_row.iloc[0]
+                    year_str = f"{int(row['year_published'])}" if pd.notna(row['year_published']) else ""
+
+                    # Build label consistent with dropdown: "Name (Year)"
+                    label_text = f"<b>{row['name']}</b>"
+                    if year_str:
+                        label_text += f" ({year_str})"
+
+                    # Vary arrow direction to reduce overlap
+                    angle_idx = idx % len(angle_offsets)
+                    angle = angle_offsets[angle_idx]
+                    ax = int(40 * math.sin(math.radians(angle)))
+                    ay = int(-40 * math.cos(math.radians(angle)))
+
+                    # Add annotation arrow pointing to the game
+                    fig.add_annotation(
+                        x=row["umap_1"],
+                        y=row["umap_2"],
+                        text=label_text,
+                        showarrow=True,
+                        arrowhead=2,
+                        arrowsize=1,
+                        arrowwidth=2,
+                        arrowcolor="#ff4444",
+                        font=dict(size=11, color="white"),
+                        bgcolor="rgba(220, 53, 69, 0.9)",
+                        bordercolor="white",
+                        borderwidth=1,
+                        borderpad=3,
+                        ax=ax,
+                        ay=ay,
+                    )
+
+                # Add markers for all highlighted games in one trace
+                highlight_df = df[df["game_id"].isin(game_ids)]
+                if not highlight_df.empty:
+                    hover_texts = []
+                    for _, row in highlight_df.iterrows():
+                        year_str = f"{int(row['year_published'])}" if pd.notna(row['year_published']) else ""
+                        rating_str = f"{row['average_rating']:.1f}" if pd.notna(row['average_rating']) else "N/A"
+                        geek_str = f"{row['geek_rating']:.1f}" if pd.notna(row['geek_rating']) else "N/A"
+                        complexity_str = f"{row['complexity']:.1f}" if pd.notna(row['complexity']) else "N/A"
+                        hover_texts.append(
+                            f"<b>{row['name']}</b> ({year_str})<br>"
+                            f"Rating: {rating_str} | Geek: {geek_str}<br>"
+                            f"Complexity: {complexity_str} | Ratings: {row['users_rated']:,}"
+                        )
+
+                    fig.add_trace(
+                        go.Scatter(
+                            x=highlight_df["umap_1"].tolist(),
+                            y=highlight_df["umap_2"].tolist(),
+                            mode="markers",
+                            marker=dict(
+                                size=18,
+                                color="#ff4444",
+                                symbol="circle",
+                                line=dict(width=2, color="white"),
+                            ),
+                            hovertemplate="%{text}<extra></extra>",
+                            text=hover_texts,
+                            showlegend=False,
+                        )
+                    )
+
+            return dcc.Graph(figure=fig, style={"height": "700px"}, config={"scrollZoom": True})
+
+        except Exception as e:
+            logger.exception("Error loading coordinates: %s", str(e))
+            return dbc.Alert(f"Error: {str(e)}", color="danger")

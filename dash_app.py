@@ -2,6 +2,7 @@
 
 import logging
 import os
+from datetime import timedelta
 from typing import Any
 
 import dash
@@ -74,6 +75,9 @@ app.server.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-produ
 login_manager = LoginManager()
 login_manager.init_app(app.server)
 login_manager.login_view = "auth.login"
+
+# Configure remember me cookie to last 30 days
+app.server.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=30)
 
 # User loader for Flask-Login
 _user_repo: UserRepository | None = None

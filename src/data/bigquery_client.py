@@ -916,3 +916,22 @@ class BigQueryClient:
         if isinstance(result, pd.DataFrame) and not result.empty:
             return result.iloc[0].to_dict()
         return {}
+
+    def get_game_coordinates(self, min_ratings: int = 25) -> pd.DataFrame:
+        """Get game coordinates for embedding visualization."""
+        query = f"""
+        SELECT
+            c.game_id,
+            g.name,
+            g.year_published,
+            g.average_rating,
+            g.bayes_average as geek_rating,
+            g.users_rated,
+            g.average_weight as complexity,
+            c.umap_1,
+            c.umap_2
+        FROM `${{project_id}}.predictions.bgg_game_coordinates` c
+        JOIN `${{project_id}}.${{dataset}}.games_features` g ON c.game_id = g.game_id
+        WHERE g.users_rated >= {min_ratings}
+        """
+        return self.execute_query(query)

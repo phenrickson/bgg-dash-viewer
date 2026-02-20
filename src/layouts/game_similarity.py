@@ -213,6 +213,7 @@ def create_game_similarity_layout() -> html.Div:
                             dbc.Tab(label="Game Neighbors", tab_id="tab-neighbors"),
                             dbc.Tab(label="Compare Games", tab_id="tab-compare"),
                             dbc.Tab(label="Advanced Search", tab_id="tab-search"),
+                            dbc.Tab(label="Explore Embeddings", tab_id="tab-explore"),
                         ],
                         id="similarity-tabs",
                         active_tab="tab-neighbors",
@@ -426,6 +427,62 @@ def create_game_similarity_layout() -> html.Div:
                                     ),
                                 ],
                                 id="tab-search-content",
+                                style={"display": "none"},
+                            ),
+                            # Explore Embeddings content
+                            html.Div(
+                                [
+                                    # Controls row
+                                    dbc.Card(
+                                        dbc.CardBody(
+                                            dbc.Row(
+                                                [
+                                                    dbc.Col(
+                                                        [
+                                                            html.Label("Color By", className="small"),
+                                                            dcc.Dropdown(
+                                                                id="explore-color-dropdown",
+                                                                options=[
+                                                                    {"label": "Average Rating", "value": "average_rating"},
+                                                                    {"label": "Geek Rating", "value": "geek_rating"},
+                                                                    {"label": "Complexity", "value": "complexity"},
+                                                                    {"label": "Popularity (log)", "value": "log_users_rated"},
+                                                                    {"label": "None", "value": "none"},
+                                                                ],
+                                                                value="geek_rating",
+                                                                clearable=False,
+                                                            ),
+                                                        ],
+                                                        md=3,
+                                                    ),
+                                                    dbc.Col(
+                                                        [
+                                                            html.Label("Highlight Games", className="small"),
+                                                            dcc.Dropdown(
+                                                                id="explore-highlight-dropdown",
+                                                                options=[],
+                                                                placeholder="Search to highlight (up to 20)...",
+                                                                searchable=True,
+                                                                clearable=True,
+                                                                multi=True,
+                                                            ),
+                                                        ],
+                                                        md=5,
+                                                    ),
+                                                ],
+                                                className="g-3",
+                                            ),
+                                        ),
+                                        className="mb-3 panel-card",
+                                    ),
+                                    # Plot
+                                    dcc.Loading(
+                                        id="explore-loading",
+                                        type="circle",
+                                        children=html.Div(id="explore-plot-container"),
+                                    ),
+                                ],
+                                id="tab-explore-content",
                                 style={"display": "none"},
                             ),
                         ],
