@@ -889,33 +889,45 @@ class BigQueryClient:
 
         Returns:
             Dictionary with summary stats including total count, year range,
-            average ratings, and model info (name, version, experiment).
+            average ratings, and model info from deployed_models table.
         """
-        query = """
+        # Get summary stats from predictions table
+        stats_query = """
         SELECT
             COUNT(*) as total_predictions,
             MIN(year_published) as min_year,
             MAX(year_published) as max_year,
             AVG(predicted_geek_rating) as avg_predicted_rating,
-            MAX(score_ts) as latest_score_ts,
-            ANY_VALUE(hurdle_model_name) as hurdle_model_name,
-            ANY_VALUE(hurdle_model_version) as hurdle_model_version,
-            ANY_VALUE(hurdle_experiment) as hurdle_experiment,
-            ANY_VALUE(complexity_model_name) as complexity_model_name,
-            ANY_VALUE(complexity_model_version) as complexity_model_version,
-            ANY_VALUE(complexity_experiment) as complexity_experiment,
-            ANY_VALUE(rating_model_name) as rating_model_name,
-            ANY_VALUE(rating_model_version) as rating_model_version,
-            ANY_VALUE(rating_experiment) as rating_experiment,
-            ANY_VALUE(users_rated_model_name) as users_rated_model_name,
-            ANY_VALUE(users_rated_model_version) as users_rated_model_version,
-            ANY_VALUE(users_rated_experiment) as users_rated_experiment
+            MAX(score_ts) as latest_score_ts
         FROM `${project_id}.predictions.bgg_predictions`
         """
-        result = self.execute_query(query)
-        if isinstance(result, pd.DataFrame) and not result.empty:
-            return result.iloc[0].to_dict()
-        return {}
+        stats_result = self.execute_query(stats_query)
+
+        if not isinstance(stats_result, pd.DataFrame) or stats_result.empty:
+            return {}
+
+        result = stats_result.iloc[0].to_dict()
+
+        # Get model info from deployed_models table (authoritative source)
+        models_query = """
+        SELECT
+            model_type,
+            model_name,
+            model_version,
+            experiment
+        FROM `${project_id}.monitoring.deployed_models`
+        WHERE model_category = 'prediction'
+        """
+        models_result = self.execute_query(models_query)
+
+        if isinstance(models_result, pd.DataFrame) and not models_result.empty:
+            for _, row in models_result.iterrows():
+                model_type = row["model_type"]
+                result[f"{model_type}_model_name"] = row["model_name"]
+                result[f"{model_type}_model_version"] = row["model_version"]
+                result[f"{model_type}_experiment"] = row["experiment"]
+
+        return result
 
     def get_game_coordinates(self, min_ratings: int = 25) -> pd.DataFrame:
         """Get game coordinates for embedding visualization."""
