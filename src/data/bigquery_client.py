@@ -889,49 +889,44 @@ class BigQueryClient:
 
         Returns:
             Dictionary with summary stats including total count, year range,
-            average ratings, and model info from deployed_models table.
+            average ratings, and model info from the latest predictions.
         """
-        # Get summary stats from predictions table
-        stats_query = """
-        SELECT
-            COUNT(*) as total_predictions,
-            MIN(year_published) as min_year,
-            MAX(year_published) as max_year,
-            AVG(predicted_geek_rating) as avg_predicted_rating,
-            MAX(score_ts) as latest_score_ts
-        FROM `${project_id}.predictions.bgg_predictions`
-        """
-        stats_result = self.execute_query(stats_query)
-
-        if not isinstance(stats_result, pd.DataFrame) or stats_result.empty:
-            return {}
-
-        result = stats_result.iloc[0].to_dict()
-
-        # Get model info from deployed_models table (authoritative source)
-        try:
-            models_query = """
+        query = """
+        WITH stats AS (
             SELECT
-                model_type,
-                model_name,
-                model_version,
-                experiment
-            FROM `${project_id}.monitoring.deployed_models`
-            WHERE model_category = 'prediction'
-            """
-            models_result = self.execute_query(models_query)
-
-            if isinstance(models_result, pd.DataFrame) and not models_result.empty:
-                for _, row in models_result.iterrows():
-                    model_type = row["model_type"]
-                    result[f"{model_type}_model_name"] = row["model_name"]
-                    result[f"{model_type}_model_version"] = row["model_version"]
-                    result[f"{model_type}_experiment"] = row["experiment"]
-        except Exception:
-            # If deployed_models query fails, continue without model info
-            pass
-
-        return result
+                COUNT(*) as total_predictions,
+                MIN(year_published) as min_year,
+                MAX(year_published) as max_year,
+                AVG(predicted_geek_rating) as avg_predicted_rating,
+                MAX(score_ts) as latest_score_ts
+            FROM `${project_id}.predictions.bgg_predictions`
+        ),
+        latest_model_info AS (
+            SELECT
+                hurdle_model_name,
+                hurdle_model_version,
+                hurdle_experiment,
+                complexity_model_name,
+                complexity_model_version,
+                complexity_experiment,
+                rating_model_name,
+                rating_model_version,
+                rating_experiment,
+                users_rated_model_name,
+                users_rated_model_version,
+                users_rated_experiment
+            FROM `${project_id}.predictions.bgg_predictions`
+            ORDER BY score_ts DESC
+            LIMIT 1
+        )
+        SELECT s.*, m.*
+        FROM stats s
+        CROSS JOIN latest_model_info m
+        """
+        result = self.execute_query(query)
+        if isinstance(result, pd.DataFrame) and not result.empty:
+            return result.iloc[0].to_dict()
+        return {}
 
     def get_game_coordinates(self, min_ratings: int = 25) -> pd.DataFrame:
         """Get game coordinates for embedding visualization."""
