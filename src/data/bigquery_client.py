@@ -909,23 +909,27 @@ class BigQueryClient:
         result = stats_result.iloc[0].to_dict()
 
         # Get model info from deployed_models table (authoritative source)
-        models_query = """
-        SELECT
-            model_type,
-            model_name,
-            model_version,
-            experiment
-        FROM `${project_id}.monitoring.deployed_models`
-        WHERE model_category = 'prediction'
-        """
-        models_result = self.execute_query(models_query)
+        try:
+            models_query = """
+            SELECT
+                model_type,
+                model_name,
+                model_version,
+                experiment
+            FROM `${project_id}.monitoring.deployed_models`
+            WHERE model_category = 'prediction'
+            """
+            models_result = self.execute_query(models_query)
 
-        if isinstance(models_result, pd.DataFrame) and not models_result.empty:
-            for _, row in models_result.iterrows():
-                model_type = row["model_type"]
-                result[f"{model_type}_model_name"] = row["model_name"]
-                result[f"{model_type}_model_version"] = row["model_version"]
-                result[f"{model_type}_experiment"] = row["experiment"]
+            if isinstance(models_result, pd.DataFrame) and not models_result.empty:
+                for _, row in models_result.iterrows():
+                    model_type = row["model_type"]
+                    result[f"{model_type}_model_name"] = row["model_name"]
+                    result[f"{model_type}_model_version"] = row["model_version"]
+                    result[f"{model_type}_experiment"] = row["experiment"]
+        except Exception:
+            # If deployed_models query fails, continue without model info
+            pass
 
         return result
 
