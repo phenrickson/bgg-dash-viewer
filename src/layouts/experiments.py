@@ -9,11 +9,7 @@ from ..components.loading import create_spinner
 
 
 def create_experiments_layout() -> html.Div:
-    """Create the layout for the ML experiments page.
-
-    Returns:
-        Dash component tree for the experiments page
-    """
+    """Create the layout for the ML experiments page."""
     return html.Div(
         [
             create_header(),
@@ -58,7 +54,7 @@ def create_experiments_layout() -> html.Div:
                                     [
                                         dbc.Tab(
                                             _create_metrics_tab(),
-                                            label="Metrics Overview",
+                                            label="Metrics",
                                             tab_id="metrics-tab",
                                         ),
                                         dbc.Tab(
@@ -67,13 +63,13 @@ def create_experiments_layout() -> html.Div:
                                             tab_id="predictions-tab",
                                         ),
                                         dbc.Tab(
-                                            _create_feature_importance_tab(),
-                                            label="Feature Importance",
-                                            tab_id="feature-importance-tab",
+                                            _create_features_tab(),
+                                            label="Features",
+                                            tab_id="features-tab",
                                         ),
                                         dbc.Tab(
                                             _create_details_tab(),
-                                            label="Experiment Details",
+                                            label="Details",
                                             tab_id="details-tab",
                                         ),
                                     ],
@@ -141,7 +137,7 @@ def _create_details_tab() -> html.Div:
     """Create the experiment details tab content."""
     return html.Div(
         [
-            # Experiment selector
+            # Experiment and version selectors
             dbc.Row(
                 [
                     dbc.Col(
@@ -155,9 +151,22 @@ def _create_details_tab() -> html.Div:
                         ],
                         width=4,
                     ),
+                    dbc.Col(
+                        [
+                            html.Label("Version", className="mb-2"),
+                            dcc.Dropdown(
+                                id="details-version-selector",
+                                placeholder="Latest",
+                                clearable=False,
+                            ),
+                        ],
+                        width=2,
+                    ),
                 ],
                 className="mb-4",
             ),
+            # Finalized badge area
+            html.Div(id="details-finalized-badge", className="mb-3"),
             # Parameters and model info
             dbc.Row(
                 [
@@ -189,8 +198,8 @@ def _create_details_tab() -> html.Div:
     )
 
 
-def _create_feature_importance_tab() -> html.Div:
-    """Create the feature importance tab content."""
+def _create_features_tab() -> html.Div:
+    """Create the features tab content (coefficients + feature importance)."""
     return html.Div(
         [
             # Controls row
@@ -205,7 +214,40 @@ def _create_feature_importance_tab() -> html.Div:
                                 clearable=False,
                             ),
                         ],
-                        width=4,
+                        width=3,
+                    ),
+                    dbc.Col(
+                        [
+                            html.Label("Version", className="mb-2"),
+                            dcc.Dropdown(
+                                id="fi-version-selector",
+                                placeholder="Latest",
+                                clearable=False,
+                            ),
+                        ],
+                        width=2,
+                    ),
+                    dbc.Col(
+                        [
+                            html.Label("Category", className="mb-2"),
+                            dcc.Dropdown(
+                                id="fi-category-selector",
+                                options=[
+                                    {"label": "All", "value": "all"},
+                                    {"label": "Designer", "value": "designer_"},
+                                    {"label": "Publisher", "value": "publisher_"},
+                                    {"label": "Artist", "value": "artist_"},
+                                    {"label": "Mechanic", "value": "mechanic_"},
+                                    {"label": "Category", "value": "category_"},
+                                    {"label": "Family", "value": "family_"},
+                                    {"label": "Embedding", "value": "emb_"},
+                                    {"label": "Other", "value": "__other__"},
+                                ],
+                                value="all",
+                                clearable=False,
+                            ),
+                        ],
+                        width=2,
                     ),
                     dbc.Col(
                         [
@@ -224,21 +266,14 @@ def _create_feature_importance_tab() -> html.Div:
                 ],
                 className="mb-4",
             ),
-            # Overall feature importance chart
+            # Main feature chart
             create_spinner(
                 html.Div(id="feature-importance-chart-container"),
             ),
-            # Category breakdown
+            # Coefficients by year chart (for eval experiments)
             html.Div(
-                [
-                    html.H5("Feature Importance by Category", className="mb-3 mt-4"),
-                    dbc.Tabs(
-                        id="feature-category-tabs",
-                        children=[],
-                    ),
-                ],
-                id="feature-category-container",
-                style={"display": "none"},
+                id="coefficients-by-year-container",
+                className="mt-4",
             ),
         ],
         className="p-3",
@@ -261,7 +296,18 @@ def _create_predictions_tab() -> html.Div:
                                 clearable=False,
                             ),
                         ],
-                        width=4,
+                        width=3,
+                    ),
+                    dbc.Col(
+                        [
+                            html.Label("Version", className="mb-2"),
+                            dcc.Dropdown(
+                                id="predictions-version-selector",
+                                placeholder="Latest",
+                                clearable=False,
+                            ),
+                        ],
+                        width=2,
                     ),
                     dbc.Col(
                         [

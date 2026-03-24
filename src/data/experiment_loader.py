@@ -1,6 +1,6 @@
 """
 Experiment loader for loading ML experiment data from GCS.
-Simplified version adapted from bgg-predictive-models for use in the dash viewer.
+Version-aware loader adapted from bgg-predictive-models for use in the dash viewer.
 """
 
 import json
@@ -23,14 +23,9 @@ EXPERIMENTS_PREFIX = "prod/models/experiments"
 
 
 class ExperimentLoader:
-    """Efficient loader for experiment data from GCS."""
+    """Efficient loader for experiment data from GCS with version support."""
 
     def __init__(self, bucket_name: str | None = None):
-        """Initialize the experiment loader.
-
-        Args:
-            bucket_name: GCS bucket name. Defaults to bgg-predictive-models.
-        """
         self.bucket_name = bucket_name or os.getenv(
             "GCS_BUCKET_NAME", DEFAULT_BUCKET_NAME
         )
@@ -38,16 +33,11 @@ class ExperimentLoader:
         self.bucket = self.storage_client.bucket(self.bucket_name)
         self.prefix = EXPERIMENTS_PREFIX
 
-        # Cache for experiment metadata
         self._metadata_cache: dict[str, Any] = {}
         self._experiments_cache: dict[str, list[dict[str, Any]]] = {}
 
     def list_model_types(self) -> list[str]:
-        """List available model types in the experiments bucket.
-
-        Returns:
-            List of model type names (e.g., catboost-complexity, ridge-rating).
-        """
+        """List available model types in the experiments bucket."""
         try:
             blobs = self.bucket.list_blobs(prefix=f"{self.prefix}/", delimiter="/")
 
@@ -66,14 +56,48 @@ class ExperimentLoader:
             logger.error(f"Error listing model types: {e}")
             return []
 
+    def list_versions(self, model_type: str, exp_name: str) -> list[str]:
+        """Discover all version directories for an experiment.
+
+        Returns sorted list of version strings (e.g., ['v1', 'v2']).
+        Falls back to [''] if no version directories exist.
+        """
+        base_path = f"{self.prefix}/{model_type}/{exp_name}/"
+        try:
+            blobs = self.bucket.list_blobs(prefix=base_path, delimiter="/")
+            versions = []
+            for page in blobs.pages:
+                for p in page.prefixes:
+                    dirname = p.rstrip("/").split("/")[-1]
+                    if dirname.startswith("v") and dirname[1:].isdigit():
+                        versions.append(dirname)
+            if versions:
+                return sorted(versions, key=lambda v: int(v[1:]))
+        except Exception as e:
+            logger.warning(f"Error listing versions for {exp_name}: {e}")
+
+        return [""]
+
+    def _get_version_path(
+        self, model_type: str, exp_name: str, version: str | None = None
+    ) -> str:
+        """Get the path for a specific version of an experiment.
+
+        If version is None, uses the latest available version.
+        """
+        base_path = f"{self.prefix}/{model_type}/{exp_name}"
+        if version is None:
+            versions = self.list_versions(model_type, exp_name)
+            version = versions[-1] if versions else ""
+        if version:
+            return f"{base_path}/{version}"
+        return base_path
+
     def list_experiments(self, model_type: str) -> list[dict[str, Any]]:
         """List experiments for a given model type with enriched metadata.
 
-        Args:
-            model_type: The model type (e.g., 'catboost-complexity').
-
-        Returns:
-            List of experiment dictionaries with metrics and parameters.
+        Loads metadata for the latest version of each experiment.
+        Includes version info, is_eval, is_finalized, test_through fields.
         """
         cache_key = f"experiments_{model_type}"
         if cache_key in self._experiments_cache:
@@ -85,7 +109,6 @@ class ExperimentLoader:
             experiments = []
             prefix = f"{self.prefix}/{model_type}/"
 
-            # List all experiment directories
             blobs = self.bucket.list_blobs(prefix=prefix, delimiter="/")
 
             experiment_dirs = []
@@ -96,7 +119,6 @@ class ExperimentLoader:
 
             logger.debug(f"Found {len(experiment_dirs)} experiment directories")
 
-            # Load enriched metadata for each experiment in parallel
             def load_enriched(exp_name: str) -> dict[str, Any] | None:
                 try:
                     return self._load_enriched_experiment_metadata(model_type, exp_name)
@@ -118,7 +140,6 @@ class ExperimentLoader:
             # Sort by timestamp (newest first)
             experiments.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
 
-            # Cache the results
             self._experiments_cache[cache_key] = experiments
             logger.debug(f"Cached {len(experiments)} experiments for {model_type}")
 
@@ -128,43 +149,13 @@ class ExperimentLoader:
             logger.error(f"Error listing experiments for {model_type}: {e}")
             return []
 
-    def _get_experiment_version_path(self, model_type: str, exp_name: str) -> str:
-        """Get the versioned path for an experiment.
-
-        Most experiments use v1 directory structure.
-
-        Args:
-            model_type: The model type.
-            exp_name: The experiment name.
-
-        Returns:
-            The base path including version directory.
-        """
-        base_path = f"{self.prefix}/{model_type}/{exp_name}"
-        v1_path = f"{base_path}/v1"
-
-        try:
-            blobs = list(self.bucket.list_blobs(prefix=f"{v1_path}/", max_results=1))
-            if blobs:
-                return v1_path
-        except Exception:
-            pass
-
-        return base_path
-
     def _load_enriched_experiment_metadata(
         self, model_type: str, exp_name: str
     ) -> dict[str, Any]:
-        """Load enriched metadata for a single experiment.
-
-        Args:
-            model_type: The model type.
-            exp_name: The experiment name.
-
-        Returns:
-            Dictionary with enriched experiment metadata.
-        """
-        base_path = self._get_experiment_version_path(model_type, exp_name)
+        """Load enriched metadata for a single experiment (latest version)."""
+        versions = self.list_versions(model_type, exp_name)
+        latest_version = versions[-1] if versions else ""
+        base_path = self._get_version_path(model_type, exp_name, latest_version)
 
         experiment: dict[str, Any] = {
             "full_name": exp_name,
@@ -174,6 +165,13 @@ class ExperimentLoader:
             "metrics": {},
             "parameters": {},
             "model_info": {},
+            "version": latest_version,
+            "versions": versions,
+            "is_eval": exp_name.startswith("eval-"),
+            "is_finalized": False,
+            "test_through": None,
+            "algorithm": None,
+            "model_task": "regression",
         }
 
         # Load metadata.json
@@ -184,10 +182,26 @@ class ExperimentLoader:
             for key, value in metadata.items():
                 if key not in ["metrics", "parameters", "model_info"]:
                     experiment[key] = value
+            # Extract nested metadata fields
+            nested = metadata.get("metadata", {})
+            experiment["test_through"] = nested.get("test_through")
+            experiment["algorithm"] = nested.get("algorithm")
+            experiment["model_task"] = nested.get("model_task", "regression")
         except google.cloud.exceptions.NotFound:
             pass
         except Exception as e:
             logger.warning(f"Error loading metadata for {exp_name}: {e}")
+
+        # Check for finalized directory
+        try:
+            finalized_blobs = list(
+                self.bucket.list_blobs(
+                    prefix=f"{base_path}/finalized/", max_results=1
+                )
+            )
+            experiment["is_finalized"] = len(finalized_blobs) > 0
+        except Exception:
+            pass
 
         # Load metrics for each dataset
         for dataset in ["train", "tune", "test"]:
@@ -223,24 +237,22 @@ class ExperimentLoader:
         return experiment
 
     def load_experiment_details(
-        self, model_type: str, exp_name: str
+        self, model_type: str, exp_name: str, version: str | None = None
     ) -> dict[str, Any]:
         """Load detailed experiment information including all files.
 
         Args:
             model_type: The model type.
             exp_name: The experiment name.
-
-        Returns:
-            Dictionary with detailed experiment information.
+            version: Specific version to load (e.g., 'v1'). None for latest.
         """
-        cache_key = f"details_{model_type}_{exp_name}"
+        base_path = self._get_version_path(model_type, exp_name, version)
+        cache_key = f"details_{model_type}_{exp_name}_{base_path}"
         if cache_key in self._metadata_cache:
             return self._metadata_cache[cache_key]
 
         try:
             details: dict[str, Any] = {}
-            base_path = self._get_experiment_version_path(model_type, exp_name)
 
             files_to_load = {
                 "metadata": "metadata.json",
@@ -282,20 +294,19 @@ class ExperimentLoader:
             return {}
 
     def load_feature_importance(
-        self, model_type: str, exp_name: str
+        self, model_type: str, exp_name: str, version: str | None = None
     ) -> pd.DataFrame | None:
-        """Load feature importance data for an experiment.
+        """Load feature importance or coefficients data for an experiment.
 
-        Tries multiple formats: CSV, coefficients.csv, JSON.
+        Tries multiple formats: feature_importance.csv, coefficients.csv, JSON.
+        For coefficients, includes uncertainty columns (std, lower_95, upper_95, significant_95).
 
         Args:
             model_type: The model type.
             exp_name: The experiment name.
-
-        Returns:
-            DataFrame with feature importance data or None if not found.
+            version: Specific version to load. None for latest.
         """
-        base_path = self._get_experiment_version_path(model_type, exp_name)
+        base_path = self._get_version_path(model_type, exp_name, version)
 
         # Try CSV formats first
         for filename in ["feature_importance.csv", "coefficients.csv"]:
@@ -331,7 +342,11 @@ class ExperimentLoader:
         return None
 
     def load_predictions(
-        self, model_type: str, exp_name: str, dataset: str = "test"
+        self,
+        model_type: str,
+        exp_name: str,
+        dataset: str = "test",
+        version: str | None = None,
     ) -> pd.DataFrame | None:
         """Load predictions for an experiment.
 
@@ -339,12 +354,10 @@ class ExperimentLoader:
             model_type: The model type.
             exp_name: The experiment name.
             dataset: Dataset name ('train', 'tune', 'test').
-
-        Returns:
-            DataFrame with predictions or None if not found.
+            version: Specific version to load. None for latest.
         """
         try:
-            base_path = self._get_experiment_version_path(model_type, exp_name)
+            base_path = self._get_version_path(model_type, exp_name, version)
             predictions_path = f"{base_path}/{dataset}_predictions.parquet"
 
             blob = self.bucket.blob(predictions_path)
@@ -374,14 +387,7 @@ _experiment_loader: ExperimentLoader | None = None
 
 
 def get_experiment_loader(bucket_name: str | None = None) -> ExperimentLoader:
-    """Get or create singleton ExperimentLoader instance.
-
-    Args:
-        bucket_name: Optional bucket name override.
-
-    Returns:
-        ExperimentLoader instance.
-    """
+    """Get or create singleton ExperimentLoader instance."""
     global _experiment_loader
     if _experiment_loader is None:
         _experiment_loader = ExperimentLoader(bucket_name)

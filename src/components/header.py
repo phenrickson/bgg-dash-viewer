@@ -14,20 +14,11 @@ def create_header() -> html.Div:
         [
             dbc.Navbar(
                 dbc.Container(
-                    [
+                    fluid=True,
+                    children=[
                         html.A(
-                            # Use row and col to control vertical alignment of logo / brand
-                            dbc.Row(
-                                [
-                                    dbc.Col(html.I(className="fas fa-dice-d20 fa-2x me-2", style={"color": "#6366f1"})),
-                                    dbc.Col(
-                                        dbc.NavbarBrand(
-                                            "Board Game Data Explorer", className="ms-2 fs-2"
-                                        )
-                                    ),
-                                ],
-                                align="center",
-                                className="g-0",
+                            dbc.NavbarBrand(
+                                "Board Game Data Explorer", className="fs-5"
                             ),
                             href="/",
                             style={"textDecoration": "none"},
@@ -53,7 +44,7 @@ def create_header() -> html.Div:
                 ),
                 color="primary",
                 dark=True,
-                className="mb-4",
+                className="mb-2",
             ),
         ]
     )
@@ -74,14 +65,14 @@ def create_page_header(
     Returns:
         Page header component.
     """
-    header_content = [html.H1(title, className="display-5 mb-2")]
+    header_content = [html.H3(title, className="mb-1")]
 
     if subtitle:
-        header_content.append(html.P(subtitle, className="lead text-muted"))
+        header_content.append(html.P(subtitle, className="small text-muted mb-0"))
 
-    border_class = " pb-3 border-bottom" if show_border else ""
+    border_class = " pb-2 border-bottom" if show_border else ""
 
     return html.Div(
         header_content,
-        className=f"mb-4{border_class}",
+        className=f"mb-3{border_class}",
     )
