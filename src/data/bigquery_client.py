@@ -707,6 +707,33 @@ class BigQueryClient:
             FROM `${{project_id}}.${{raw_dataset}}.fetched_responses`
             WHERE fetch_status = 'success'
             GROUP BY game_id
+        ),
+        designers_agg AS (
+            SELECT
+                gd.game_id,
+                STRING_AGG(d.name, ', ' ORDER BY d.name) as designers
+            FROM `${{project_id}}.${{core_dataset}}.game_designers` gd
+            JOIN `${{project_id}}.${{core_dataset}}.designers` d
+                ON gd.designer_id = d.designer_id
+            GROUP BY gd.game_id
+        ),
+        publishers_agg AS (
+            SELECT
+                gp.game_id,
+                STRING_AGG(p.name, ', ' ORDER BY p.name) as publishers
+            FROM `${{project_id}}.${{core_dataset}}.game_publishers` gp
+            JOIN `${{project_id}}.${{core_dataset}}.publishers` p
+                ON gp.publisher_id = p.publisher_id
+            GROUP BY gp.game_id
+        ),
+        categories_agg AS (
+            SELECT
+                gc.game_id,
+                STRING_AGG(c.name, ', ' ORDER BY c.name) as categories
+            FROM `${{project_id}}.${{core_dataset}}.game_categories` gc
+            JOIN `${{project_id}}.${{core_dataset}}.categories` c
+                ON gc.category_id = c.category_id
+            GROUP BY gc.game_id
         )
         SELECT
             g.game_id,
@@ -725,10 +752,19 @@ class BigQueryClient:
             g.description,
             g.thumbnail,
             g.image,
+            da.designers,
+            pa.publishers,
+            ca.categories,
             ff.first_fetch_timestamp as load_timestamp
         FROM first_fetches ff
         JOIN `${{project_id}}.${{dataset}}.games_active` g
             ON ff.game_id = g.game_id
+        LEFT JOIN designers_agg da
+            ON g.game_id = da.game_id
+        LEFT JOIN publishers_agg pa
+            ON g.game_id = pa.game_id
+        LEFT JOIN categories_agg ca
+            ON g.game_id = ca.game_id
         WHERE 1=1
         {date_filter}
         ORDER BY ff.first_fetch_timestamp DESC

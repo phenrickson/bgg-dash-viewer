@@ -201,19 +201,22 @@ def register_new_games_callbacks(app: dash.Dash, cache: Cache) -> None:
 
             # Prepare table data
             df_table = df.copy()
-            df_table['load_timestamp'] = pd.to_datetime(df_table['load_timestamp']).dt.strftime('%m/%d/%y %H:%M:%S')
+            ts = pd.to_datetime(df_table['load_timestamp'])
+            df_table['load_date'] = ts.dt.strftime('%b %d, %Y')
+            df_table['load_time'] = ts.dt.strftime('%H:%M')
             df_table['users_rated'] = df_table['users_rated'].fillna(0).astype(int)
 
-            # Create name as BGG link in markdown format
-            df_table['name'] = df_table.apply(
-                lambda row: f'[{row["name"]}](https://boardgamegeek.com/boardgame/{row["game_id"]})',
-                axis=1
-            )
+            # Fill missing designers/publishers/categories with empty string
+            for col in ['designers', 'publishers', 'categories']:
+                if col in df_table.columns:
+                    df_table[col] = df_table[col].fillna('')
 
             # Create AG Grid with Vizro theming
+            table_cols = ['game_id', 'name', 'year_published', 'designers', 'publishers', 'categories', 'load_date', 'load_time']
+            table_cols = [c for c in table_cols if c in df_table.columns]
             grid = dag.AgGrid(
                 id='new-games-table',
-                rowData=df_table[['game_id', 'name', 'year_published', 'users_rated', 'load_timestamp']].to_dict('records'),
+                rowData=df_table[table_cols].to_dict('records'),
                 columnDefs=get_new_games_column_defs(),
                 defaultColDef=get_default_column_def(),
                 dashGridOptions=get_default_grid_options(),
