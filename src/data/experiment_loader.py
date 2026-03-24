@@ -119,17 +119,27 @@ class ExperimentLoader:
 
             logger.debug(f"Found {len(experiment_dirs)} experiment directories")
 
-            def load_enriched(exp_name: str) -> dict[str, Any] | None:
+            # Build list of (exp_name, version) pairs for all versions
+            exp_version_pairs = []
+            for exp_name in experiment_dirs:
+                versions = self.list_versions(model_type, exp_name)
+                for version in versions:
+                    exp_version_pairs.append((exp_name, version))
+
+            def load_enriched(pair: tuple[str, str]) -> dict[str, Any] | None:
+                exp_name, version = pair
                 try:
-                    return self._load_enriched_experiment_metadata(model_type, exp_name)
+                    return self._load_enriched_experiment_metadata(
+                        model_type, exp_name, version
+                    )
                 except Exception as e:
-                    logger.warning(f"Failed to load metadata for {exp_name}: {e}")
+                    logger.warning(f"Failed to load metadata for {exp_name}/{version}: {e}")
                     return None
 
             with ThreadPoolExecutor(max_workers=10) as executor:
                 futures = [
-                    executor.submit(load_enriched, exp_name)
-                    for exp_name in experiment_dirs
+                    executor.submit(load_enriched, pair)
+                    for pair in exp_version_pairs
                 ]
 
                 for future in as_completed(futures):
@@ -150,22 +160,25 @@ class ExperimentLoader:
             return []
 
     def _load_enriched_experiment_metadata(
-        self, model_type: str, exp_name: str
+        self, model_type: str, exp_name: str, version: str | None = None
     ) -> dict[str, Any]:
-        """Load enriched metadata for a single experiment (latest version)."""
-        versions = self.list_versions(model_type, exp_name)
-        latest_version = versions[-1] if versions else ""
-        base_path = self._get_version_path(model_type, exp_name, latest_version)
+        """Load enriched metadata for a single experiment version."""
+        if version is None:
+            versions = self.list_versions(model_type, exp_name)
+            version = versions[-1] if versions else ""
+        else:
+            versions = self.list_versions(model_type, exp_name)
+        base_path = self._get_version_path(model_type, exp_name, version)
 
         experiment: dict[str, Any] = {
-            "full_name": exp_name,
+            "full_name": f"{exp_name} ({version})" if version else exp_name,
             "experiment_name": exp_name,
             "model_type": model_type,
             "timestamp": "",
             "metrics": {},
             "parameters": {},
             "model_info": {},
-            "version": latest_version,
+            "version": version,
             "versions": versions,
             "is_eval": exp_name.startswith("eval-"),
             "is_finalized": False,

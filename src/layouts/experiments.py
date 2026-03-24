@@ -37,9 +37,13 @@ def create_experiments_layout() -> html.Div:
                                 width=3,
                             ),
                             dbc.Col(
-                                html.Div(
-                                    id="experiments-summary-stats",
-                                    className="text-muted pt-4",
+                                dcc.Loading(
+                                    html.Div(
+                                        id="experiments-summary-stats",
+                                        className="text-muted pt-4",
+                                    ),
+                                    type="circle",
+                                    color="#6366f1",
                                 ),
                                 width=9,
                             ),
@@ -47,38 +51,32 @@ def create_experiments_layout() -> html.Div:
                         className="mb-4",
                     ),
                     # Main content tabs
-                    dbc.Card(
-                        dbc.CardBody(
-                            [
-                                dbc.Tabs(
-                                    [
-                                        dbc.Tab(
-                                            _create_metrics_tab(),
-                                            label="Metrics",
-                                            tab_id="metrics-tab",
-                                        ),
-                                        dbc.Tab(
-                                            _create_predictions_tab(),
-                                            label="Predictions",
-                                            tab_id="predictions-tab",
-                                        ),
-                                        dbc.Tab(
-                                            _create_features_tab(),
-                                            label="Features",
-                                            tab_id="features-tab",
-                                        ),
-                                        dbc.Tab(
-                                            _create_details_tab(),
-                                            label="Details",
-                                            tab_id="details-tab",
-                                        ),
-                                    ],
-                                    id="experiments-tabs",
-                                    active_tab="metrics-tab",
-                                ),
-                            ]
-                        ),
-                        className="panel-card",
+                    dbc.Tabs(
+                        [
+                            dbc.Tab(
+                                _create_metrics_tab(),
+                                label="Metrics",
+                                tab_id="metrics-tab",
+                            ),
+                            dbc.Tab(
+                                _create_predictions_tab(),
+                                label="Predictions",
+                                tab_id="predictions-tab",
+                            ),
+                            dbc.Tab(
+                                _create_features_tab(),
+                                label="Features",
+                                tab_id="features-tab",
+                            ),
+                            dbc.Tab(
+                                _create_details_tab(),
+                                label="Details",
+                                tab_id="details-tab",
+                            ),
+                        ],
+                        id="experiments-tabs",
+                        active_tab="metrics-tab",
+                        className="mb-3",
                     ),
                     # Hidden stores for data
                     dcc.Store(id="experiments-data-store"),
@@ -137,7 +135,7 @@ def _create_details_tab() -> html.Div:
     """Create the experiment details tab content."""
     return html.Div(
         [
-            # Experiment and version selectors
+            # Experiment selector
             dbc.Row(
                 [
                     dbc.Col(
@@ -150,17 +148,6 @@ def _create_details_tab() -> html.Div:
                             ),
                         ],
                         width=4,
-                    ),
-                    dbc.Col(
-                        [
-                            html.Label("Version", className="mb-2"),
-                            dcc.Dropdown(
-                                id="details-version-selector",
-                                placeholder="Latest",
-                                clearable=False,
-                            ),
-                        ],
-                        width=2,
                     ),
                 ],
                 className="mb-4",
@@ -214,18 +201,7 @@ def _create_features_tab() -> html.Div:
                                 clearable=False,
                             ),
                         ],
-                        width=3,
-                    ),
-                    dbc.Col(
-                        [
-                            html.Label("Version", className="mb-2"),
-                            dcc.Dropdown(
-                                id="fi-version-selector",
-                                placeholder="Latest",
-                                clearable=False,
-                            ),
-                        ],
-                        width=2,
+                        width=4,
                     ),
                     dbc.Col(
                         [
@@ -296,18 +272,7 @@ def _create_predictions_tab() -> html.Div:
                                 clearable=False,
                             ),
                         ],
-                        width=3,
-                    ),
-                    dbc.Col(
-                        [
-                            html.Label("Version", className="mb-2"),
-                            dcc.Dropdown(
-                                id="predictions-version-selector",
-                                placeholder="Latest",
-                                clearable=False,
-                            ),
-                        ],
-                        width=2,
+                        width=4,
                     ),
                     dbc.Col(
                         [

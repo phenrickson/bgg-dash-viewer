@@ -95,7 +95,24 @@ def register_experiments_callbacks(app, cache):
             raise PreventUpdate
 
         model_types = _get_model_types_cached()
-        return [{"label": mt, "value": mt} for mt in model_types]
+        # Preferred display order
+        preferred_order = [
+            "complexity", "users_rated", "rating", "geek_rating", "hurdle",
+            "embeddings", "text_embeddings",
+        ]
+        def sort_key(mt):
+            try:
+                return preferred_order.index(mt)
+            except ValueError:
+                return len(preferred_order)
+        model_types = sorted(model_types, key=sort_key)
+        return [
+            {
+                "label": mt.replace("_", " ").replace("-", " ").title(),
+                "value": mt,
+            }
+            for mt in model_types
+        ]
 
     # =========================================================
     # Callback 2: Load experiments when model type is selected
@@ -152,11 +169,11 @@ def register_experiments_callbacks(app, cache):
             ]
         )
 
-        # Build experiment options
+        # Build experiment options using full_name (includes version)
         exp_options = [
             {
-                "label": exp["experiment_name"],
-                "value": exp["experiment_name"],
+                "label": exp["full_name"],
+                "value": exp["full_name"],
             }
             for exp in experiments
         ]
@@ -164,35 +181,33 @@ def register_experiments_callbacks(app, cache):
         return experiments, summary, exp_options, exp_options, exp_options
 
     # =========================================================
-    # Version selector callbacks (populate versions when experiment changes)
+    # Sync experiment selectors across tabs
     # =========================================================
-    def _make_version_callback(exp_selector_id, version_selector_id):
-        @app.callback(
-            [
-                Output(version_selector_id, "options"),
-                Output(version_selector_id, "value"),
-            ],
-            Input(exp_selector_id, "value"),
-            State("experiments-data-store", "data"),
-            prevent_initial_call=True,
-        )
-        def update_version_selector(exp_name, experiments_data):
-            if not exp_name or not experiments_data:
-                return [], None
-            experiment = next(
-                (e for e in experiments_data if e["experiment_name"] == exp_name), None
-            )
-            if not experiment:
-                return [], None
-            versions = experiment.get("versions", ["v1"])
-            options = [{"label": v, "value": v} for v in versions]
-            return options, versions[-1]  # Default to latest
-
-        return update_version_selector
-
-    _make_version_callback("details-experiment-selector", "details-version-selector")
-    _make_version_callback("fi-experiment-selector", "fi-version-selector")
-    _make_version_callback("predictions-experiment-selector", "predictions-version-selector")
+    app.clientside_callback(
+        """
+        function(det, fi, pred) {
+            const ctx = dash_clientside.callback_context;
+            if (!ctx.triggered.length) return [det, fi, pred];
+            const prop = ctx.triggered[0].prop_id;
+            var val;
+            if (prop.startsWith('details-')) val = det;
+            else if (prop.startsWith('fi-')) val = fi;
+            else val = pred;
+            return [val, val, val];
+        }
+        """,
+        [
+            Output("details-experiment-selector", "value"),
+            Output("fi-experiment-selector", "value"),
+            Output("predictions-experiment-selector", "value"),
+        ],
+        [
+            Input("details-experiment-selector", "value"),
+            Input("fi-experiment-selector", "value"),
+            Input("predictions-experiment-selector", "value"),
+        ],
+        prevent_initial_call=True,
+    )
 
     # =========================================================
     # Callback 3: Update metrics table and chart
@@ -222,9 +237,10 @@ def register_experiments_callbacks(app, cache):
         for exp in experiments_data:
             metrics = exp.get("metrics", {}).get(dataset, {})
             if metrics:
+                version = exp.get("version", "")
                 row = {
-                    "experiment": exp["experiment_name"],
-                    "version": exp.get("version", ""),
+                    "experiment": f"{exp['experiment_name']} ({version})" if version else exp["experiment_name"],
+                    "version": version,
                     "timestamp": exp.get("timestamp", "")[:10] if exp.get("timestamp") else "",
                 }
                 # Add test_through if available
@@ -250,12 +266,11 @@ def register_experiments_callbacks(app, cache):
 
         # Create AG Grid column definitions
         column_defs = [
-            {"field": "experiment", "headerName": "Experiment", "pinned": "left"},
-            {"field": "version", "headerName": "Version", "width": 90},
+            {"field": "experiment", "headerName": "Experiment", "pinned": "left", "minWidth": 220},
         ]
         if "test_year" in df.columns:
-            column_defs.append({"field": "test_year", "headerName": "Test Year", "width": 100})
-        column_defs.append({"field": "timestamp", "headerName": "Date", "width": 100})
+            column_defs.append({"field": "test_year", "headerName": "Test Year", "width": 110})
+        column_defs.append({"field": "timestamp", "headerName": "Date", "width": 120})
 
         # Add metric columns
         skip_cols = {"experiment", "version", "timestamp", "test_year"}
@@ -265,7 +280,8 @@ def register_experiments_callbacks(app, cache):
                 "field": col,
                 "headerName": col.upper().replace("_", " "),
                 "valueFormatter": {"function": "d3.format('.4f')(params.value)"},
-                "width": 120,
+                "flex": 1,
+                "minWidth": 100,
             })
 
         grid = dag.AgGrid(
@@ -288,15 +304,21 @@ def register_experiments_callbacks(app, cache):
             has_test_year = "test_year" in df.columns and df["test_year"].notna().any()
 
             if has_test_year:
-                # Faceted line chart colored by version, like the Streamlit app
+                # Only use eval experiments for the time-series chart
+                eval_df = df[df["experiment"].str.startswith("eval-")].copy()
+                if eval_df.empty:
+                    eval_df = df.copy()
+
                 chart_metrics = metric_cols[:6]
-                melted = df.melt(
+                melted = eval_df.melt(
                     id_vars=["experiment", "version", "test_year"],
                     value_vars=chart_metrics,
                     var_name="metric",
                     value_name="value",
                 )
                 melted = melted.sort_values("test_year")
+                # Clean metric labels for facet titles
+                melted["metric"] = melted["metric"].str.upper().str.replace("_", " ")
 
                 fig = px.line(
                     melted,
@@ -306,7 +328,7 @@ def register_experiments_callbacks(app, cache):
                     facet_col="metric",
                     facet_col_wrap=3,
                     facet_col_spacing=0.08,
-                    facet_row_spacing=0.12,
+                    facet_row_spacing=0.15,
                     markers=True,
                     custom_data=["experiment", "version", "metric"],
                 )
@@ -319,12 +341,14 @@ def register_experiments_callbacks(app, cache):
                     )
                 )
                 fig.update_yaxes(matches=None, rangemode="tozero", showticklabels=True)
-                fig.update_xaxes(matches=None)
-                fig.update_annotations(font_size=12)
+                fig.update_xaxes(matches=None, dtick=1)
+                # Clean facet annotations: strip "metric=" prefix
+                fig.for_each_annotation(
+                    lambda a: a.update(text=a.text.split("=")[-1], font_size=13)
+                )
                 n_rows = (len(chart_metrics) + 2) // 3
                 fig.update_layout(
-                    title="Metrics Over Time",
-                    xaxis_title="Test Year",
+                    title="Metrics Over Time (Eval Experiments)",
                     hovermode="closest",
                     height=350 * n_rows,
                     margin=dict(t=60, b=40),
@@ -357,12 +381,12 @@ def register_experiments_callbacks(app, cache):
                 )
 
             chart = dbc.Card(
-                dbc.CardBody(dcc.Graph(figure=fig, config={"displayModeBar": False})),
+                dbc.CardBody(dcc.Graph(figure=fig, config={"displayModeBar": "hover"})),
                 className="panel-card",
             )
 
         return (
-            dbc.Card(dbc.CardBody(grid), className="panel-card"),
+            dbc.Card(dbc.CardBody([html.H5("Experiment Metrics", className="mb-3"), grid]), className="panel-card"),
             chart,
         )
 
@@ -376,10 +400,7 @@ def register_experiments_callbacks(app, cache):
             Output("experiment-metrics-container", "children"),
             Output("details-finalized-badge", "children"),
         ],
-        [
-            Input("details-experiment-selector", "value"),
-            Input("details-version-selector", "value"),
-        ],
+        Input("details-experiment-selector", "value"),
         [
             State("experiments-data-store", "data"),
             State("model-type-dropdown", "value"),
@@ -387,7 +408,6 @@ def register_experiments_callbacks(app, cache):
     )
     def update_experiment_details(
         exp_name: str | None,
-        version: str | None,
         experiments_data: list[dict] | None,
         model_type: str | None,
     ):
@@ -399,7 +419,7 @@ def register_experiments_callbacks(app, cache):
 
         # Find the experiment
         experiment = next(
-            (e for e in experiments_data if e["experiment_name"] == exp_name), None
+            (e for e in experiments_data if e["full_name"] == exp_name), None
         )
         if not experiment:
             return (
@@ -512,7 +532,6 @@ def register_experiments_callbacks(app, cache):
         ],
         [
             Input("fi-experiment-selector", "value"),
-            Input("fi-version-selector", "value"),
             Input("feature-importance-top-n", "value"),
             Input("fi-category-selector", "value"),
         ],
@@ -523,7 +542,6 @@ def register_experiments_callbacks(app, cache):
     )
     def update_features(
         exp_name: str | None,
-        version: str | None,
         top_n: int,
         category: str,
         model_type: str | None,
@@ -538,8 +556,15 @@ def register_experiments_callbacks(app, cache):
                 html.Div(),
             )
 
+        # Look up experiment to get version and actual name
+        experiment = next(
+            (e for e in (experiments_data or []) if e["full_name"] == exp_name), None
+        )
+        actual_name = experiment["experiment_name"] if experiment else exp_name
+        version = experiment.get("version") if experiment else None
+
         # Load feature importance for the selected experiment
-        fi_data = _get_feature_importance_cached(model_type, exp_name, version)
+        fi_data = _get_feature_importance_cached(model_type, actual_name, version)
 
         if not fi_data:
             return (
@@ -630,19 +655,25 @@ def register_experiments_callbacks(app, cache):
                         arrayminus=(df_sorted[importance_col] - df_sorted["lower_95"]).values
                         if "lower_95" in df_sorted.columns
                         else df_sorted["std"].values * 1.96,
+                        color="rgba(255, 255, 255, 0.4)",
+                        thickness=1.5,
                     ) if has_uncertainty else None,
                     hovertemplate=(
                         "<b>%{y}</b><br>"
-                        "Coefficient: %{x:.4f}<br>"
+                        "Effect: %{x:.4f}<br>"
                         "<extra></extra>"
                     ),
                     showlegend=False,
                 )
             )
             fig.add_vline(x=0, line_dash="dash", line_color="gray")
+            outcome_label = (model_type or "").replace("_", " ").replace("-", " ").title()
+            subtitle = f"{exp_name} | Estimated effect with 95% credible intervals"
             fig.update_layout(
-                title=f"Top {top_n} Coefficients",
-                xaxis_title="Coefficient",
+                title=dict(
+                    text=f"Top {top_n} Features for {outcome_label}<br><sup>{subtitle}</sup>",
+                ),
+                xaxis_title="Effect on Outcome",
                 yaxis_title="",
                 height=max(400, len(df_sorted) * 22),
                 template="plotly_dark",
@@ -653,6 +684,7 @@ def register_experiments_callbacks(app, cache):
             # Bar chart for feature importance (tree models)
             color_scale = "RdBu" if is_coefficient else "Viridis"
             color_midpoint = 0 if is_coefficient else None
+            outcome_label = (model_type or "").replace("_", " ").replace("-", " ").title()
 
             fig = px.bar(
                 df_sorted,
@@ -664,9 +696,13 @@ def register_experiments_callbacks(app, cache):
                 color_continuous_midpoint=color_midpoint,
                 hover_data={feature_col: True, importance_col: ":.4f"},
             )
+            x_label = "Effect on Outcome" if is_coefficient else "Importance"
+            subtitle = f"{exp_name} | {'Estimated effect size' if is_coefficient else 'Feature importance score'}"
             fig.update_layout(
-                title=f"Top {top_n} Features by {'Coefficient' if is_coefficient else 'Importance'}",
-                xaxis_title="Coefficient" if is_coefficient else "Importance",
+                title=dict(
+                    text=f"Top {top_n} Features for {outcome_label}<br><sup>{subtitle}</sup>",
+                ),
+                xaxis_title=x_label,
                 yaxis_title="",
                 height=max(400, len(df_sorted) * 20),
                 template="plotly_dark",
@@ -678,7 +714,7 @@ def register_experiments_callbacks(app, cache):
                 fig.add_vline(x=0, line_dash="dash", line_color="gray")
 
         main_chart = dbc.Card(
-            dbc.CardBody(dcc.Graph(figure=fig, config={"displayModeBar": False})),
+            dbc.CardBody(dcc.Graph(figure=fig, config={"displayModeBar": "hover"})),
             className="panel-card",
         )
 
@@ -754,7 +790,7 @@ def register_experiments_callbacks(app, cache):
         year_colors = sample_colorscale("Viridis", scale_positions)
 
         for year, color in zip(years, year_colors):
-            year_df = plot_df[plot_df["year"] == year]
+            year_df = plot_df[plot_df["year"] == year].drop_duplicates(subset="display_name")
             year_df = year_df.set_index("display_name").reindex(feature_order).reset_index()
             fig.add_trace(go.Scatter(
                 x=year_df[importance_col],
@@ -788,7 +824,7 @@ def register_experiments_callbacks(app, cache):
         )
 
         return dbc.Card(
-            dbc.CardBody(dcc.Graph(figure=fig, config={"displayModeBar": False})),
+            dbc.CardBody(dcc.Graph(figure=fig, config={"displayModeBar": "hover"})),
             className="panel-card",
         )
 
@@ -802,13 +838,16 @@ def register_experiments_callbacks(app, cache):
         ],
         [
             Input("predictions-experiment-selector", "value"),
-            Input("predictions-version-selector", "value"),
             Input("predictions-dataset-selector", "value"),
         ],
-        State("model-type-dropdown", "value"),
+        [
+            State("model-type-dropdown", "value"),
+            State("experiments-data-store", "data"),
+        ],
     )
     def update_predictions(
-        exp_name: str | None, version: str | None, dataset: str, model_type: str | None
+        exp_name: str | None, dataset: str, model_type: str | None,
+        experiments_data: list[dict] | None,
     ):
         placeholder = html.Div(
             "Select an experiment to view predictions.", className="text-muted"
@@ -817,7 +856,14 @@ def register_experiments_callbacks(app, cache):
         if not exp_name or not model_type:
             return placeholder, ""
 
-        predictions_data = _get_predictions_cached(model_type, exp_name, dataset, version)
+        # Look up experiment to get version and actual name
+        experiment = next(
+            (e for e in (experiments_data or []) if e["full_name"] == exp_name), None
+        )
+        actual_name = experiment["experiment_name"] if experiment else exp_name
+        version = experiment.get("version") if experiment else None
+
+        predictions_data = _get_predictions_cached(model_type, actual_name, dataset, version)
 
         if not predictions_data:
             return (
@@ -955,7 +1001,7 @@ def register_experiments_callbacks(app, cache):
             legend=dict(orientation="h", yanchor="bottom", y=1.02),
         )
 
-        scatter_chart = dcc.Graph(figure=fig, config={"displayModeBar": False})
+        scatter_chart = dcc.Graph(figure=fig, config={"displayModeBar": "hover"})
 
         # Predictions table
         display_cols = []
@@ -963,7 +1009,7 @@ def register_experiments_callbacks(app, cache):
             if col in df_valid.columns:
                 display_cols.append(col)
 
-        df_display = df_valid[display_cols].sort_values(pred_col, ascending=False).head(500)
+        df_display = df_valid[display_cols].sort_values(pred_col, ascending=False)
 
         header_names = {
             "year_published": "Year",
@@ -1023,7 +1069,7 @@ def register_experiments_callbacks(app, cache):
             dashGridOptions={
                 "domLayout": "autoHeight",
                 "pagination": True,
-                "paginationPageSize": 50,
+                "paginationPageSize": 25,
             },
             className=get_grid_class_name(),
             style={"width": "100%"},

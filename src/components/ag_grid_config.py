@@ -13,7 +13,7 @@ def get_default_grid_options() -> dict[str, Any]:
     """
     return {
         "pagination": True,
-        "paginationPageSize": 50,
+        "paginationPageSize": 25,
         "paginationPageSizeSelector": [25, 50, 100, 200],
         "animateRows": True,
         "rowSelection": "single",
