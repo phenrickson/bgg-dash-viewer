@@ -70,73 +70,47 @@ def get_search_results_column_defs() -> list[dict[str, Any]]:
     """
     return [
         {
-            "field": "year_published",
-            "headerName": "Year",
-            "width": 80,
-            "filter": "agNumberColumnFilter",
-            "cellStyle": {"textAlign": "center"},
-        },
-        {
             "field": "name",
-            "headerName": "Name",
-            "cellRenderer": "markdown",
-            "width": 320,
+            "headerName": "Game",
+            "cellRenderer": "GameInfo",
+            "flex": 2,
+            "minWidth": 200,
             "filter": "agTextColumnFilter",
+            "autoHeight": True,
+            "wrapText": True,
         },
         {
             "field": "bayes_average",
             "headerName": "Geek Rating",
-            "width": 110,
+            "flex": 1,
+            "minWidth": 100,
             "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
             "filter": "agNumberColumnFilter",
-            "cellStyle": {
-                "function": """
-                    (function() {
-                        var v = params.value;
-                        if (v == null) return {textAlign: 'center'};
-                        var min = 5.0, max = 8.5;
-                        var t = Math.max(0, Math.min(1, (v - min) / (max - min)));
-                        var r = Math.round(239 - t * 140);
-                        var g = Math.round(68 + t * 34);
-                        var b = Math.round(68 + t * 173);
-                        return {color: 'rgb(' + r + ',' + g + ',' + b + ')', fontWeight: '500', textAlign: 'center'};
-                    })()
-                """
-            },
+            "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
+            "cellStyle": {"textAlign": "center"},
         },
         {
             "field": "average_rating",
-            "headerName": "Average Rating",
-            "width": 120,
-            "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
+            "headerName": "Avg Rating",
+            "flex": 1,
+            "minWidth": 100,
             "filter": "agNumberColumnFilter",
-            "cellStyle": {
-                "function": """
-                    (function() {
-                        var v = params.value;
-                        if (v == null) return {textAlign: 'center'};
-                        var min = 5.0, max = 9.0;
-                        var t = Math.max(0, Math.min(1, (v - min) / (max - min)));
-                        var r = Math.round(239 - t * 140);
-                        var g = Math.round(68 + t * 34);
-                        var b = Math.round(68 + t * 173);
-                        return {color: 'rgb(' + r + ',' + g + ',' + b + ')', fontWeight: '500', textAlign: 'center'};
-                    })()
-                """
-            },
+            "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
+            "cellStyle": {"textAlign": "center"},
         },
         {
             "field": "average_weight",
             "headerName": "Complexity",
-            "width": 110,
-            "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
+            "flex": 1,
+            "minWidth": 100,
             "filter": "agNumberColumnFilter",
-            "cellStyle": {"textAlign": "center"},
+            "cellRenderer": "ComplexityNumber",
         },
         {
             "field": "playtime",
-            "headerName": "Playing Time",
-            "width": 115,
+            "headerName": "Playtime",
+            "flex": 1,
+            "minWidth": 100,
             "valueGetter": {
                 "function": "params.data.min_playtime === params.data.max_playtime ? (params.data.min_playtime || '-') + 'm' : (params.data.min_playtime || '?') + '-' + (params.data.max_playtime || '?') + 'm'"
             },
@@ -145,9 +119,10 @@ def get_search_results_column_defs() -> list[dict[str, Any]]:
         },
         {
             "field": "players",
-            "headerName": "Player Counts",
+            "headerName": "Players",
             "headerClass": "ag-header-center",
-            "width": 150,
+            "flex": 1,
+            "minWidth": 120,
             "filter": "agTextColumnFilter",
             "cellRenderer": "PlayerCountPills",
             "cellStyle": {"textAlign": "center"},
@@ -221,24 +196,14 @@ def get_predictions_column_defs() -> list[dict[str, Any]]:
     """
     return [
         {
-            "field": "year_published",
-            "headerName": "Year",
-            "width": 90,
-            "filter": "agNumberColumnFilter",
-        },
-        {
-            "field": "game_id",
-            "headerName": "ID",
-            "width": 100,
-            "filter": "agNumberColumnFilter",
-        },
-        {
-            "field": "name_link",
-            "headerName": "Name",
-            "cellRenderer": "markdown",
+            "field": "name",
+            "headerName": "Game",
+            "cellRenderer": "GameInfo",
             "flex": 2,
             "minWidth": 200,
             "filter": "agTextColumnFilter",
+            "autoHeight": True,
+            "wrapText": True,
         },
         {
             "headerName": "Estimated",

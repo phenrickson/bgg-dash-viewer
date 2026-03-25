@@ -194,12 +194,6 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                     "",
                 )
 
-            # Make the game name a clickable link to BGG
-            games_df["name"] = games_df.apply(
-                lambda row: f"[{row['name']}](https://boardgamegeek.com/boardgame/{row['game_id']})",
-                axis=1,
-            )
-
             # Create AG Grid with Vizro theming (fixed height to match filters)
             grid_options = get_default_grid_options()
             grid_options["domLayout"] = "normal"  # Use fixed height, not autoHeight

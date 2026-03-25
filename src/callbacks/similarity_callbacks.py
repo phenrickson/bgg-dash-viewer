@@ -75,8 +75,7 @@ def get_similarity_results_column_defs(distance_type: str = "cosine") -> list[di
         }
 
     return [
-        {"field": "year_published", "headerName": "Year", "width": 90, "filter": "agNumberColumnFilter"},
-        {"field": "name", "headerName": "Name", "flex": 1, "minWidth": 180, "filter": "agTextColumnFilter", "cellRenderer": "ExternalLink"},
+        {"field": "name", "headerName": "Game", "flex": 1, "minWidth": 200, "cellRenderer": "GameInfo", "filter": "agTextColumnFilter", "autoHeight": True, "wrapText": True},
         distance_col,
         {"field": "geek_rating", "headerName": "Geek Rating", "width": 120, "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"}, "filter": "agNumberColumnFilter", "cellStyle": {"function": "params.value >= 8.0 ? {'color': 'var(--bs-success)', 'fontWeight': 'bold'} : params.value < 6.0 ? {'color': 'var(--bs-danger)'} : {}"}},
         {"field": "average_rating", "headerName": "Avg Rating", "width": 115, "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"}, "filter": "agNumberColumnFilter"},

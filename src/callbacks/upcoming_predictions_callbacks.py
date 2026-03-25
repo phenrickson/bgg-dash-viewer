@@ -346,26 +346,20 @@ def register_upcoming_predictions_callbacks(app, cache):
             className="mb-4",
         )
 
-        # Create BGG links for game names with NEW badge
-        def format_name(row):
-            link = f"[{row['name']}](https://boardgamegeek.com/boardgame/{row['game_id']})"
-            if row.get("is_new_7d"):
-                return f"🆕 {link}"
-            return link
-
-        filtered_df["name_link"] = filtered_df.apply(format_name, axis=1)
-
         # Prepare display columns
         display_columns = [
-            "year_published",
             "game_id",
-            "name_link",
+            "name",
+            "year_published",
+            "is_new_7d",
             "predicted_geek_rating",
             "predicted_hurdle_prob",
             "predicted_complexity",
             "predicted_rating",
             "predicted_users_rated",
         ]
+        # Only include columns that exist in the data
+        display_columns = [c for c in display_columns if c in filtered_df.columns]
 
         # Create AG Grid
         grid_options = get_default_grid_options()
