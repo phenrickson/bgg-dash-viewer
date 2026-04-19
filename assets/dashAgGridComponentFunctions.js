@@ -61,22 +61,135 @@ dagcomponentfuncs.PlayerCountPills = function(props) {
     const containerStyle = {
         display: 'flex',
         flexWrap: 'wrap',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
-        gap: '3px',
-        height: '100%',
-        width: '100%'
+        alignContent: 'flex-start',
+        rowGap: '2px',
+        columnGap: '3px',
+        width: '100%',
+        paddingTop: '6px',
+        lineHeight: 1
+    };
+
+    const recStyle = {
+        backgroundColor: '#8fd4a4',
+        color: '#0e3b1e'
     };
 
     return React.createElement(
         'div',
         { style: containerStyle },
-        allCounts.map((count, i) =>
-            React.createElement('span', {
+        allCounts.map((count, i) => {
+            const isBest = bestCounts.has(count);
+            return React.createElement('span', {
                 key: i,
-                className: bestCounts.has(count) ? 'badge bg-success' : 'badge bg-secondary'
-            }, count)
-        )
+                className: isBest ? 'badge bg-success' : 'badge',
+                style: isBest ? undefined : recStyle
+            }, count);
+        })
+    );
+};
+
+// Cell renderer for numeric values with colored text based on value range
+dagcomponentfuncs.ColoredNumber = function(props) {
+    if (props.value == null) return null;
+    var v = parseFloat(props.value);
+    var p = props.colDef.cellRendererParams || {};
+    var min = p.min || 0;
+    var max = p.max || 10;
+    var decimals = p.decimals != null ? p.decimals : 2;
+    var hue = p.hue != null ? p.hue : 210;
+    // Use a power curve to spread out differences at the high end
+    var t = Math.max(0, Math.min(1, (v - min) / (max - min)));
+    t = Math.pow(t, 0.4);
+    var minSat = p.minSat != null ? p.minSat : 10;
+    var minLight = p.minLight != null ? p.minLight : 35;
+    var s = Math.round(minSat + t * (90 - minSat));
+    var l = Math.round(minLight + t * (75 - minLight));
+    return React.createElement('div', {
+        style: { textAlign: 'center', fontWeight: '600', color: 'hsl(' + hue + ',' + s + '%,' + l + '%)' }
+    }, v.toFixed(decimals));
+};
+
+// Cell renderer for complexity: light blue (low) → white (mid) → red (high)
+dagcomponentfuncs.ComplexityNumber = function(props) {
+    if (props.value == null) return null;
+    var v = parseFloat(props.value);
+    var t = Math.max(0, Math.min(1, (v - 1.0) / (5.0 - 1.0)));
+    var r, g, b;
+    if (t <= 0.5) {
+        // Light blue to white
+        var s = t / 0.5;
+        r = Math.round(130 + s * 125);
+        g = Math.round(190 + s * 65);
+        b = Math.round(235 + s * 20);
+    } else {
+        // White to red
+        var s = (t - 0.5) / 0.5;
+        r = Math.round(255 - s * 35);
+        g = Math.round(255 - s * 175);
+        b = Math.round(255 - s * 185);
+    }
+    return React.createElement('div', {
+        style: { textAlign: 'center', fontWeight: '600', color: 'rgb(' + r + ',' + g + ',' + b + ')' }
+    }, v.toFixed(2));
+};
+
+// Cell renderer for rating values as a colored pill badge
+dagcomponentfuncs.RatingBadge = function(props) {
+    if (props.value == null) return null;
+    var v = parseFloat(props.value);
+    var params = props.colDef.cellRendererParams || {};
+    var min = params.min || 0;
+    var max = params.max || 10;
+    var decimals = params.decimals != null ? params.decimals : 2;
+    var t = Math.max(0, Math.min(1, (v - min) / (max - min)));
+
+    // Color interpolation from muted to vibrant
+    var r = Math.round(156 - t * 100);
+    var g = Math.round(163 + t * 60);
+    var b = Math.round(175 - t * 30);
+    var bgOpacity = 0.15 + t * 0.2;
+
+    return React.createElement('div', { style: { display: 'flex', justifyContent: 'center', padding: '6px 0' } },
+        React.createElement('span', {
+            style: {
+                backgroundColor: 'rgba(' + r + ',' + g + ',' + b + ',' + bgOpacity + ')',
+                color: 'rgb(' + r + ',' + g + ',' + b + ')',
+                padding: '4px 12px',
+                borderRadius: '6px',
+                fontSize: '0.85em',
+                fontWeight: '600',
+                minWidth: '48px',
+                textAlign: 'center',
+                display: 'inline-block'
+            }
+        }, v.toFixed(decimals))
+    );
+};
+
+// Cell renderer for playtime as a badge
+dagcomponentfuncs.PlaytimeBadge = function(props) {
+    var data = props.data;
+    if (!data) return null;
+    var minTime = data.min_playtime;
+    var maxTime = data.max_playtime;
+    if (minTime == null && maxTime == null) return null;
+
+    var label;
+    if (minTime === maxTime) {
+        label = (minTime || '-') + 'm';
+    } else {
+        label = (minTime || '?') + '\u2013' + (maxTime || '?') + 'm';
+    }
+
+    return React.createElement('div', {
+        style: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', width: '100%' }
+    },
+        React.createElement('span', {
+            className: 'badge bg-secondary',
+            style: { fontWeight: '500', fontSize: '0.85em', color: '#e5e7eb' }
+        }, label)
     );
 };
 
@@ -86,15 +199,26 @@ dagcomponentfuncs.GameInfo = function(props) {
     var data = props.data;
     var gameId = data.game_id;
     var year = data.year_published;
+    var isNew = data.is_new_7d;
     var url = 'https://boardgamegeek.com/boardgame/' + gameId;
 
+    var nameChildren = [];
+    if (isNew) {
+        nameChildren.push(React.createElement('span', {
+            key: 'badge',
+            style: { backgroundColor: '#065f46', color: '#6ee7b7', padding: '1px 6px', borderRadius: '3px', fontSize: '0.7em', fontWeight: '600', marginRight: '6px', verticalAlign: 'middle' }
+        }, 'NEW'));
+    }
+    nameChildren.push(React.createElement('a', {
+        key: 'link',
+        href: url,
+        target: '_blank',
+        rel: 'noopener noreferrer',
+        style: { color: '#e2e8f0', textDecoration: 'none', fontWeight: '600', fontSize: '0.95em' }
+    }, props.value));
+
     return React.createElement('div', { style: { padding: '6px 0', lineHeight: '1.3', wordBreak: 'break-word' } },
-        React.createElement('a', {
-            href: url,
-            target: '_blank',
-            rel: 'noopener noreferrer',
-            style: { color: '#e2e8f0', textDecoration: 'none', fontWeight: '600', fontSize: '0.95em' }
-        }, props.value),
+        React.createElement('div', null, nameChildren),
         React.createElement('div', {
             style: { fontSize: '0.75em', color: '#9ca3af', marginTop: '2px' }
         }, (year ? year + ' · ' : '') + gameId)

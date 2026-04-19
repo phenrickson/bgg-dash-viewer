@@ -1,5 +1,6 @@
 """Game comparison components for explaining similarity."""
 
+import re
 from typing import Any
 
 from dash import html, dcc
@@ -9,6 +10,16 @@ import pandas as pd
 
 from ..theme import PLOTLY_TEMPLATE, get_plotly_layout_defaults
 from ..utils.charts import apply_standard_layout
+
+# Family prefixes to exclude from display (not meaningful for comparison)
+_FAMILY_REMOVE_PATTERN = re.compile(
+    r"^Admin:|^Misc:|^Promotional:|^Digital Implementations:"
+)
+
+
+def _filter_families(families: set[str]) -> set[str]:
+    """Remove non-meaningful family entries."""
+    return {f for f in families if not _FAMILY_REMOVE_PATTERN.search(f)}
 
 
 def create_feature_comparison(
@@ -29,10 +40,10 @@ def create_feature_comparison(
     # Extract features
     source_mechanics = set(source_game.get("mechanics") or [])
     source_categories = set(source_game.get("categories") or [])
-    source_families = set(source_game.get("families") or [])
+    source_families = _filter_families(set(source_game.get("families") or []))
     neighbor_mechanics = set(neighbor_game.get("mechanics") or [])
     neighbor_categories = set(neighbor_game.get("categories") or [])
-    neighbor_families = set(neighbor_game.get("families") or [])
+    neighbor_families = _filter_families(set(neighbor_game.get("families") or []))
 
     # Find shared and unique
     shared_mechanics = source_mechanics & neighbor_mechanics
@@ -181,8 +192,8 @@ def create_feature_comparison(
         return abs(s_avg - n_avg) <= threshold
 
     # Get similarity status for each stat
-    source_complexity = source_game.get("average_weight") or source_game.get("complexity")
-    neighbor_complexity = neighbor_game.get("average_weight") or neighbor_game.get("complexity")
+    source_complexity = source_game.get("complexity") or source_game.get("average_weight")
+    neighbor_complexity = neighbor_game.get("complexity") or neighbor_game.get("average_weight")
     is_complexity_similar = complexity_similar(source_complexity, neighbor_complexity)
 
     is_players_similar = players_overlap(
@@ -217,7 +228,11 @@ def create_feature_comparison(
         ], className="mb-2"),
         # Complexity row
         dbc.Row([
-            dbc.Col(html.Span("Complexity", style={"fontSize": "1.05rem"}), width=3),
+            dbc.Col(html.Span([
+                "Complexity ",
+                html.I(className="fas fa-info-circle text-muted", id="complexity-info-icon", style={"fontSize": "0.8rem"}),
+                dbc.Tooltip("Based on predicted complexity from the complexity model", target="complexity-info-icon", placement="top"),
+            ], style={"fontSize": "1.05rem"}), width=3),
             dbc.Col(
                 html.Span(format_stat(source_complexity), style=get_value_style(is_complexity_similar)),
                 className="text-center",

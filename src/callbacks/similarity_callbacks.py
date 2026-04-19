@@ -75,12 +75,11 @@ def get_similarity_results_column_defs(distance_type: str = "cosine") -> list[di
         }
 
     return [
-        {"field": "year_published", "headerName": "Year", "width": 90, "filter": "agNumberColumnFilter"},
-        {"field": "name", "headerName": "Name", "flex": 1, "minWidth": 180, "filter": "agTextColumnFilter", "cellRenderer": "ExternalLink"},
+        {"field": "name", "headerName": "Game", "flex": 1, "minWidth": 200, "cellRenderer": "GameInfo", "filter": "agTextColumnFilter", "autoHeight": True, "wrapText": True},
         distance_col,
         {"field": "geek_rating", "headerName": "Geek Rating", "width": 120, "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"}, "filter": "agNumberColumnFilter", "cellStyle": {"function": "params.value >= 8.0 ? {'color': 'var(--bs-success)', 'fontWeight': 'bold'} : params.value < 6.0 ? {'color': 'var(--bs-danger)'} : {}"}},
         {"field": "average_rating", "headerName": "Avg Rating", "width": 115, "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"}, "filter": "agNumberColumnFilter"},
-        {"field": "complexity", "headerName": "Complexity", "width": 115, "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"}, "filter": "agNumberColumnFilter"},
+        {"field": "complexity", "headerName": "Complexity", "headerTooltip": "Based on predicted complexity from the complexity model", "width": 115, "valueFormatter": {"function": "params.value ? d3.format('.2f')(params.value) : '-'"}, "filter": "agNumberColumnFilter"},
         {"field": "users_rated", "headerName": "Ratings", "width": 110, "valueFormatter": {"function": "params.value ? d3.format(',')(params.value) : '-'"}, "filter": "agNumberColumnFilter"},
     ]
 
@@ -355,11 +354,14 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
     @cache.memoize(timeout=3600)
     def get_game_features(game_id: int) -> dict[str, Any] | None:
         query = f"""
-        SELECT game_id, name, year_published, bayes_average, average_weight, thumbnail,
-               min_players, max_players, min_playtime, max_playtime,
-               categories, mechanics, families
-        FROM `${{project_id}}.${{dataset}}.games_features`
-        WHERE game_id = {game_id}
+        SELECT gf.game_id, gf.name, gf.year_published, gf.bayes_average, gf.average_weight, gf.thumbnail,
+               gf.min_players, gf.max_players, gf.min_playtime, gf.max_playtime,
+               gf.categories, gf.mechanics, gf.families,
+               cp.predicted_complexity AS complexity
+        FROM `${{project_id}}.${{dataset}}.games_features` gf
+        LEFT JOIN `${{project_id}}.predictions.bgg_complexity_predictions` cp
+            ON gf.game_id = cp.game_id
+        WHERE gf.game_id = {game_id}
         """
         df = get_bq_client().execute_query(query)
         if not df.empty:
@@ -516,11 +518,14 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             neighbor_ids = neighbors_df["game_id"].tolist()
             neighbor_ids_str = ",".join(str(int(g)) for g in neighbor_ids)
             query = f"""
-            SELECT game_id, name, year_published, bayes_average, average_weight, thumbnail,
-                   min_players, max_players, min_playtime, max_playtime,
-                   categories, mechanics, families
-            FROM `${{project_id}}.${{dataset}}.games_features`
-            WHERE game_id IN ({neighbor_ids_str})
+            SELECT gf.game_id, gf.name, gf.year_published, gf.bayes_average, gf.average_weight, gf.thumbnail,
+                   gf.min_players, gf.max_players, gf.min_playtime, gf.max_playtime,
+                   gf.categories, gf.mechanics, gf.families,
+                   cp.predicted_complexity AS complexity
+            FROM `${{project_id}}.${{dataset}}.games_features` gf
+            LEFT JOIN `${{project_id}}.predictions.bgg_complexity_predictions` cp
+                ON gf.game_id = cp.game_id
+            WHERE gf.game_id IN ({neighbor_ids_str})
             """
             features_df = get_bq_client().execute_query(query)
             features_map = {int(row["game_id"]): row.to_dict() for _, row in features_df.iterrows()}
