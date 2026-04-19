@@ -68,6 +68,60 @@ def format_player_count(min_players: int | None, max_players: int | None) -> str
     return None
 
 
+def _coerce_count_list(val) -> list[str]:
+    if val is None:
+        return []
+    if isinstance(val, str):
+        return [s.strip() for s in val.split(",") if s.strip()]
+    return [str(s).strip() for s in val if str(s).strip()]
+
+
+def render_player_count_rows(
+    best: str | list | None,
+    recommended: str | list | None,
+) -> list:
+    """Render two labeled rows — "Best:" and "Recommended:" — as green/gray pills.
+
+    Counts that are best are excluded from the Recommended row to avoid
+    duplication. Returns an empty list if there's nothing to show.
+    """
+    best_list = sorted(
+        set(_coerce_count_list(best)),
+        key=lambda s: int(s) if s.isdigit() else 99,
+    )
+    rec_only = [c for c in _coerce_count_list(recommended) if c not in set(best_list)]
+    rec_only = sorted(set(rec_only), key=lambda s: int(s) if s.isdigit() else 99)
+
+    rows = []
+    if best_list:
+        rows.append(
+            html.Div(
+                [
+                    html.Small("Best: ", className="text-muted me-1"),
+                    *[
+                        dbc.Badge(c, color="success", className="me-1", pill=True)
+                        for c in best_list
+                    ],
+                ],
+                className="mb-1",
+            )
+        )
+    if rec_only:
+        rows.append(
+            html.Div(
+                [
+                    html.Small("Recommended: ", className="text-muted me-1"),
+                    *[
+                        dbc.Badge(c, color="secondary", className="me-1", pill=True)
+                        for c in rec_only
+                    ],
+                ],
+                className="mb-1",
+            )
+        )
+    return rows
+
+
 def format_playtime(min_playtime: int | None, max_playtime: int | None) -> str | None:
     """Format playtime as a display string.
 
@@ -95,6 +149,7 @@ def create_game_info_card(
     show_categories: bool = True,
     show_mechanics: bool = True,
     show_families: bool = True,
+    show_player_count_rows: bool = True,
     max_categories: int = 4,
     max_mechanics: int = 4,
     max_families: int = 3,
@@ -144,6 +199,14 @@ def create_game_info_card(
     # Format strings
     players_str = format_player_count(min_players, max_players)
     playtime_str = format_playtime(min_playtime, max_playtime)
+    player_count_rows = (
+        render_player_count_rows(
+            game_data.get("best_player_counts"),
+            game_data.get("recommended_player_counts"),
+        )
+        if show_player_count_rows
+        else []
+    )
 
     # Build BGG link
     bgg_url = f"https://boardgamegeek.com/boardgame/{game_id}"
@@ -169,6 +232,8 @@ def create_game_info_card(
             className="mb-2",
         )
 
+    stat_badge_style = {"fontSize": "0.875rem", "padding": "0.4em 0.65em"}
+
     # Build info sections
     info_sections = [
         title_element,
@@ -180,18 +245,31 @@ def create_game_info_card(
                     color="success" if rating and rating >= 7 else "light",
                     text_color="dark" if rating and rating < 7 else None,
                     className="me-2 mb-2",
+                    style=stat_badge_style,
                 ),
                 dbc.Badge(
                     f"Complexity: {complexity:.1f}" if complexity else "N/A",
                     color="info",
                     className="me-2 mb-2",
+                    style=stat_badge_style,
                 ),
             ]
-            + ([dbc.Badge(players_str, color="light", text_color="dark", className="me-2 mb-2")] if players_str else [])
-            + ([dbc.Badge(playtime_str, color="light", text_color="dark", className="me-2 mb-2")] if playtime_str else []),
+            + (
+                [dbc.Badge(players_str, color="light", text_color="dark", className="me-2 mb-2", style=stat_badge_style)]
+                if players_str
+                else []
+            )
+            + (
+                [dbc.Badge(playtime_str, color="light", text_color="dark", className="me-2 mb-2", style=stat_badge_style)]
+                if playtime_str
+                else []
+            ),
             className="mb-2",
         ),
     ]
+
+    if player_count_rows:
+        info_sections.append(html.Div(player_count_rows, className="mb-2"))
 
     # Categories - use secondary (gray) for dark mode readability
     if show_categories and len(categories) > 0:

@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 CARDS_PER_PAGE = 15
 
 
-def _render_modal_body(game: dict[str, Any]) -> html.Div:
-    """Build the modal body for a selected game using data from the store."""
+def _render_details_body(game: dict[str, Any]) -> html.Div:
+    """Build the inline expanded-details body for a selected game."""
     image = game.get("image") or game.get("thumbnail")
     game_id = game.get("game_id")
     description = game.get("description") or ""
@@ -56,13 +56,27 @@ def _render_modal_body(game: dict[str, Any]) -> html.Div:
         else f"{min_playtime}–{max_playtime} min"
     )
 
-    def _badges(items: list | None, color: str) -> list:
+    def _badges(items: list | None, color: str, max_items: int | None = None) -> list:
         if not items:
             return [html.Small("—", className="text-muted")]
-        return [
+        if max_items is None or len(items) <= max_items:
+            return [
+                dbc.Badge(str(item), color=color, className="me-1 mb-1", pill=True)
+                for item in items
+            ]
+        shown = [
             dbc.Badge(str(item), color=color, className="me-1 mb-1", pill=True)
-            for item in items
+            for item in items[:max_items]
         ]
+        shown.append(
+            dbc.Badge(
+                f"+{len(items) - max_items} more",
+                color="secondary",
+                className="me-1 mb-1",
+                pill=True,
+            )
+        )
+        return shown
 
     stats = dbc.Row(
         [
@@ -111,12 +125,12 @@ def _render_modal_body(game: dict[str, Any]) -> html.Div:
     )
 
     sections = []
-    for label, key, color in [
-        ("Categories", "categories", "secondary"),
-        ("Mechanics", "mechanics", "info"),
-        ("Designers", "designers", "primary"),
-        ("Publishers", "publishers", "dark"),
-        ("Families", "families", "secondary"),
+    for label, key, color, cap in [
+        ("Categories", "categories", "secondary", None),
+        ("Mechanics", "mechanics", "info", None),
+        ("Designers", "designers", "success", 6),
+        ("Publishers", "publishers", "primary", 6),
+        ("Families", "families", "secondary", 10),
     ]:
         items = game.get(key) or []
         if items:
@@ -124,7 +138,7 @@ def _render_modal_body(game: dict[str, Any]) -> html.Div:
                 html.Div(
                     [
                         html.Small(f"{label}: ", className="text-muted me-1"),
-                        *_badges(items, color),
+                        *_badges(items, color, max_items=cap),
                     ],
                     className="mb-2",
                 )
@@ -141,7 +155,13 @@ def _render_modal_body(game: dict[str, Any]) -> html.Div:
     left_col = (
         html.Img(
             src=image,
-            style={"maxWidth": "100%", "borderRadius": "6px"},
+            style={
+                "maxWidth": "240px",
+                "maxHeight": "240px",
+                "width": "100%",
+                "objectFit": "contain",
+                "borderRadius": "6px",
+            },
         )
         if image
         else html.Div()
@@ -154,8 +174,8 @@ def _render_modal_body(game: dict[str, Any]) -> html.Div:
     body_children = [
         dbc.Row(
             [
-                dbc.Col(left_col, md=4),
-                dbc.Col(right_col, md=8),
+                dbc.Col(left_col, width="auto"),
+                dbc.Col(right_col),
             ],
             className="g-3",
         )
@@ -171,6 +191,88 @@ def _render_modal_body(game: dict[str, Any]) -> html.Div:
         )
 
     return html.Div(body_children)
+
+
+_SORT_LABELS = {
+    "bayes_average:DESC": "Geek Rating",
+    "average_rating:DESC": "Avg Rating",
+    "users_rated:DESC": "Users Rated",
+    "year_published:DESC": "Year (newest)",
+    "year_published:ASC": "Year (oldest)",
+    "average_weight:ASC": "Complexity (lightest)",
+    "average_weight:DESC": "Complexity (heaviest)",
+    "name:ASC": "Name (A–Z)",
+}
+
+_COMPLEXITY_LABELS = {
+    "any": "Any complexity",
+    "light": "Light",
+    "medium-light": "Medium-Light",
+    "medium": "Medium",
+    "medium-heavy": "Medium-Heavy",
+    "heavy": "Heavy",
+}
+
+
+def _unpack_store(
+    data: list[dict[str, Any]] | dict[str, Any] | None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Accept both legacy list-only payloads and the new {records, summary} shape."""
+    if data is None:
+        return [], {}
+    if isinstance(data, list):
+        return data, {}
+    if isinstance(data, dict) and "records" in data:
+        return data.get("records") or [], data.get("summary") or {}
+    return [], {}
+
+
+def _summary_chips(summary: dict[str, Any]) -> list:
+    """Return a list of compact Badge chips reflecting active filters + sort."""
+    if not summary:
+        return []
+
+    chips: list = []
+
+    pc = summary.get("player_count")
+    pc_type = summary.get("player_count_type")
+    if pc:
+        verb = "Best at" if pc_type == "best" else "Rec. at"
+        chips.append(
+            dbc.Badge(f"{verb} {pc}", color="success", className="me-1", pill=True)
+        )
+
+    bucket = summary.get("complexity_bucket") or "any"
+    if bucket != "any":
+        label = _COMPLEXITY_LABELS.get(bucket, bucket)
+        chips.append(dbc.Badge(label, color="info", className="me-1", pill=True))
+
+    year_range = summary.get("year_range")
+    if (
+        year_range
+        and len(year_range) == 2
+        and not (year_range[0] == 1950 and year_range[1] == 2026)
+    ):
+        chips.append(
+            dbc.Badge(
+                f"{int(year_range[0])}–{int(year_range[1])}",
+                color="secondary",
+                className="me-1",
+                pill=True,
+            )
+        )
+
+    sort_key = f"{summary.get('sort_by', 'bayes_average')}:{summary.get('sort_order', 'DESC')}"
+    sort_label = _SORT_LABELS.get(sort_key, sort_key)
+    chips.append(
+        html.Small(
+            f"sorted by {sort_label.lower()}",
+            className="text-muted",
+            style={"fontSize": "0.8rem"},
+        )
+    )
+
+    return chips
 
 
 def _render_placeholder() -> html.Div:
@@ -189,17 +291,23 @@ def _render_placeholder() -> html.Div:
     )
 
 
-def _render_cards(records: list[dict[str, Any]], start_rank: int = 1) -> html.Div:
+def _render_cards(
+    records: list[dict[str, Any]],
+    start_rank: int = 1,
+    summary: dict[str, Any] | None = None,
+) -> html.Div:
     """Render results as a vertical stack of clickable game cards with rank.
 
-    Each card has a header showing its overall rank (`#1`, `#2`, ...) and
-    opens a details modal when clicked. The card itself carries a
-    pattern-matched id so a single callback handles all clicks.
+    Each card has a header showing its overall rank (`#1`, `#2`, ...) plus
+    the active search criteria as chips, and opens an inline collapse when
+    clicked. The clickable wrapper carries a pattern-matched id.
 
     Args:
         records: Page of game records to render.
         start_rank: Rank number for the first card (accounts for pagination).
+        summary: Active search filters/sort to display beside each rank.
     """
+    chips = _summary_chips(summary or {})
     cards = []
     for i, row in enumerate(records):
         card_body = create_game_info_card(
@@ -215,19 +323,38 @@ def _render_cards(records: list[dict[str, Any]], start_rank: int = 1) -> html.Di
             continue
         game_id = row.get("game_id")
         rank = start_rank + i
+        header = html.Div(
+            [
+                html.Span(f"#{rank}", className="fw-bold text-muted me-3"),
+                html.Div(chips, className="d-flex flex-wrap align-items-center"),
+            ],
+            className="d-flex align-items-center",
+        )
         cards.append(
-            dbc.Card(
+            html.Div(
                 [
-                    dbc.CardHeader(
-                        html.Span(f"#{rank}", className="fw-bold text-muted"),
-                        className="py-2",
+                    html.Div(
+                        dbc.Card(
+                            [
+                                dbc.CardHeader(header, className="py-2"),
+                                dbc.CardBody(card_body),
+                            ],
+                            className="panel-card search-result-card",
+                        ),
+                        id={"type": "game-card", "game_id": game_id},
+                        style={"cursor": "pointer"},
+                        n_clicks=0,
                     ),
-                    dbc.CardBody(card_body),
+                    dbc.Collapse(
+                        dbc.Card(
+                            dbc.CardBody(_render_details_body(row)),
+                            className="panel-card search-result-details",
+                        ),
+                        id={"type": "game-card-collapse", "game_id": game_id},
+                        is_open=False,
+                    ),
                 ],
-                id={"type": "game-card", "game_id": game_id},
-                className="mb-3 panel-card search-result-card",
-                style={"cursor": "pointer"},
-                n_clicks=0,
+                className="mb-3",
             )
         )
     if not cards:
@@ -383,7 +510,15 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                     lambda v: list(v) if v is not None and len(v) > 0 else []
                 )
 
-        return games_df.to_dict("records"), 1
+        summary = {
+            "player_count": pc_arg,
+            "player_count_type": pc_type_arg,
+            "complexity_bucket": complexity_bucket or "any",
+            "year_range": year_range,
+            "sort_by": sort_by or "bayes_average",
+            "sort_order": sort_order or "DESC",
+        }
+        return {"records": games_df.to_dict("records"), "summary": summary}, 1
 
     @app.callback(
         Output("search-page-store", "data"),
@@ -432,7 +567,9 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                 hidden,
             )
 
-        if not data:
+        records, summary = _unpack_store(data)
+
+        if not records:
             return (
                 html.Div(
                     dbc.Alert(
@@ -446,19 +583,19 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
                 hidden,
             )
 
-        total = len(data)
+        total = len(records)
         count_text = f"{total:,} game{'s' if total != 1 else ''}"
 
         # Table view skips pagination (AG Grid has its own)
         if view == "table":
-            return _render_table(data), count_text, 1, 1, hidden
+            return _render_table(records), count_text, 1, 1, hidden
 
         # Cards view: client-side pagination
         max_page = max(1, (total + CARDS_PER_PAGE - 1) // CARDS_PER_PAGE)
         current = min(max(1, page or 1), max_page)
         start = (current - 1) * CARDS_PER_PAGE
         end = start + CARDS_PER_PAGE
-        page_records = data[start:end]
+        page_records = records[start:end]
         count_text = (
             f"{count_text} · showing {start + 1}–{min(end, total)}"
             if max_page > 1
@@ -466,7 +603,7 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
         )
         pagination_style = shown if max_page > 1 else hidden
         return (
-            _render_cards(page_records, start_rank=start + 1),
+            _render_cards(page_records, start_rank=start + 1, summary=summary),
             count_text,
             max_page,
             current,
@@ -490,35 +627,27 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
         return "any", "any", [1950, 2026], None, None, None, None
 
     @app.callback(
-        [
-            Output("game-details-modal", "is_open"),
-            Output("game-details-modal-title", "children"),
-            Output("game-details-modal-body", "children"),
-        ],
+        Output({"type": "game-card-collapse", "game_id": dash.ALL}, "is_open"),
         Input({"type": "game-card", "game_id": dash.ALL}, "n_clicks"),
-        State("search-results-store", "data"),
+        State({"type": "game-card-collapse", "game_id": dash.ALL}, "is_open"),
         prevent_initial_call=True,
     )
-    def open_details_modal(
+    def toggle_card_details(
         n_clicks_list: list[int | None],
-        data: list[dict[str, Any]] | dict[str, Any] | None,
-    ) -> tuple:
-        """Open a modal with full details for the clicked card."""
+        is_open_list: list[bool],
+    ) -> list[bool]:
+        """Expand the clicked card; collapse all others."""
         ctx = dash.callback_context
         if not ctx.triggered_id or not any(n_clicks_list):
-            return dash.no_update, dash.no_update, dash.no_update
-        if not isinstance(data, list):
-            return dash.no_update, dash.no_update, dash.no_update
+            return [dash.no_update] * len(is_open_list)
 
         clicked_id = ctx.triggered_id["game_id"]
-        match = next((row for row in data if row.get("game_id") == clicked_id), None)
-        if match is None:
-            return dash.no_update, dash.no_update, dash.no_update
-
-        title = match.get("name") or "Game Details"
-        year = match.get("year_published")
-        if year:
-            title = f"{title} ({int(year)})"
-
-        body = _render_modal_body(match)
-        return True, title, body
+        inputs = ctx.inputs_list[0]
+        new_states = []
+        for item, was_open in zip(inputs, is_open_list):
+            gid = item["id"]["game_id"]
+            if gid == clicked_id:
+                new_states.append(not was_open)
+            else:
+                new_states.append(False)
+        return new_states

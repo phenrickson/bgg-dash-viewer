@@ -388,17 +388,6 @@ def create_game_search_layout() -> html.Div:
                     ),
                     dcc.Store(id="search-results-store"),
                     dcc.Store(id="search-page-store", data=1),
-                    # Details modal (populated on card click)
-                    dbc.Modal(
-                        [
-                            dbc.ModalHeader(dbc.ModalTitle(id="game-details-modal-title")),
-                            dbc.ModalBody(id="game-details-modal-body"),
-                        ],
-                        id="game-details-modal",
-                        size="lg",
-                        is_open=False,
-                        scrollable=True,
-                    ),
                 ],
                 fluid=True,
                 className="py-4 px-4",
