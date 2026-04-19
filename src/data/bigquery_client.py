@@ -125,6 +125,7 @@ class BigQueryClient:
         best_player_count_only: bool = False,
         sort_by: str = "bayes_average",
         sort_order: str = "DESC",
+        include_features: bool = False,
     ) -> pd.DataFrame:
         """Get games with filtering and sorting.
 
@@ -145,6 +146,9 @@ class BigQueryClient:
             max_player_count: Maximum recommended player count
             sort_by: Field to sort by
             sort_order: Sort order (ASC or DESC)
+            include_features: If True, LEFT JOIN games_features to include
+                categories, mechanics, publishers, designers, artists, and
+                families as arrays (slower query; used by richer views).
 
         Returns:
             DataFrame with game data
@@ -282,6 +286,23 @@ class BigQueryClient:
                      OR {player_count} BETWEEN bpc.min_recommended_player_count AND bpc.max_recommended_player_count)
                 """
 
+        # Optionally enrich with feature arrays (categories, mechanics, etc.)
+        features_select = ""
+        features_join = ""
+        if include_features:
+            features_select = """,
+            gf.categories,
+            gf.mechanics,
+            gf.publishers,
+            gf.designers,
+            gf.artists,
+            gf.families,
+            gf.description"""
+            features_join = """
+            LEFT JOIN `${project_id}.${dataset}.games_features` gf
+                ON fg.game_id = gf.game_id
+            """
+
         query = f"""
         WITH filtered_games AS (
             SELECT DISTINCT g.*,
@@ -293,26 +314,27 @@ class BigQueryClient:
             {where_clause}
             {best_player_count_filter}
         )
-        SELECT 
-            game_id,
-            name,
-            year_published,
-            average_rating,
-            bayes_average,
-            average_weight,
-            users_rated,
-            min_players,
-            max_players,
-            playing_time,
-            min_playtime,
-            max_playtime,
-            min_age,
-            thumbnail,
-            image,
-            best_player_counts,
-            recommended_player_counts
-        FROM filtered_games
-        ORDER BY {sort_by} {sort_order}
+        SELECT
+            fg.game_id,
+            fg.name,
+            fg.year_published,
+            fg.average_rating,
+            fg.bayes_average,
+            fg.average_weight,
+            fg.users_rated,
+            fg.min_players,
+            fg.max_players,
+            fg.playing_time,
+            fg.min_playtime,
+            fg.max_playtime,
+            fg.min_age,
+            fg.thumbnail,
+            fg.image,
+            fg.best_player_counts,
+            fg.recommended_player_counts{features_select}
+        FROM filtered_games fg
+        {features_join}
+        ORDER BY fg.{sort_by} {sort_order}
         LIMIT {limit}
         OFFSET {offset}
         """

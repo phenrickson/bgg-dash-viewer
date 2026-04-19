@@ -99,6 +99,7 @@ def create_game_info_card(
     max_mechanics: int = 4,
     max_families: int = 3,
     image_size: int = 140,
+    title_href: str | None = "__bgg__",
 ) -> html.Div | None:
     """Create a game info card component.
 
@@ -148,19 +149,29 @@ def create_game_info_card(
     bgg_url = f"https://boardgamegeek.com/boardgame/{game_id}"
     title_text = f"{name} ({int(year)})" if year else name
 
-    # Build info sections
-    info_sections = [
-        # Clickable title
-        html.H4(
+    # Resolve the title link destination.
+    #   "__bgg__" (default)  → link to BGG (preserves legacy behavior)
+    #   None                 → plain text (caller is wrapping the card in its own link)
+    #   any other string     → link to that URL
+    resolved_href = bgg_url if title_href == "__bgg__" else title_href
+
+    if resolved_href is None:
+        title_element = html.H4(title_text, className="mb-2")
+    else:
+        title_element = html.H4(
             html.A(
                 title_text,
-                href=bgg_url,
-                target="_blank",
+                href=resolved_href,
+                target="_blank" if resolved_href.startswith("http") else "_self",
                 rel="noopener noreferrer",
                 style={"textDecoration": "none"},
             ),
             className="mb-2",
-        ),
+        )
+
+    # Build info sections
+    info_sections = [
+        title_element,
         # Rating, complexity, players, and playtime badges
         html.Div(
             [

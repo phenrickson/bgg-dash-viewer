@@ -62,55 +62,61 @@ def get_grid_class_name() -> str:
 # Column definitions for different table types
 
 
-def get_search_results_column_defs() -> list[dict[str, Any]]:
-    """Get column definitions for game search results table.
+def get_search_results_rich_column_defs() -> list[dict[str, Any]]:
+    """Column definitions for the detailed search results table.
 
-    Returns:
-        List of column definitions.
+    Includes designer / publisher / category / mechanic badges joined from
+    the games_features table. Array fields are rendered as comma-joined
+    strings so the shared BadgeList renderer works unchanged.
     """
+    array_to_csv = "(params.data.{field} && params.data.{field}.length) ? params.data.{field}.join(', ') : ''"
     return [
         {
             "field": "name",
             "headerName": "Game",
             "cellRenderer": "GameInfo",
             "flex": 2,
-            "minWidth": 200,
+            "minWidth": 240,
             "filter": "agTextColumnFilter",
             "autoHeight": True,
             "wrapText": True,
+            "pinned": "left",
         },
         {
             "field": "bayes_average",
             "headerName": "Geek Rating",
-            "flex": 1,
-            "minWidth": 100,
+            "width": 110,
             "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
             "filter": "agNumberColumnFilter",
-            "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
             "cellStyle": {"textAlign": "center"},
         },
         {
             "field": "average_rating",
             "headerName": "Avg Rating",
-            "flex": 1,
-            "minWidth": 100,
-            "filter": "agNumberColumnFilter",
+            "width": 110,
             "valueFormatter": {"function": "d3.format('.2f')(params.value)"},
+            "filter": "agNumberColumnFilter",
+            "cellStyle": {"textAlign": "center"},
+        },
+        {
+            "field": "users_rated",
+            "headerName": "Users Rated",
+            "width": 120,
+            "valueFormatter": {"function": "d3.format(',')(params.value)"},
+            "filter": "agNumberColumnFilter",
             "cellStyle": {"textAlign": "center"},
         },
         {
             "field": "average_weight",
             "headerName": "Complexity",
-            "flex": 1,
-            "minWidth": 100,
+            "width": 110,
             "filter": "agNumberColumnFilter",
             "cellRenderer": "ComplexityNumber",
         },
         {
             "field": "playtime",
             "headerName": "Playtime",
-            "flex": 1,
-            "minWidth": 100,
+            "width": 120,
             "valueGetter": {
                 "function": "params.data.min_playtime === params.data.max_playtime ? (params.data.min_playtime || '-') + 'm' : (params.data.min_playtime || '?') + '-' + (params.data.max_playtime || '?') + 'm'"
             },
@@ -121,11 +127,54 @@ def get_search_results_column_defs() -> list[dict[str, Any]]:
             "field": "players",
             "headerName": "Players",
             "headerClass": "ag-header-center",
-            "flex": 1,
-            "minWidth": 120,
+            "width": 140,
             "filter": "agTextColumnFilter",
             "cellRenderer": "PlayerCountPills",
             "cellStyle": {"textAlign": "center"},
+        },
+        {
+            "field": "designers",
+            "headerName": "Designers",
+            "flex": 1,
+            "minWidth": 180,
+            "valueGetter": {"function": array_to_csv.format(field="designers")},
+            "cellRenderer": "BadgeList",
+            "cellRendererParams": {"badgeColor": "#6366f1", "maxVisible": 2},
+            "filter": "agTextColumnFilter",
+            "autoHeight": True,
+        },
+        {
+            "field": "publishers",
+            "headerName": "Publishers",
+            "flex": 1,
+            "minWidth": 180,
+            "valueGetter": {"function": array_to_csv.format(field="publishers")},
+            "cellRenderer": "BadgeList",
+            "cellRendererParams": {"badgeColor": "#4b5563", "maxVisible": 2},
+            "filter": "agTextColumnFilter",
+            "autoHeight": True,
+        },
+        {
+            "field": "categories",
+            "headerName": "Categories",
+            "flex": 1,
+            "minWidth": 180,
+            "valueGetter": {"function": array_to_csv.format(field="categories")},
+            "cellRenderer": "BadgeList",
+            "cellRendererParams": {"badgeColor": "#0d9488", "maxVisible": 2},
+            "filter": "agTextColumnFilter",
+            "autoHeight": True,
+        },
+        {
+            "field": "mechanics",
+            "headerName": "Mechanics",
+            "flex": 1,
+            "minWidth": 180,
+            "valueGetter": {"function": array_to_csv.format(field="mechanics")},
+            "cellRenderer": "BadgeList",
+            "cellRendererParams": {"badgeColor": "#0891b2", "maxVisible": 2},
+            "filter": "agTextColumnFilter",
+            "autoHeight": True,
         },
     ]
 
