@@ -364,17 +364,56 @@ def _render_cards(
     return html.Div(cards)
 
 
-def _render_table(records: list[dict[str, Any]]) -> dag.AgGrid:
+def _render_table(records: list[dict[str, Any]], fullscreen: bool = False) -> html.Div:
     grid_options = get_default_grid_options()
     grid_options["domLayout"] = "normal"
-    return dag.AgGrid(
+    grid_options["paginationPageSize"] = 50
+    grid_options["paginationPageSizeSelector"] = [25, 50, 100, 200]
+
+    grid = dag.AgGrid(
         id="results-table",
         rowData=records,
         columnDefs=get_search_results_rich_column_defs(),
         defaultColDef=get_default_column_def(),
         dashGridOptions=grid_options,
         className=get_grid_class_name(),
-        style=get_grid_style("calc(100vh - 400px)"),
+        style=get_grid_style("100%" if fullscreen else "calc(100vh - 180px)"),
+    )
+
+    toggle_icon = "fa-compress" if fullscreen else "fa-expand"
+    toggle_label = "Exit Full Screen" if fullscreen else "Full Screen"
+    toolbar = html.Div(
+        dbc.Button(
+            [html.I(className=f"fas {toggle_icon} me-2"), toggle_label],
+            id="table-fullscreen-toggle",
+            color="link",
+            size="sm",
+            className="text-decoration-none",
+        ),
+        className="d-flex justify-content-end mb-2",
+    )
+
+    container_style = (
+        {
+            "position": "fixed",
+            "top": 0,
+            "left": 0,
+            "right": 0,
+            "bottom": 0,
+            "zIndex": 1050,
+            "backgroundColor": "var(--bs-body-bg, #0b1020)",
+            "padding": "1rem",
+            "display": "flex",
+            "flexDirection": "column",
+        }
+        if fullscreen
+        else {}
+    )
+
+    return html.Div(
+        [toolbar, html.Div(grid, style={"flex": 1} if fullscreen else {})],
+        id="results-table-container",
+        style=container_style,
     )
 
 
@@ -529,6 +568,19 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
         return active_page or 1
 
     @app.callback(
+        Output("table-fullscreen-store", "data"),
+        Input("table-fullscreen-toggle", "n_clicks"),
+        State("table-fullscreen-store", "data"),
+        prevent_initial_call=True,
+    )
+    def toggle_table_fullscreen(
+        n_clicks: int | None, current: bool | None
+    ) -> bool:
+        if not n_clicks:
+            return bool(current)
+        return not bool(current)
+
+    @app.callback(
         [
             Output("search-results-container", "children"),
             Output("search-result-count", "children"),
@@ -540,12 +592,14 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
             Input("search-results-store", "data"),
             Input("search-view-toggle", "data"),
             Input("search-page-store", "data"),
+            Input("table-fullscreen-store", "data"),
         ],
     )
     def render_results(
         data: list[dict[str, Any]] | dict[str, Any] | None,
         view: str,
         page: int | None,
+        fullscreen: bool | None,
     ) -> tuple:
         hidden = {"display": "none"}
         shown = {"display": "flex"}
@@ -588,7 +642,13 @@ def register_search_callbacks(app: dash.Dash, cache: Cache) -> None:
 
         # Table view skips pagination (AG Grid has its own)
         if view == "table":
-            return _render_table(records), count_text, 1, 1, hidden
+            return (
+                _render_table(records, fullscreen=bool(fullscreen)),
+                count_text,
+                1,
+                1,
+                hidden,
+            )
 
         # Cards view: client-side pagination
         max_page = max(1, (total + CARDS_PER_PAGE - 1) // CARDS_PER_PAGE)

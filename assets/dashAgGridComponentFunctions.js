@@ -61,22 +61,32 @@ dagcomponentfuncs.PlayerCountPills = function(props) {
     const containerStyle = {
         display: 'flex',
         flexWrap: 'wrap',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
-        gap: '3px',
-        height: '100%',
-        width: '100%'
+        alignContent: 'flex-start',
+        rowGap: '2px',
+        columnGap: '3px',
+        width: '100%',
+        paddingTop: '6px',
+        lineHeight: 1
+    };
+
+    const recStyle = {
+        backgroundColor: '#8fd4a4',
+        color: '#0e3b1e'
     };
 
     return React.createElement(
         'div',
         { style: containerStyle },
-        allCounts.map((count, i) =>
-            React.createElement('span', {
+        allCounts.map((count, i) => {
+            const isBest = bestCounts.has(count);
+            return React.createElement('span', {
                 key: i,
-                className: bestCounts.has(count) ? 'badge bg-success' : 'badge bg-secondary'
-            }, count)
-        )
+                className: isBest ? 'badge bg-success' : 'badge',
+                style: isBest ? undefined : recStyle
+            }, count);
+        })
     );
 };
 

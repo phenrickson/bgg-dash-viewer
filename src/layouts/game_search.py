@@ -60,64 +60,68 @@ def _chip_group(
 
 
 def _primary_filters() -> html.Div:
-    """Two stacked chip rows for the main facets: player count, complexity."""
+    """Side-by-side chip groups for the main facets: player count, complexity."""
+    player_count_col = html.Div(
+        [
+            html.Span(
+                "Player Count",
+                className="text-uppercase fw-bold small text-muted d-block mb-2",
+            ),
+            html.Div(
+                dbc.ButtonGroup(
+                    [
+                        dbc.Button(
+                            "Best",
+                            id="player-count-best-button",
+                            color="primary",
+                            outline=False,
+                            size="sm",
+                        ),
+                        dbc.Button(
+                            "Rec.",
+                            id="player-count-recommended-button",
+                            color="primary",
+                            outline=True,
+                            size="sm",
+                        ),
+                    ],
+                ),
+                className="mb-2",
+            ),
+            html.Div(
+                id="player-count-type-store",
+                style={"display": "none"},
+                children="best",
+            ),
+            html.Div(
+                _chip_group("pc-chip", PLAYER_COUNT_OPTIONS, selected_value="any"),
+            ),
+        ]
+    )
+
+    complexity_col = html.Div(
+        [
+            html.Span(
+                "Complexity",
+                className="text-uppercase fw-bold small text-muted d-block mb-2",
+            ),
+            _chip_group(
+                "cx-chip",
+                [(k, v[0]) for k, v in COMPLEXITY_BUCKETS.items()],
+                selected_value="any",
+            ),
+        ]
+    )
+
     return html.Div(
         [
-            # Player Count row
             html.Div(
                 [
-                    html.Div(
-                        [
-                            html.Span(
-                                "Player Count",
-                                className="text-uppercase fw-bold small text-muted me-3",
-                            ),
-                            dbc.ButtonGroup(
-                                [
-                                    dbc.Button(
-                                        "Best",
-                                        id="player-count-best-button",
-                                        color="primary",
-                                        outline=False,
-                                        size="sm",
-                                    ),
-                                    dbc.Button(
-                                        "Rec.",
-                                        id="player-count-recommended-button",
-                                        color="primary",
-                                        outline=True,
-                                        size="sm",
-                                    ),
-                                ],
-                            ),
-                            html.Div(
-                                id="player-count-type-store",
-                                style={"display": "none"},
-                                children="best",
-                            ),
-                        ],
-                        className="d-flex align-items-center mb-2",
-                    ),
-                    _chip_group("pc-chip", PLAYER_COUNT_OPTIONS, selected_value="any"),
+                    html.Div(player_count_col, className="me-5"),
+                    html.Div(complexity_col),
                 ],
-                className="mb-4",
+                className="d-flex flex-wrap align-items-start mb-3",
             ),
-            # Complexity row
-            html.Div(
-                [
-                    html.Span(
-                        "Complexity",
-                        className="text-uppercase fw-bold small text-muted d-block mb-2",
-                    ),
-                    _chip_group(
-                        "cx-chip",
-                        [(k, v[0]) for k, v in COMPLEXITY_BUCKETS.items()],
-                        selected_value="any",
-                    ),
-                ],
-                className="mb-3",
-            ),
-            # Stores for selected chip values
             dcc.Store(id="player-count-store", data="any"),
             dcc.Store(id="complexity-bucket-store", data="any"),
         ]
@@ -369,7 +373,10 @@ def create_game_search_layout() -> html.Div:
                         id="search-loading",
                         type="circle",
                         overlay_style={"visibility": "visible", "filter": "blur(2px)"},
-                        children=html.Div(id="search-results-container"),
+                        children=[
+                            dcc.Store(id="search-results-store"),
+                            html.Div(id="search-results-container"),
+                        ],
                     ),
                     # Pagination shown when results > page size
                     html.Div(
@@ -386,8 +393,8 @@ def create_game_search_layout() -> html.Div:
                         className="d-flex justify-content-center mt-3",
                         style={"display": "none"},
                     ),
-                    dcc.Store(id="search-results-store"),
                     dcc.Store(id="search-page-store", data=1),
+                    dcc.Store(id="table-fullscreen-store", data=False),
                 ],
                 fluid=True,
                 className="py-4 px-4",

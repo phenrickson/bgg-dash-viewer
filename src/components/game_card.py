@@ -112,7 +112,12 @@ def render_player_count_rows(
                 [
                     html.Small("Recommended: ", className="text-muted me-1"),
                     *[
-                        dbc.Badge(c, color="secondary", className="me-1", pill=True)
+                        dbc.Badge(
+                            c,
+                            className="me-1",
+                            pill=True,
+                            style={"backgroundColor": "#8fd4a4", "color": "#0e3b1e"},
+                        )
                         for c in rec_only
                     ],
                 ],
