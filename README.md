@@ -1,110 +1,82 @@
 # BGG Dash Viewer
 
-A Dash-based viewer for exploring BoardGameGeek data warehouse.
+A Dash + Flask application for exploring BoardGameGeek data and model predictions from a BigQuery data warehouse.
 
 ## Overview
 
-BGG Dash Viewer is a web application built with Dash that provides an interactive interface for exploring and searching through BoardGameGeek board game data stored in a BigQuery data warehouse.
+BGG Dash Viewer pairs a Flask-hosted landing page and auth layer with a Dash app that surfaces game search, predictions, similarity, and monitoring views backed by BigQuery.
 
 ## Features
 
-- Advanced game search with multiple filtering options
-- Interactive visualizations of game data
-- Detailed game information pages
-- Responsive design for desktop and mobile
+- **Game Search** — card + AG Grid table views with player-count, complexity, and year filters, inline expandable details, and search-summary chips
+- **New Games** — recently released games with designers, publishers, and categories
+- **Upcoming Predictions** — model predictions for unreleased titles
+- **Game Similarity** — find similar games via embeddings, with an Explore Embeddings tab
+- **Game Ratings** — rating distributions and trends
+- **Experiments** — combined experiment + version selector with synced tabs for model comparison
+- **Monitoring** — BigQuery pipeline status and deployed model display
+- **Auth** — Flask-Login with BigQuery-backed users, bcrypt hashing, and a registration code gate
 
 ## Installation
 
 ### Prerequisites
 
-- Python 3.12 or higher
-- Access to a Google Cloud project with BigQuery
-- Service account credentials with BigQuery access
+- Python 3.12+
+- Google Cloud project with BigQuery access
+- Service account credentials
 
 ### Setup
 
-1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/bgg-dash-viewer.git
+git clone https://github.com/phenrickson/bgg-dash-viewer.git
 cd bgg-dash-viewer
-```
-
-2. Create a virtual environment using UV:
-```bash
-uv venv
-```
-
-3. Activate the virtual environment:
-```bash
-# On Windows
-.venv\Scripts\activate
-
-# On macOS/Linux
-source .venv/bin/activate
-```
-
-4. Install dependencies:
-```bash
 uv sync
-```
-
-5. Copy the example environment file and update it with your settings:
-```bash
-cp .env.example .env
-```
-
-6. Run the application:
-```bash
-python dash_app.py
+cp .env.example .env  # fill in BigQuery + SECRET_KEY + registration code
+uv run python dash_app.py
 ```
 
 ## Development
 
 ### Project Structure
 
-```
+```text
 bgg-dash-viewer/
-├── assets/                # Dash static assets (CSS)
-├── config/                # Configuration files
-│   └── bigquery.yaml      # BigQuery configuration
-├── dash_app.py            # Main application entry point
-├── static/                # Flask static assets (landing page CSS)
-├── templates/             # Flask templates (landing page HTML)
-├── src/                   # Source code
-│   ├── callbacks/         # Dash callbacks
-│   ├── components/        # Reusable Dash components
-│   ├── data/              # Data handling
-│   └── layouts/           # Page layouts
-└── tests/                 # Tests
+├── dash_app.py            # Flask + Dash entry point
+├── assets/                # Dash CSS
+├── static/, templates/    # Flask landing page + auth pages
+├── config/                # BigQuery config
+├── src/
+│   ├── auth/              # Flask-Login, user storage, registration
+│   ├── callbacks/         # Dash callbacks (one per feature)
+│   ├── components/        # Reusable Dash components (GameInfo, pills, etc.)
+│   ├── data/              # BigQuery data access
+│   ├── layouts/           # Page layouts (search, predictions, similarity, ...)
+│   ├── theme/             # Vizro Bootstrap theming
+│   ├── landing.py         # Landing page
+│   └── config.py
+├── docs/plans/            # Active design docs
+├── tests/
+├── Makefile
+└── Dockerfile
 ```
 
-### Running Tests
+### Common Commands
 
 ```bash
-pytest
+make app          # run the app locally
+make test         # pytest
+make format       # black
+make lint         # ruff
+make type-check   # mypy
+make all          # format + lint + type-check + test
+make build && make up   # docker build + run
 ```
 
-### Code Formatting
-
-```bash
-# Format code with black
-black .
-
-# Lint code with ruff
-ruff check .
-```
+Always use `uv run python ...` rather than system Python.
 
 ## Deployment
 
-The application can be deployed to various platforms:
-
-### Local Development Server
-
-```bash
-python dash_app.py
-```
-
-### Production Deployment with Gunicorn
+Containerized via `Dockerfile` and deployed to Cloud Run. Required env vars include BigQuery credentials, `SECRET_KEY`, and the registration code.
 
 ```bash
 gunicorn dash_app:server
