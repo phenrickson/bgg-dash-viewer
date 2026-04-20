@@ -81,9 +81,14 @@
 
             <form method="POST">
                 <div class="mb-3">
+                    <label for="registration_code" class="form-label">Registration Code</label>
+                    <input type="text" class="form-control" id="registration_code" name="registration_code"
+                           placeholder="Ask for the code" required autofocus>
+                </div>
+                <div class="mb-3">
                     <label for="email" class="form-label">Email</label>
                     <input type="email" class="form-control" id="email" name="email"
-                           placeholder="you@example.com" required autofocus>
+                           placeholder="you@example.com" required>
                 </div>
                 <div class="mb-3">
                     <label for="display_name" class="form-label">Display Name <span class="text-muted">(optional)</span></label>

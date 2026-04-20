@@ -1,6 +1,7 @@
 """Authentication routes."""
 
 import logging
+import os
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
@@ -66,6 +67,13 @@ def register():
         password = request.form.get("password", "")
         confirm_password = request.form.get("confirm_password", "")
         display_name = request.form.get("display_name", "").strip() or None
+        submitted_code = request.form.get("registration_code", "").strip()
+
+        expected_code = os.environ.get("REGISTRATION_CODE")
+        if not expected_code or submitted_code != expected_code:
+            flash("Invalid registration code", "error")
+            logger.warning(f"Failed registration attempt (bad code) for: {email}")
+            return render_template("register.html")
 
         user_repo = get_user_repo()
 
