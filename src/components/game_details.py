@@ -10,6 +10,7 @@ max_playtime, categories, mechanics, designers, publishers, families.
 
 from __future__ import annotations
 
+import html as html_lib
 from typing import Any
 
 import dash_bootstrap_components as dbc
@@ -24,7 +25,7 @@ def render_extra_details(game: dict[str, Any]) -> html.Div:
     """
     image = game.get("image") or game.get("thumbnail")
     game_id = game.get("game_id")
-    description = game.get("description") or ""
+    description = html_lib.unescape(game.get("description") or "")
     avg_rating = game.get("average_rating") or 0
     users_rated = game.get("users_rated") or 0
 
@@ -137,16 +138,33 @@ def render_extra_details(game: dict[str, Any]) -> html.Div:
     return html.Div(body_children)
 
 
-def render_details_body(game: dict[str, Any]) -> html.Div:
-    """Build the inline expanded-details body for a selected game."""
+def render_details_body(
+    game: dict[str, Any],
+    rating_label: str = "Geek Rating",
+    rating_value: float | None = None,
+    avg_rating_label: str = "Avg Rating",
+    avg_rating_value: float | None = None,
+    complexity_label: str = "Complexity",
+    complexity_value: float | None = None,
+    users_label: str = "Ratings",
+    users_value: float | None = None,
+) -> html.Div:
+    """Build the inline expanded-details body for a selected game.
+
+    Stat values default to the actual BGG fields (bayes_average,
+    average_rating, average_weight, users_rated). Pass explicit
+    `*_value` args to swap in predicted values (and `*_label` to relabel)
+    — used by the Predictions page so the modal shows predictions
+    instead of the actuals (which are pre-release noise).
+    """
     image = game.get("image") or game.get("thumbnail")
     game_id = game.get("game_id")
-    description = game.get("description") or ""
+    description = html_lib.unescape(game.get("description") or "")
 
-    rating = game.get("bayes_average") or 0
-    complexity = game.get("average_weight") or 0
-    avg_rating = game.get("average_rating") or 0
-    users_rated = game.get("users_rated") or 0
+    rating = rating_value if rating_value is not None else (game.get("bayes_average") or 0)
+    complexity = complexity_value if complexity_value is not None else (game.get("average_weight") or 0)
+    avg_rating = avg_rating_value if avg_rating_value is not None else (game.get("average_rating") or 0)
+    users_rated = users_value if users_value is not None else (game.get("users_rated") or 0)
 
     def _fmt_int(x):
         try:
@@ -193,7 +211,7 @@ def render_details_body(game: dict[str, Any]) -> html.Div:
         [
             dbc.Col(
                 [
-                    html.Small("Geek Rating", className="text-muted d-block"),
+                    html.Small(rating_label, className="text-muted d-block"),
                     html.Strong(f"{rating:.2f}" if rating else "—"),
                 ],
                 xs=6,
@@ -201,7 +219,7 @@ def render_details_body(game: dict[str, Any]) -> html.Div:
             ),
             dbc.Col(
                 [
-                    html.Small("Avg Rating", className="text-muted d-block"),
+                    html.Small(avg_rating_label, className="text-muted d-block"),
                     html.Strong(f"{avg_rating:.2f}" if avg_rating else "—"),
                 ],
                 xs=6,
@@ -209,7 +227,7 @@ def render_details_body(game: dict[str, Any]) -> html.Div:
             ),
             dbc.Col(
                 [
-                    html.Small("Complexity", className="text-muted d-block"),
+                    html.Small(complexity_label, className="text-muted d-block"),
                     html.Strong(f"{complexity:.2f}" if complexity else "—"),
                 ],
                 xs=6,
@@ -217,8 +235,8 @@ def render_details_body(game: dict[str, Any]) -> html.Div:
             ),
             dbc.Col(
                 [
-                    html.Small("Ratings", className="text-muted d-block"),
-                    html.Strong(f"{users_rated:,}" if users_rated else "—"),
+                    html.Small(users_label, className="text-muted d-block"),
+                    html.Strong(f"{int(users_rated):,}" if users_rated else "—"),
                 ],
                 xs=6,
                 md=3,

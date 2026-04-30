@@ -942,6 +942,70 @@ class BigQueryClient:
         """
         return self.execute_query(query)
 
+    def get_latest_predictions_with_features(
+        self,
+        min_year: Optional[int] = None,
+        max_year: Optional[int] = None,
+        limit: int = 10000,
+    ) -> pd.DataFrame:
+        """Like get_latest_predictions but joined with games_features so the
+        result has everything needed to render the standardized game card +
+        inline expansion (thumbnail/image, description, players, playtime,
+        categories/mechanics/families, designers, publishers, avg rating,
+        users rated, etc.) alongside the prediction columns.
+        """
+        year_filters = []
+        if min_year is not None:
+            year_filters.append(f"p.year_published >= {min_year}")
+        if max_year is not None:
+            year_filters.append(f"p.year_published <= {max_year}")
+
+        where_clause = ""
+        if year_filters:
+            where_clause = "WHERE " + " AND ".join(year_filters)
+
+        query = f"""
+        SELECT
+            p.game_id,
+            p.name,
+            p.year_published,
+            p.predicted_hurdle_prob,
+            p.predicted_complexity,
+            p.predicted_rating,
+            p.predicted_users_rated,
+            p.predicted_geek_rating,
+            p.hurdle_experiment,
+            p.complexity_experiment,
+            p.rating_experiment,
+            p.users_rated_experiment,
+            p.score_ts,
+            p.first_prediction_ts,
+            p.is_new_7d,
+            gf.thumbnail,
+            gf.image,
+            gf.description,
+            gf.bayes_average,
+            gf.average_rating,
+            gf.average_weight,
+            gf.users_rated,
+            gf.min_players,
+            gf.max_players,
+            gf.min_playtime,
+            gf.max_playtime,
+            gf.categories,
+            gf.mechanics,
+            gf.families,
+            gf.designers,
+            gf.publishers
+        FROM `${{project_id}}.predictions.bgg_predictions` p
+        LEFT JOIN `${{project_id}}.${{dataset}}.games_features` gf
+            ON p.game_id = gf.game_id
+        {where_clause}
+        ORDER BY p.predicted_geek_rating DESC
+        LIMIT {limit}
+        """
+        return self.execute_query(query)
+
     def get_predictions_summary_stats(self) -> Dict[str, Any]:
         """Get summary statistics for the predictions table.
 

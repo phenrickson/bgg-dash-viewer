@@ -160,6 +160,10 @@ def create_game_info_card(
     max_families: int = 3,
     image_size: int = 140,
     title_href: str | None = "__bgg__",
+    rating_label: str = "Rating",
+    rating_value: float | None = None,
+    complexity_label: str = "Complexity",
+    complexity_value: float | None = None,
 ) -> html.Div | None:
     """Create a game info card component.
 
@@ -187,8 +191,8 @@ def create_game_info_card(
     thumbnail = game_data.get("thumbnail", "")
     name = game_data.get("name", "")
     year = game_data.get("year_published", "")
-    rating = game_data.get("bayes_average", 0)
-    complexity = game_data.get("average_weight", 0)
+    rating = rating_value if rating_value is not None else game_data.get("bayes_average", 0)
+    complexity = complexity_value if complexity_value is not None else game_data.get("average_weight", 0)
     min_players = game_data.get("min_players")
     max_players = game_data.get("max_players")
     min_playtime = game_data.get("min_playtime")
@@ -246,14 +250,14 @@ def create_game_info_card(
         html.Div(
             [
                 dbc.Badge(
-                    f"Rating: {rating:.1f}" if rating else "Unrated",
+                    f"{rating_label}: {rating:.1f}" if rating else "Unrated",
                     color="success" if rating and rating >= 7 else "light",
                     text_color="dark" if rating and rating < 7 else None,
                     className="me-2 mb-2",
                     style=stat_badge_style,
                 ),
                 dbc.Badge(
-                    f"Complexity: {complexity:.1f}" if complexity else "N/A",
+                    f"{complexity_label}: {complexity:.1f}" if complexity else "N/A",
                     color="info",
                     className="me-2 mb-2",
                     style=stat_badge_style,
