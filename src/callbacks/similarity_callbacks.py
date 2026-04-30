@@ -17,6 +17,7 @@ import plotly.graph_objects as go
 
 from ..data.bigquery_client import BigQueryClient
 from ..data.similarity_client import get_similarity_client as create_similarity_client, SimilarityFilters
+from ..theme import PLOTLY_TEMPLATE
 from ..components.ag_grid_config import (
     get_default_grid_options,
     get_default_column_def,
@@ -33,6 +34,20 @@ logger = logging.getLogger(__name__)
 
 # Default minimum ratings for similarity search results
 DEFAULT_MIN_RATINGS = 100
+
+# Default highlights for the Explore Embeddings tab — recognizable games
+# spanning gateway → heavy strategy so users can orient themselves at a glance.
+EXPLORE_DEFAULT_HIGHLIGHTS = [
+    9209,    # Ticket to Ride
+    230802,  # Azul
+    178900,  # Codenames
+    171,     # Chess
+    12333,   # Twilight Struggle
+    224517,  # Brass: Birmingham
+    240980,  # Blood on the Clocktower
+    521,     # Crokinole
+    174430,  # Gloomhaven
+]
 
 
 def get_similarity_results_column_defs(distance_type: str = "cosine") -> list[dict[str, Any]]:
@@ -244,6 +259,7 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             Output("tab-search-content", "style"),
             Output("tab-explore-content", "style"),
             Output("advanced-filters-container", "style"),
+            Output("shared-game-selector-card", "style"),
         ],
         Input("similarity-tabs", "active_tab"),
     )
@@ -254,7 +270,11 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
         search_style = {"display": "block"} if active_tab == "tab-search" else {"display": "none"}
         explore_style = {"display": "block"} if active_tab == "tab-explore" else {"display": "none"}
         filters_style = {"display": "block"} if active_tab == "tab-search" else {"display": "none"}
-        return neighbors_style, compare_style, search_style, explore_style, filters_style
+        # Hide the shared game selector on the Explore tab — Explore has its
+        # own controls and the "Select a Game" / "Find Similar Games" UI is
+        # not relevant there.
+        selector_style = {"display": "none"} if active_tab == "tab-explore" else {"overflow": "visible"}
+        return neighbors_style, compare_style, search_style, explore_style, filters_style, selector_style
 
     # =========================================================================
     # Shared Game Selector (for all tabs)
@@ -867,21 +887,33 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
         return get_bq_client().get_game_coordinates(min_ratings=100)
 
     @app.callback(
-        Output("explore-highlight-dropdown", "options"),
+        [
+            Output("explore-highlight-dropdown", "options"),
+            Output("explore-highlight-dropdown", "value"),
+        ],
         Input("similarity-tabs", "active_tab"),
+        State("explore-highlight-dropdown", "value"),
     )
-    def load_highlight_options(active_tab: str):
-        """Load game options for highlight dropdown when Explore tab is selected."""
+    def load_highlight_options(active_tab: str, current_value):
+        """Load game options for highlight dropdown when Explore tab is selected.
+
+        Sets options and the default highlight selection together so Dash
+        doesn't strip the layout's `value` against an empty `options` list on
+        first render. Preserves the user's existing selection if any.
+        """
         if active_tab != "tab-explore":
-            return no_update
+            return no_update, no_update
         df = get_cached_coordinates()
         if df.empty:
-            return []
+            return [], no_update
         options = []
         for _, row in df.iterrows():
             year = f" ({int(row['year_published'])})" if pd.notna(row["year_published"]) else ""
             options.append({"label": f"{row['name']}{year}", "value": int(row["game_id"])})
-        return sorted(options, key=lambda x: x["label"])
+        options = sorted(options, key=lambda x: x["label"])
+        # Only seed defaults on first activation (when value hasn't been set yet)
+        value = current_value if current_value else EXPLORE_DEFAULT_HIGHLIGHTS
+        return options, value
 
     @app.callback(
         Output("explore-plot-container", "children"),
@@ -901,13 +933,12 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             if df.empty:
                 return dbc.Alert("No coordinate data available.", color="warning")
 
-            # Computed columns - smaller base size for less overlap
+            # log_users_rated is offered as a "Color By" option
             df["log_users_rated"] = np.log10(df["users_rated"].clip(lower=1))
-            df["size"] = 2 + df["log_users_rated"] * 1.5  # Range ~3.5 to ~9.5
 
             # Color range and label settings
             color_ranges = {
-                "average_rating": (4, 9),
+                "average_rating": (5, 9),
                 "geek_rating": (5, 8),
                 "complexity": (1, 5),
                 "log_users_rated": (1.5, 5),
@@ -919,33 +950,40 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
                 "log_users_rated": "Popularity",
             }
 
-            # Build the scatter plot with WebGL for performance
+            # Build the scatter plot with WebGL for performance, styled to
+            # match the ratings tab (vizro template, transparent bg so the
+            # panel-card shows through, default plotly blue colorscale).
             if color_by and color_by != "none":
                 range_min, range_max = color_ranges.get(color_by, (None, None))
                 fig = px.scatter(
                     df,
-                    x="umap_1",
-                    y="umap_2",
+                    x="pca_1",
+                    y="pca_2",
                     color=color_by,
-                    color_continuous_scale="plasma",
+                    color_continuous_scale="Viridis",
                     range_color=[range_min, range_max] if range_min is not None else None,
                     render_mode="webgl",
+                    template=PLOTLY_TEMPLATE,
+                    opacity=0.6,
                     labels={color_by: color_labels.get(color_by, color_by)},
                 )
             else:
                 fig = px.scatter(
                     df,
-                    x="umap_1",
-                    y="umap_2",
+                    x="pca_1",
+                    y="pca_2",
                     render_mode="webgl",
+                    template=PLOTLY_TEMPLATE,
+                    opacity=0.6,
                 )
 
             fig.update_layout(
-                height=700,
-                template="plotly_dark",
-                xaxis=dict(visible=False),
-                yaxis=dict(visible=False),
-                margin=dict(l=20, r=20, t=20, b=20),
+                height=480,
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                xaxis=dict(title="Component 1", showticklabels=False, zeroline=False, showgrid=False, showline=False, ticks=""),
+                yaxis=dict(title="Component 2", showticklabels=False, zeroline=False, showgrid=False, showline=False, ticks=""),
+                margin=dict(l=40, r=20, t=20, b=40),
             )
 
             # Build customdata for tooltip
@@ -958,7 +996,7 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             )
 
             fig.update_traces(
-                marker=dict(size=df["size"], opacity=0.5),
+                marker=dict(size=5, opacity=0.5, line=dict(width=0)),
                 hovertemplate=hovertemplate,
                 customdata=customdata,
             )
@@ -992,8 +1030,8 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
 
                     # Add annotation arrow pointing to the game
                     fig.add_annotation(
-                        x=row["umap_1"],
-                        y=row["umap_2"],
+                        x=row["pca_1"],
+                        y=row["pca_2"],
                         text=label_text,
                         showarrow=True,
                         arrowhead=2,
@@ -1025,15 +1063,15 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
                         )
 
                     fig.add_trace(
-                        go.Scatter(
-                            x=highlight_df["umap_1"].tolist(),
-                            y=highlight_df["umap_2"].tolist(),
+                        go.Scattergl(
+                            x=highlight_df["pca_1"].tolist(),
+                            y=highlight_df["pca_2"].tolist(),
                             mode="markers",
                             marker=dict(
-                                size=18,
+                                size=10,
                                 color="#ff4444",
                                 symbol="circle",
-                                line=dict(width=2, color="white"),
+                                line=dict(width=1, color="white"),
                             ),
                             hovertemplate="%{text}<extra></extra>",
                             text=hover_texts,
@@ -1041,7 +1079,7 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
                         )
                     )
 
-            return dcc.Graph(figure=fig, style={"height": "700px"}, config={"scrollZoom": True})
+            return dcc.Graph(figure=fig, style={"height": "480px"}, config={"scrollZoom": True})
 
         except Exception as e:
             logger.exception("Error loading coordinates: %s", str(e))

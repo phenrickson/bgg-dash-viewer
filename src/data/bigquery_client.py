@@ -998,7 +998,9 @@ class BigQueryClient:
             g.users_rated,
             g.average_weight as complexity,
             c.umap_1,
-            c.umap_2
+            c.umap_2,
+            c.pca_1,
+            c.pca_2
         FROM `${{project_id}}.predictions.bgg_game_coordinates` c
         JOIN `${{project_id}}.${{dataset}}.games_features` g ON c.game_id = g.game_id
         WHERE g.users_rated >= {min_ratings}

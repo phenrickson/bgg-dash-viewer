@@ -219,7 +219,8 @@ def create_game_similarity_layout() -> html.Div:
                         active_tab="tab-neighbors",
                         className="mb-0",
                     ),
-                    # Shared game selector (appears under tabs for all views)
+                    # Shared game selector (appears under tabs for all views
+                    # except Explore Embeddings, which has its own controls)
                     dbc.Card(
                         dbc.CardBody(
                             [
@@ -295,6 +296,7 @@ def create_game_similarity_layout() -> html.Div:
                         ),
                         className="mt-3 mb-4 panel-card",
                         style={"overflow": "visible"},
+                        id="shared-game-selector-card",
                     ),
                     # Tab content container
                     html.Div(
@@ -461,6 +463,10 @@ def create_game_similarity_layout() -> html.Div:
                                                             dcc.Dropdown(
                                                                 id="explore-highlight-dropdown",
                                                                 options=[],
+                                                                # Default landmarks set by load_highlight_options
+                                                                # callback (see EXPLORE_DEFAULT_HIGHLIGHTS), so
+                                                                # options and value arrive together — Dash strips
+                                                                # a layout-time value when options is still empty.
                                                                 placeholder="Search to highlight (up to 20)...",
                                                                 searchable=True,
                                                                 clearable=True,
@@ -475,11 +481,21 @@ def create_game_similarity_layout() -> html.Div:
                                         ),
                                         className="mb-3 panel-card",
                                     ),
+                                    html.P(
+                                        "Each point is a game. Games closer together share similar features — "
+                                        "complexity, mechanics, categories, and play patterns.",
+                                        className="text-muted small mb-2",
+                                    ),
                                     # Plot
-                                    dcc.Loading(
-                                        id="explore-loading",
-                                        type="circle",
-                                        children=html.Div(id="explore-plot-container"),
+                                    dbc.Card(
+                                        dbc.CardBody(
+                                            dcc.Loading(
+                                                id="explore-loading",
+                                                type="circle",
+                                                children=html.Div(id="explore-plot-container"),
+                                            ),
+                                        ),
+                                        className="panel-card",
                                     ),
                                 ],
                                 id="tab-explore-content",
