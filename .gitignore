@@ -62,3 +62,9 @@ credentials/
 # ignore cached data
 .cache-data/
 .cache/
+
+# Claude Code session state
+.claude/
+
+# Stray Windows-style nul redirect output (see Makefile `up` target)
+nul
