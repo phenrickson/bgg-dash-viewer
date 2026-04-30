@@ -330,7 +330,7 @@ def create_game_info_card(
             ),
             dbc.Col(info_sections),
         ],
-        align="start",
+        align="center",
     )
 
     return content

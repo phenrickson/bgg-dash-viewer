@@ -18,6 +18,7 @@ from ..components.ag_grid_config import (
     get_search_results_rich_column_defs,
 )
 from ..components.game_card import create_game_info_card
+from ..components.game_details import render_details_body
 from ..data.bigquery_client import BigQueryClient
 from ..layouts.game_search import COMPLEXITY_BUCKETS
 
@@ -26,171 +27,6 @@ logger = logging.getLogger(__name__)
 CARDS_PER_PAGE = 15
 
 
-def _render_details_body(game: dict[str, Any]) -> html.Div:
-    """Build the inline expanded-details body for a selected game."""
-    image = game.get("image") or game.get("thumbnail")
-    game_id = game.get("game_id")
-    description = game.get("description") or ""
-
-    rating = game.get("bayes_average") or 0
-    complexity = game.get("average_weight") or 0
-    avg_rating = game.get("average_rating") or 0
-    users_rated = game.get("users_rated") or 0
-
-    def _fmt_int(x):
-        try:
-            return int(x) if x is not None else "?"
-        except (TypeError, ValueError):
-            return "?"
-
-    min_players = _fmt_int(game.get("min_players"))
-    max_players = _fmt_int(game.get("max_players"))
-    min_playtime = _fmt_int(game.get("min_playtime"))
-    max_playtime = _fmt_int(game.get("max_playtime"))
-    players_str = (
-        f"{min_players}" if min_players == max_players else f"{min_players}–{max_players}"
-    )
-    playtime_str = (
-        f"{min_playtime} min"
-        if min_playtime == max_playtime
-        else f"{min_playtime}–{max_playtime} min"
-    )
-
-    def _badges(items: list | None, color: str, max_items: int | None = None) -> list:
-        if not items:
-            return [html.Small("—", className="text-muted")]
-        if max_items is None or len(items) <= max_items:
-            return [
-                dbc.Badge(str(item), color=color, className="me-1 mb-1", pill=True)
-                for item in items
-            ]
-        shown = [
-            dbc.Badge(str(item), color=color, className="me-1 mb-1", pill=True)
-            for item in items[:max_items]
-        ]
-        shown.append(
-            dbc.Badge(
-                f"+{len(items) - max_items} more",
-                color="secondary",
-                className="me-1 mb-1",
-                pill=True,
-            )
-        )
-        return shown
-
-    stats = dbc.Row(
-        [
-            dbc.Col(
-                [
-                    html.Small("Geek Rating", className="text-muted d-block"),
-                    html.Strong(f"{rating:.2f}" if rating else "—"),
-                ],
-                xs=6,
-                md=3,
-            ),
-            dbc.Col(
-                [
-                    html.Small("Avg Rating", className="text-muted d-block"),
-                    html.Strong(f"{avg_rating:.2f}" if avg_rating else "—"),
-                ],
-                xs=6,
-                md=3,
-            ),
-            dbc.Col(
-                [
-                    html.Small("Complexity", className="text-muted d-block"),
-                    html.Strong(f"{complexity:.2f}" if complexity else "—"),
-                ],
-                xs=6,
-                md=3,
-            ),
-            dbc.Col(
-                [
-                    html.Small("Ratings", className="text-muted d-block"),
-                    html.Strong(f"{users_rated:,}" if users_rated else "—"),
-                ],
-                xs=6,
-                md=3,
-            ),
-        ],
-        className="mb-3 g-2",
-    )
-
-    meta = html.Div(
-        [
-            dbc.Badge(f"{players_str} players", color="light", text_color="dark", className="me-2 mb-1"),
-            dbc.Badge(playtime_str, color="light", text_color="dark", className="me-2 mb-1"),
-        ],
-        className="mb-3",
-    )
-
-    sections = []
-    for label, key, color, cap in [
-        ("Categories", "categories", "secondary", None),
-        ("Mechanics", "mechanics", "info", None),
-        ("Designers", "designers", "success", 6),
-        ("Publishers", "publishers", "primary", 6),
-        ("Families", "families", "secondary", 10),
-    ]:
-        items = game.get(key) or []
-        if items:
-            sections.append(
-                html.Div(
-                    [
-                        html.Small(f"{label}: ", className="text-muted me-1"),
-                        *_badges(items, color, max_items=cap),
-                    ],
-                    className="mb-2",
-                )
-            )
-
-    bgg_link = html.A(
-        [html.I(className="fas fa-external-link-alt me-2"), "View on BoardGameGeek"],
-        href=f"https://boardgamegeek.com/boardgame/{game_id}",
-        target="_blank",
-        rel="noopener noreferrer",
-        className="btn btn-outline-primary btn-sm mt-3",
-    )
-
-    left_col = (
-        html.Img(
-            src=image,
-            style={
-                "maxWidth": "240px",
-                "maxHeight": "240px",
-                "width": "100%",
-                "objectFit": "contain",
-                "borderRadius": "6px",
-            },
-        )
-        if image
-        else html.Div()
-    )
-
-    right_col = html.Div(
-        [stats, meta, *sections, bgg_link],
-    )
-
-    body_children = [
-        dbc.Row(
-            [
-                dbc.Col(left_col, width="auto"),
-                dbc.Col(right_col),
-            ],
-            className="g-3",
-        )
-    ]
-    if description:
-        body_children.append(html.Hr())
-        body_children.append(
-            html.Div(
-                description,
-                className="text-muted",
-                style={"whiteSpace": "pre-wrap"},
-            )
-        )
-
-    return html.Div(body_children)
 
 
 _SORT_LABELS = {
@@ -347,7 +183,7 @@ def _render_cards(
                     ),
                     dbc.Collapse(
                         dbc.Card(
-                            dbc.CardBody(_render_details_body(row)),
+                            dbc.CardBody(render_details_body(row)),
                             className="panel-card search-result-details",
                         ),
                         id={"type": "game-card-collapse", "game_id": game_id},

@@ -25,6 +25,7 @@ from ..components.ag_grid_config import (
     get_grid_class_name,
 )
 from ..components.game_card import create_game_info_card
+from ..components.game_details import render_details_body
 from ..components.game_comparison import (
     create_feature_comparison,
     create_neighbor_card,
@@ -499,13 +500,33 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
                 "families": safe_list(raw_game_data.get("families")),
             }
 
-            # Source card for Neighbors tab
+            # Source card for Neighbors tab — same click-to-expand pattern
+            # as the neighbor cards.
+            source_game_id = int(game_data.get("game_id"))
             source_card_content = html.Div([
                 html.H4("Selected Game", className="mb-3"),
-                dbc.Card(
-                    dbc.CardBody(create_game_info_card(game_data)),
-                    className="mb-4 panel-card border-primary",
-                    style={"borderWidth": "2px"},
+                html.Div(
+                    [
+                        html.Div(
+                            dbc.Card(
+                                dbc.CardBody(create_game_info_card(game_data)),
+                                className="panel-card border-primary",
+                                style={"borderWidth": "2px"},
+                            ),
+                            id={"type": "neighbor-card", "game_id": source_game_id},
+                            style={"cursor": "pointer"},
+                            n_clicks=0,
+                        ),
+                        dbc.Collapse(
+                            dbc.Card(
+                                dbc.CardBody(render_details_body(game_data)),
+                                className="panel-card",
+                            ),
+                            id={"type": "neighbor-card-collapse", "game_id": source_game_id},
+                            is_open=False,
+                        ),
+                    ],
+                    className="mb-4",
                 ),
             ])
 
@@ -538,9 +559,10 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             neighbor_ids = neighbors_df["game_id"].tolist()
             neighbor_ids_str = ",".join(str(int(g)) for g in neighbor_ids)
             query = f"""
-            SELECT gf.game_id, gf.name, gf.year_published, gf.bayes_average, gf.average_weight, gf.thumbnail,
+            SELECT gf.game_id, gf.name, gf.year_published, gf.bayes_average, gf.average_weight,
+                   gf.average_rating, gf.users_rated, gf.thumbnail, gf.image, gf.description,
                    gf.min_players, gf.max_players, gf.min_playtime, gf.max_playtime,
-                   gf.categories, gf.mechanics, gf.families,
+                   gf.categories, gf.mechanics, gf.families, gf.designers, gf.publishers,
                    cp.predicted_complexity AS complexity
             FROM `${{project_id}}.${{dataset}}.games_features` gf
             LEFT JOIN `${{project_id}}.predictions.bgg_complexity_predictions` cp
@@ -548,6 +570,14 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
             WHERE gf.game_id IN ({neighbor_ids_str})
             """
             features_df = get_bq_client().execute_query(query)
+            # Coerce ARRAY columns from numpy arrays to plain Python lists so
+            # downstream renderers (render_details_body) can use `or` and
+            # `if items:` safely without numpy truth-value errors.
+            for col in ("categories", "mechanics", "publishers", "designers", "families"):
+                if col in features_df.columns:
+                    features_df[col] = features_df[col].apply(
+                        lambda v: list(v) if v is not None and len(v) > 0 else []
+                    )
             features_map = {int(row["game_id"]): row.to_dict() for _, row in features_df.iterrows()}
 
             # Build data for both tabs
@@ -577,25 +607,55 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
                     "similarity_pct": similarity_pct,
                 })
 
-                # Build card for Neighbors tab
+                # Build clickable card for Neighbors tab. The Collapse lives
+                # INSIDE the card so clicking expands the same card rather
+                # than spawning a sibling. The expansion body (render_extra_details)
+                # adds only fields not already shown in the closed view.
+                # Different `type` strings from search cards so the toggle
+                # callbacks don't cross-fire.
                 if features:
                     card_content = create_game_info_card(features)
                     if card_content:
-                        neighbor_card = dbc.Card([
-                            dbc.CardHeader(
-                                html.Div([
-                                    html.Span(f"#{len(neighbor_cards) + 1}", className="fw-bold"),
-                                    dbc.Badge(
-                                        f"{similarity_pct:.1f}% similar",
-                                        color="success" if similarity_pct >= 90 else "info",
-                                        className="ms-2",
+                        rank = len(neighbor_cards) + 1
+                        header = html.Div(
+                            [
+                                html.Span(f"#{rank}", className="fw-bold"),
+                                dbc.Badge(
+                                    f"{similarity_pct:.1f}% similar",
+                                    color="success" if similarity_pct >= 90 else "info",
+                                    className="ms-2",
+                                    style={"fontSize": "0.875rem", "padding": "0.4em 0.65em"},
+                                ),
+                            ],
+                            className="d-flex align-items-center",
+                        )
+                        neighbor_cards.append(
+                            html.Div(
+                                [
+                                    html.Div(
+                                        dbc.Card(
+                                            [
+                                                dbc.CardHeader(header, className="py-2"),
+                                                dbc.CardBody(card_content),
+                                            ],
+                                            className="panel-card",
+                                        ),
+                                        id={"type": "neighbor-card", "game_id": neighbor_id},
+                                        style={"cursor": "pointer"},
+                                        n_clicks=0,
                                     ),
-                                ], className="d-flex align-items-center"),
-                                className="py-2",
-                            ),
-                            dbc.CardBody(card_content),
-                        ], className="mb-3 panel-card")
-                        neighbor_cards.append(neighbor_card)
+                                    dbc.Collapse(
+                                        dbc.Card(
+                                            dbc.CardBody(render_details_body(features)),
+                                            className="panel-card",
+                                        ),
+                                        id={"type": "neighbor-card-collapse", "game_id": neighbor_id},
+                                        is_open=False,
+                                    ),
+                                ],
+                                className="mb-3",
+                            )
+                        )
 
             # Build Neighbors tab content
             neighbors_content = html.Div([
@@ -1084,3 +1144,33 @@ def register_similarity_callbacks(app: dash.Dash, cache: Cache) -> None:
         except Exception as e:
             logger.exception("Error loading coordinates: %s", str(e))
             return dbc.Alert(f"Error: {str(e)}", color="danger")
+
+    # =========================================================================
+    # Game Neighbors — clickable card expand/collapse
+    # =========================================================================
+
+    @app.callback(
+        Output({"type": "neighbor-card-collapse", "game_id": dash.ALL}, "is_open"),
+        Input({"type": "neighbor-card", "game_id": dash.ALL}, "n_clicks"),
+        State({"type": "neighbor-card-collapse", "game_id": dash.ALL}, "is_open"),
+        prevent_initial_call=True,
+    )
+    def toggle_neighbor_card_details(
+        n_clicks_list: list[int | None],
+        is_open_list: list[bool],
+    ) -> list[bool]:
+        """Expand the clicked neighbor card; collapse all others."""
+        ctx = dash.callback_context
+        if not ctx.triggered_id or not any(n_clicks_list):
+            return [dash.no_update] * len(is_open_list)
+
+        clicked_id = ctx.triggered_id["game_id"]
+        inputs = ctx.inputs_list[0]
+        new_states = []
+        for item, was_open in zip(inputs, is_open_list):
+            gid = item["id"]["game_id"]
+            if gid == clicked_id:
+                new_states.append(not was_open)
+            else:
+                new_states.append(False)
+        return new_states
