@@ -23,6 +23,14 @@ from ..components.game_details import render_details_body
 
 CARDS_PER_PAGE = 15
 
+# Lower bound on year_published for the predictions page. Older releases
+# aren't relevant to a "browse upcoming games" view.
+PREDICTIONS_MIN_YEAR = 2025
+
+# Top-N games per year to keep in the dcc.Store payload, ordered by predicted
+# geek rating. Bounds the initial response size on Cloud Run.
+PREDICTIONS_PER_YEAR = 1000
+
 # Lazy-loaded BigQuery client
 _bq_client: BigQueryClient | None = None
 
@@ -432,7 +440,11 @@ def register_upcoming_predictions_callbacks(app, cache):
             # Load predictions joined with games_features so cards/expansions
             # have everything they need (thumbnail, image, description,
             # categories/mechanics/families, designers, publishers, etc.)
-            predictions_df = client.get_latest_predictions_with_features(limit=15000)
+            # Restrict to upcoming/current years; older years aren't relevant
+            # to a "browse upcoming games" view.
+            predictions_df = client.get_latest_predictions_with_features(
+                min_year=PREDICTIONS_MIN_YEAR, limit=20000
+            )
 
             if predictions_df.empty:
                 return [], {}
@@ -450,6 +462,24 @@ def register_upcoming_predictions_callbacks(app, cache):
                     predictions_df[col] = predictions_df[col].apply(
                         lambda v: list(v) if v is not None and len(v) > 0 else []
                     )
+
+            # Cap to top-N games per year (by predicted geek rating) so the
+            # initial dcc.Store payload stays well under Cloud Run's 32 MB
+            # response cap regardless of how many low-ranked games exist for
+            # any given year.
+            predictions_df = (
+                predictions_df.sort_values("predicted_geek_rating", ascending=False)
+                .groupby("year_bucket", group_keys=False)
+                .head(PREDICTIONS_PER_YEAR)
+                .reset_index(drop=True)
+            )
+
+            # Drop heavy fields before serializing into dcc.Store. `description`
+            # isn't shown on the card grid (modal falls back gracefully when
+            # missing); `image` is the full-res cover and cards use `thumbnail`.
+            for col in ("description", "image"):
+                if col in predictions_df.columns:
+                    predictions_df = predictions_df.drop(columns=[col])
 
             predictions_data = predictions_df.to_dict("records")
 
