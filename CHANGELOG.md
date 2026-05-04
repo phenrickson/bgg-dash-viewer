@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2026-05-04
+
+### Fixed
+
+- **Predictions page 500 errors in production.** The page was failing to
+  load with Cloud Run logging "Response size was too large" warnings on
+  `/app/_dash-update-component`. The `dcc.Store` payload (15,000 rows ×
+  full feature set including per-row `description` text and full-res
+  `image` URLs) exceeded Cloud Run's 32 MB response cap.
+- Restrict the predictions query to `year_published >= 2025` server-side
+  so the upcoming-games view doesn't ship rows it never displays.
+- Cap the in-store payload to top 1,000 games per year by predicted geek
+  rating, bounding the response size regardless of how many low-ranked
+  games exist for any given year.
+- Drop `description` and `image` from the stored records. Cards already
+  use `thumbnail`, and the modal's `render_details_body` falls back
+  gracefully when `image`/`description` are missing.
+
+
 ## [0.5.0] - 2026-04-30
 
 ### Added
