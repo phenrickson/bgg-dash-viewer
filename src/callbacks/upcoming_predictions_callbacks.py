@@ -20,6 +20,7 @@ from ..components.ag_grid_config import (
 )
 from ..components.game_card import create_game_info_card
 from ..components.game_details import render_details_body
+from ..components.loading import create_spinner
 
 CARDS_PER_PAGE = 15
 
@@ -494,32 +495,160 @@ def register_upcoming_predictions_callbacks(app, cache):
 
     @app.callback(
         [
-            Output("predictions-data-store", "data"),
             Output("predictions-page-content", "children"),
             Output("predictions-page-loading", "children"),
         ],
-        [Input("url", "pathname")],
+        Input("url", "pathname"),
     )
-    def load_predictions(pathname: str):
-        """Load predictions data on page load.
+    def render_page_shell(pathname: str):
+        """Paint the filter bar shell synchronously on route match.
 
-        Args:
-            pathname: URL pathname
-
-        Returns:
-            Tuple of (predictions data, page content, loading indicator)
+        Mirrors the Collection Models pattern: render chrome immediately,
+        let the data-fetch callback fill in store/summary/year options
+        after this paints. Avoids the multi-second blank page on first
+        load while BigQuery is queried.
         """
         if pathname != "/app/upcoming-predictions":
             raise PreventUpdate
 
+        page_content = html.Div(
+            [
+                # Summary stats with collapsible model details — populated by
+                # the data-fetch callback below.
+                html.Div(
+                    [
+                        html.Div(id="predictions-summary", className="text-muted"),
+                        html.Div(id="predictions-model-details-wrapper", className="mt-2"),
+                    ],
+                    className="mb-4",
+                ),
+                # Filter bar + content area.
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            dbc.Row(
+                                [
+                                    dbc.Col(
+                                        [
+                                            html.Label("Publication Year", className="mb-2"),
+                                            dcc.Dropdown(
+                                                id="year-filter-dropdown",
+                                                options=[],
+                                                placeholder="Loading...",
+                                                clearable=False,
+                                            ),
+                                        ],
+                                        width=3,
+                                    ),
+                                    dbc.Col(
+                                        [
+                                            html.Label("Min P(Hurdle)", className="mb-2"),
+                                            dcc.Slider(
+                                                id="predictions-hurdle-slider",
+                                                min=0.0,
+                                                max=1.0,
+                                                step=0.05,
+                                                value=0.25,
+                                                marks={0: "0", 0.5: "0.5", 1: "1"},
+                                                tooltip={"placement": "bottom", "always_visible": False},
+                                            ),
+                                        ],
+                                        width=3,
+                                    ),
+                                    dbc.Col(
+                                        [
+                                            html.Label("Cover art", className="mb-2 d-block"),
+                                            dbc.Switch(
+                                                id="predictions-show-no-cover",
+                                                label="Show without cover",
+                                                value=False,
+                                                className="mt-1",
+                                            ),
+                                        ],
+                                        width=2,
+                                    ),
+                                    dbc.Col(
+                                        [
+                                            html.Div(
+                                                dbc.ButtonGroup(
+                                                    [
+                                                        dbc.Button(
+                                                            [html.I(className="fas fa-th-large me-2"), "Cards"],
+                                                            id="predictions-view-toggle-cards",
+                                                            color="primary",
+                                                            outline=False,
+                                                            size="sm",
+                                                        ),
+                                                        dbc.Button(
+                                                            [html.I(className="fas fa-table me-2"), "Table"],
+                                                            id="predictions-view-toggle-table",
+                                                            color="primary",
+                                                            outline=True,
+                                                            size="sm",
+                                                        ),
+                                                    ],
+                                                ),
+                                                className="d-flex justify-content-end align-items-end h-100",
+                                            ),
+                                            dcc.Store(id="predictions-view-toggle", data="cards"),
+                                        ],
+                                        width=4,
+                                    ),
+                                ],
+                                className="mb-3",
+                            ),
+                            html.Div(id="predictions-year-stats", className="mb-3"),
+                            create_spinner(html.Div(id="predictions-content")),
+                            dcc.Store(id="predictions-cards-page", data=1),
+                        ]
+                    ),
+                    className="panel-card",
+                ),
+                # Modal shown when a tile is clicked.
+                dbc.Modal(
+                    [
+                        dbc.ModalHeader(dbc.ModalTitle(id="predictions-modal-title")),
+                        dbc.ModalBody(id="predictions-modal-body"),
+                    ],
+                    id="predictions-modal",
+                    size="lg",
+                    is_open=False,
+                    scrollable=True,
+                ),
+            ]
+        )
+
+        return page_content, ""
+
+    @app.callback(
+        [
+            Output("predictions-data-store", "data"),
+            Output("predictions-summary", "children"),
+            Output("predictions-model-details-wrapper", "children"),
+            Output("year-filter-dropdown", "options"),
+            Output("year-filter-dropdown", "value"),
+        ],
+        Input("predictions-summary", "id"),
+    )
+    def load_predictions_data(_id):
+        """Fetch predictions after the page chrome has painted.
+
+        Triggered once when the summary div mounts. Cached helper does the
+        actual BQ work; this callback only formats outputs.
+        """
         predictions_data, summary_stats = _load_predictions_cached()
 
         if not predictions_data:
-            content = html.Div(
-                "No predictions available.",
-                className="text-muted text-center py-4",
+            return (
+                [],
+                html.Div(
+                    "No predictions available.",
+                    className="text-muted text-center py-4",
+                ),
+                html.Div(),
+                [],
+                None,
             )
-            return [], content, ""
 
         # Build simple summary display
         total = summary_stats.get("total_predictions", 0)
@@ -591,7 +720,15 @@ def register_upcoming_predictions_callbacks(app, cache):
             ]
         )
 
-        # Get unique years for dropdown
+        # Build the model-details accordion that sits below the summary line.
+        model_details_block = dbc.Accordion(
+            [dbc.AccordionItem(model_details, title="Model Details")],
+            start_collapsed=True,
+            className="mt-2",
+            style={"maxWidth": "600px"},
+        )
+
+        # Get unique years for dropdown.
         df = pd.DataFrame(predictions_data)
         unique_years = sorted(
             df["year_bucket"].unique(),
@@ -600,7 +737,7 @@ def register_upcoming_predictions_callbacks(app, cache):
         )
         year_options = [{"label": year, "value": year} for year in unique_years]
 
-        # Default to current year or closest
+        # Default to current year or closest.
         current_year = str(datetime.now().year)
         if current_year in unique_years:
             default_year = current_year
@@ -611,132 +748,13 @@ def register_upcoming_predictions_callbacks(app, cache):
             else:
                 default_year = unique_years[0] if unique_years else None
 
-        # Build the full page content
-        page_content = html.Div(
-            [
-                # Summary stats with collapsible model details
-                html.Div(
-                    [
-                        html.Div(summary_content, className="text-muted"),
-                        dbc.Accordion(
-                            [
-                                dbc.AccordionItem(
-                                    model_details,
-                                    title="Model Details",
-                                ),
-                            ],
-                            start_collapsed=True,
-                            className="mt-2",
-                            style={"maxWidth": "600px"},
-                        ),
-                    ],
-                    className="mb-4",
-                ),
-                # Year filter, view toggle, and predictions content
-                dbc.Card(
-                    dbc.CardBody(
-                        [
-                            dbc.Row(
-                                [
-                                    dbc.Col(
-                                        [
-                                            html.Label("Publication Year", className="mb-2"),
-                                            dcc.Dropdown(
-                                                id="year-filter-dropdown",
-                                                options=year_options,
-                                                value=default_year,
-                                                placeholder="Select year...",
-                                                clearable=False,
-                                            ),
-                                        ],
-                                        width=3,
-                                    ),
-                                    dbc.Col(
-                                        [
-                                            html.Label("Min P(Hurdle)", className="mb-2"),
-                                            dcc.Slider(
-                                                id="predictions-hurdle-slider",
-                                                min=0.0,
-                                                max=1.0,
-                                                step=0.05,
-                                                value=0.25,
-                                                marks={0: "0", 0.5: "0.5", 1: "1"},
-                                                tooltip={"placement": "bottom", "always_visible": False},
-                                            ),
-                                        ],
-                                        width=3,
-                                    ),
-                                    dbc.Col(
-                                        [
-                                            html.Label("Cover art", className="mb-2 d-block"),
-                                            dbc.Switch(
-                                                id="predictions-show-no-cover",
-                                                label="Show without cover",
-                                                value=False,
-                                                className="mt-1",
-                                            ),
-                                        ],
-                                        width=2,
-                                    ),
-                                    dbc.Col(
-                                        [
-                                            html.Div(
-                                                dbc.ButtonGroup(
-                                                    [
-                                                        dbc.Button(
-                                                            [html.I(className="fas fa-th-large me-2"), "Cards"],
-                                                            id="predictions-view-toggle-cards",
-                                                            color="primary",
-                                                            outline=False,
-                                                            size="sm",
-                                                        ),
-                                                        dbc.Button(
-                                                            [html.I(className="fas fa-table me-2"), "Table"],
-                                                            id="predictions-view-toggle-table",
-                                                            color="primary",
-                                                            outline=True,
-                                                            size="sm",
-                                                        ),
-                                                    ],
-                                                ),
-                                                className="d-flex justify-content-end align-items-end h-100",
-                                            ),
-                                            dcc.Store(id="predictions-view-toggle", data="cards"),
-                                        ],
-                                        width=4,
-                                    ),
-                                ],
-                                className="mb-3",
-                            ),
-                            # Statistics cards for filtered year
-                            html.Div(id="predictions-year-stats", className="mb-3"),
-                            # Cards or table view (toggled by predictions-view-toggle)
-                            dbc.Spinner(
-                                html.Div(id="predictions-content"),
-                                color="primary",
-                                type="border",
-                            ),
-                            # Pagination state for cards view
-                            dcc.Store(id="predictions-cards-page", data=1),
-                        ]
-                    ),
-                    className="panel-card",
-                ),
-                # Modal shown when a tile is clicked.
-                dbc.Modal(
-                    [
-                        dbc.ModalHeader(dbc.ModalTitle(id="predictions-modal-title")),
-                        dbc.ModalBody(id="predictions-modal-body"),
-                    ],
-                    id="predictions-modal",
-                    size="lg",
-                    is_open=False,
-                    scrollable=True,
-                ),
-            ]
+        return (
+            predictions_data,
+            summary_content,
+            model_details_block,
+            year_options,
+            default_year,
         )
-
-        return predictions_data, page_content, ""
 
     @app.callback(
         [

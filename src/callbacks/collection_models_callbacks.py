@@ -431,6 +431,7 @@ def register_collection_models_callbacks(app, cache):
                                                     clearable=False,
                                                     placeholder="Loading users...",
                                                 ),
+                                                blur=False,
                                             ),
                                         ],
                                         width=3,
@@ -504,9 +505,11 @@ def register_collection_models_callbacks(app, cache):
                                 className="mb-3",
                             ),
                             create_spinner(
-                                html.Div(id="collection-models-summary", className="mb-3"),
+                                [
+                                    html.Div(id="collection-models-summary", className="mb-3"),
+                                    html.Div(id="collection-models-content"),
+                                ],
                             ),
-                            html.Div(id="collection-models-content"),
                             dcc.Store(id="collection-models-cards-page", data=1),
                         ]
                     ),

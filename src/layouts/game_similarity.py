@@ -239,6 +239,7 @@ def create_game_similarity_layout() -> html.Div:
                                         optionHeight=50,
                                         maxHeight=400,
                                     ),
+                                    blur=False,
                                 ),
                                 html.Small(
                                     [
