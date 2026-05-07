@@ -300,10 +300,10 @@ def _render_table(df: pd.DataFrame) -> html.Div:
     display_columns = [c for c in display_columns if c in df.columns]
 
     # The BadgeList renderer expects a CSV string, not an array. Mirror the
-    # New Games table's array_to_csv conversion via valueGetter.
+    # canonical array_to_csv valueGetter from ag_grid_config.
     array_to_csv = (
-        "params.data.{field} == null ? '' : "
-        "(Array.isArray(params.data.{field}) ? params.data.{field}.join(', ') : params.data.{field})"
+        "(params.data.{field} && params.data.{field}.length) "
+        "? params.data.{field}.join(', ') : ''"
     )
 
     column_defs = [
@@ -442,7 +442,7 @@ def register_collection_models_callbacks(app, cache):
                                     dbc.Col(
                                         [
                                             html.Label("User", className="mb-2"),
-                                            dcc.Loading(
+                                            create_spinner(
                                                 dcc.Dropdown(
                                                     id="collection-models-user-dropdown",
                                                     options=[],
@@ -450,8 +450,6 @@ def register_collection_models_callbacks(app, cache):
                                                     clearable=False,
                                                     placeholder="Loading users...",
                                                 ),
-                                                type="circle",
-                                                color="#3b82f6",
                                             ),
                                         ],
                                         width=3,
