@@ -400,12 +400,16 @@ def register_collection_models_callbacks(app, cache):
                                     dbc.Col(
                                         [
                                             html.Label("User", className="mb-2"),
-                                            dcc.Dropdown(
-                                                id="collection-models-user-dropdown",
-                                                options=[],
-                                                value=None,
-                                                clearable=False,
-                                                placeholder="Loading users...",
+                                            dcc.Loading(
+                                                dcc.Dropdown(
+                                                    id="collection-models-user-dropdown",
+                                                    options=[],
+                                                    value=None,
+                                                    clearable=False,
+                                                    placeholder="Loading users...",
+                                                ),
+                                                type="circle",
+                                                color="#3b82f6",
                                             ),
                                         ],
                                         width=3,
