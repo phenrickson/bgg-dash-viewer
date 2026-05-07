@@ -17,6 +17,7 @@ from ..components.ag_grid_config import (
     get_grid_style,
 )
 from ..components.game_details import render_details_body
+from ..components.loading import create_spinner
 from ..data.bigquery_client import BigQueryClient
 
 CARDS_PER_PAGE = 24
@@ -427,15 +428,10 @@ def register_collection_models_callbacks(app, cache):
                                 ],
                                 className="mb-3",
                             ),
-                            dbc.Spinner(
-                                [
-                                    html.Div(id="collection-models-summary", className="mb-3"),
-                                    html.Div(id="collection-models-content"),
-                                ],
-                                color="primary",
-                                type="border",
-                                delay_show=200,
+                            create_spinner(
+                                html.Div(id="collection-models-summary", className="mb-3"),
                             ),
+                            html.Div(id="collection-models-content"),
                             dcc.Store(id="collection-models-cards-page", data=1),
                         ]
                     ),
