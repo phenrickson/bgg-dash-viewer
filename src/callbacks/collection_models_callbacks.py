@@ -34,23 +34,29 @@ def get_bq_client() -> BigQueryClient:
     return _bq_client
 
 
-def _prob_color(value: float | None) -> tuple[str, str | None, str | None]:
-    """Color a Predicted Prob badge by tier.
+def _prob_color(quantile: float | None) -> tuple[str, str | None, str | None]:
+    """Color a Predicted Prob badge by per-user quantile (0..1).
 
-    Returns (bootstrap_color, text_color, bg_override). Tiers chosen to
-    visually separate "almost certainly add" (>=0.9), "likely" (>=0.75),
-    "borderline" (>=0.5), and "unlikely" (<0.5). Tune against the actual
-    distribution if needed.
+    Collection-model probabilities are user-specific — for some users 0.04
+    may be a strong pick. Coloring by absolute thresholds is misleading, so
+    we color by the row's quantile within that user's full deployed-model
+    score distribution. White at the bottom, deepening blue toward the top.
+
+    Returns (bootstrap_color, text_color, bg_override). The ramp is delivered
+    via bg_override (a hex string) since Bootstrap doesn't ship a graded blue.
     """
-    if value is None or pd.isna(value):
+    if quantile is None or pd.isna(quantile):
         return "light", "dark", None
-    if value >= 0.9:
-        return "success", None, "#1e7e34"
-    if value >= 0.75:
-        return "success", None, None
-    if value >= 0.5:
-        return "warning", "dark", None
-    return "secondary", None, None
+    # Five blue steps from white-ish to deep blue. Top 5% gets the deepest.
+    if quantile >= 0.95:
+        return "primary", None, "#0b3d91"      # deep blue, white text
+    if quantile >= 0.80:
+        return "primary", None, "#1d63c8"      # mid-deep blue, white text
+    if quantile >= 0.60:
+        return "primary", None, "#5a93e0"      # mid blue, white text
+    if quantile >= 0.40:
+        return "light", "dark", "#a9c8ee"      # light blue, dark text
+    return "light", "dark", "#e3eefb"          # near-white blue tint, dark text
 
 
 def _fmt(value: Any, fmt: str) -> str:
@@ -96,7 +102,7 @@ def _render_cards(records: list[dict[str, Any]], page: int) -> html.Div:
 
         prob_value = row.get("predicted_prob")
         prob_str = _fmt(prob_value, ".0%")
-        bs_color, text_color, bg_override = _prob_color(prob_value)
+        bs_color, text_color, bg_override = _prob_color(row.get("prob_quantile"))
         prob_badge_style = {
             "fontSize": "0.85rem",
             "padding": "0.35em 0.55em",
@@ -313,6 +319,10 @@ def register_collection_models_callbacks(app, cache):
                 .head(PREDICTIONS_PER_YEAR)
                 .reset_index(drop=True)
             )
+            # Per-user quantile of predicted_prob across the loaded set.
+            # Coloring on the card uses this rather than absolute prob, since
+            # the prob distribution is user-specific (a 0.04 may be elite).
+            df["prob_quantile"] = df["predicted_prob"].rank(pct=True, method="average")
             for col in ("description", "image"):
                 if col in df.columns:
                     df = df.drop(columns=[col])
