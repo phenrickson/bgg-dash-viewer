@@ -21,7 +21,6 @@ from ..data.bigquery_client import BigQueryClient
 
 CARDS_PER_PAGE = 24
 PREDICTIONS_MIN_YEAR = 2025
-PREDICTIONS_PER_YEAR = 1000
 
 _bq_client: BigQueryClient | None = None
 
@@ -301,7 +300,7 @@ def register_collection_models_callbacks(app, cache):
     def _load_user_predictions_cached(username: str) -> list[dict]:
         try:
             df = get_bq_client().get_user_collection_predictions(
-                username=username, min_year=PREDICTIONS_MIN_YEAR, limit=20000
+                username=username, min_year=PREDICTIONS_MIN_YEAR
             )
             if df.empty:
                 return []
@@ -313,12 +312,7 @@ def register_collection_models_callbacks(app, cache):
                     df[col] = df[col].apply(
                         lambda v: list(v) if v is not None and len(v) > 0 else []
                     )
-            df = (
-                df.sort_values("predicted_prob", ascending=False)
-                .groupby("year_bucket", group_keys=False)
-                .head(PREDICTIONS_PER_YEAR)
-                .reset_index(drop=True)
-            )
+            df = df.sort_values("predicted_prob", ascending=False).reset_index(drop=True)
             # Per-user quantile of predicted_prob across the loaded set.
             # Coloring on the card uses this rather than absolute prob, since
             # the prob distribution is user-specific (a 0.04 may be elite).

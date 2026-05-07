@@ -267,7 +267,7 @@ class TestBigQueryClient(unittest.TestCase):
         self.mock_client_instance.query.return_value = mock_query_job
 
         result = self.bq_client.get_user_collection_predictions(
-            username="phenrickson", min_year=2025, limit=20000
+            username="phenrickson", min_year=2025, limit=500
         )
 
         self.assertEqual(len(result), 2)
@@ -277,7 +277,7 @@ class TestBigQueryClient(unittest.TestCase):
         self.assertIn("games_features", query_text)
         self.assertIn("@username", query_text)
         self.assertIn("gf.year_published >= 2025", query_text)
-        self.assertIn("LIMIT 20000", query_text)
+        self.assertIn("LIMIT 500", query_text)
         # Ensure the username goes through as a query parameter.
         job_config = call_args.kwargs.get("job_config") or call_args[1]["job_config"]
         params = {p.name: p.value for p in job_config.query_parameters}

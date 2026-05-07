@@ -1071,9 +1071,13 @@ class BigQueryClient:
         username: str,
         min_year: Optional[int] = None,
         max_year: Optional[int] = None,
-        limit: int = 20000,
+        limit: int = 500,
     ) -> pd.DataFrame:
         """Per-user collection predictions joined to games_features.
+
+        Server-side LIMIT so we don't ship the full 100k+ scored universe to
+        the dash for every user switch. Top `limit` rows by predicted_prob
+        across the whole user — covers the worst-case Top-N dropdown choice.
 
         Inner-join on game_id (we only want games we have features for). The
         returned columns include the prediction fields plus the same
@@ -1084,7 +1088,8 @@ class BigQueryClient:
             username: BGG username — the row filter for predictions.
             min_year: Optional inclusive lower bound on year_published.
             max_year: Optional inclusive upper bound on year_published.
-            limit: Maximum rows to return (defaults to 20_000).
+            limit: Maximum rows to return, sorted by predicted_prob DESC.
+                Defaults to 500.
         """
         year_filters = []
         if min_year is not None:
