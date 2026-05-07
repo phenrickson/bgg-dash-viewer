@@ -7,6 +7,28 @@ from ..components.header import create_header
 from ..components.footer import create_footer
 
 
+def _initial_results_placeholder() -> html.Div:
+    """Initial 'Ready to Search' state, baked into the layout.
+
+    Pre-rendering this in the layout (rather than letting render_results
+    paint it on first callback fire) eliminates the ~half-second blank
+    container while Dash makes the initial round-trip. The render_results
+    callback overwrites this once a search runs.
+    """
+    return html.Div(
+        [
+            html.I(className="fas fa-search fa-3x text-muted mb-3"),
+            html.H5("Ready to Search", className="text-muted"),
+            html.P(
+                "Select your filters and click 'Search Games' to see matching games.",
+                className="text-muted",
+            ),
+        ],
+        className="d-flex flex-column align-items-center justify-content-center text-center",
+        style={"minHeight": "280px"},
+    )
+
+
 # Complexity buckets (label → [min, max])
 COMPLEXITY_BUCKETS: dict[str, tuple[str, list[float]]] = {
     "any": ("Any", [1.0, 5.0]),
@@ -375,7 +397,10 @@ def create_game_search_layout() -> html.Div:
                         overlay_style={"visibility": "visible", "filter": "blur(2px)"},
                         children=[
                             dcc.Store(id="search-results-store"),
-                            html.Div(id="search-results-container"),
+                            html.Div(
+                                _initial_results_placeholder(),
+                                id="search-results-container",
+                            ),
                         ],
                     ),
                     # Pagination shown when results > page size

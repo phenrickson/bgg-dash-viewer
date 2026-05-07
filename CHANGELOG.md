@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2026-05-04
+
+### Added
+
+- **Collection Models page** at `/app/collection-models`, activating the
+  previously greyed-out tile on the landing page. Username dropdown
+  drives a per-user view of upcoming-game predictions from the deployed
+  collection model, with the same cards/table dual layout used on the
+  Predictions page. Cards show predicted probability (color-tiered) and
+  the model's yes/no label; threshold and model version sit in a compact
+  summary line above the grid.
+- **`BigQueryClient.get_users_with_collection_models()`** and
+  **`get_user_collection_predictions()`** for fetching the dropdown
+  options and per-user prediction data joined to `games_features`.
+- Reads from the new warehouse table
+  `bgg-data-warehouse.predictions.user_collection_predictions` (added in
+  bgg-data-warehouse v0.6.4).
+
 ## [0.5.1] - 2026-05-04
 
 ### Fixed

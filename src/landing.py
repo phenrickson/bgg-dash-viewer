@@ -41,7 +41,7 @@ FEATURES = [
         "description": "Personalized collection analysis and recommendations",
         "icon": "fas fa-chart-pie",
         "color": "#3b82f6",  # blue
-        "route": None,  # Coming soon
+        "route": "/app/collection-models",
     },
 ]
 

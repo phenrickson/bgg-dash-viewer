@@ -1050,6 +1050,99 @@ class BigQueryClient:
             return result.iloc[0].to_dict()
         return {}
 
+    def get_users_with_collection_models(self) -> List[str]:
+        """List usernames with at least one row in user_collection_predictions.
+
+        Powers the username dropdown on the Collection Models page. Sorted
+        alphabetically for stable UI.
+        """
+        query = """
+        SELECT DISTINCT username
+        FROM `${project_id}.predictions.user_collection_predictions`
+        ORDER BY username
+        """
+        df = self.execute_query(query)
+        if df.empty:
+            return []
+        return df["username"].tolist()
+
+    def get_user_collection_predictions(
+        self,
+        username: str,
+        min_year: Optional[int] = None,
+        max_year: Optional[int] = None,
+        limit: int = 500,
+    ) -> pd.DataFrame:
+        """Per-user collection predictions joined to games_features.
+
+        Server-side LIMIT so we don't ship the full 100k+ scored universe to
+        the dash for every user switch. Top `limit` rows by predicted_prob
+        across the whole user — covers the worst-case Top-N dropdown choice.
+
+        Inner-join on game_id (we only want games we have features for). The
+        returned columns include the prediction fields plus the same
+        games_features payload returned by get_latest_predictions_with_features
+        so the existing card renderer can be reused with minimal swaps.
+
+        Args:
+            username: BGG username — the row filter for predictions.
+            min_year: Optional inclusive lower bound on year_published.
+            max_year: Optional inclusive upper bound on year_published.
+            limit: Maximum rows to return, sorted by predicted_prob DESC.
+                Defaults to 500.
+        """
+        year_filters = []
+        if min_year is not None:
+            year_filters.append(f"gf.year_published >= {min_year}")
+        if max_year is not None:
+            year_filters.append(f"gf.year_published <= {max_year}")
+
+        extra_filters = ""
+        if year_filters:
+            extra_filters = " AND " + " AND ".join(year_filters)
+
+        query = f"""
+        SELECT
+            p.game_id,
+            p.username,
+            p.outcome,
+            p.predicted_prob,
+            p.predicted_label,
+            p.threshold,
+            p.model_name,
+            p.model_version,
+            p.score_ts,
+            p.finalize_through_year,
+            gf.name,
+            gf.year_published,
+            gf.thumbnail,
+            gf.image,
+            gf.description,
+            gf.bayes_average,
+            gf.average_rating,
+            gf.average_weight,
+            gf.users_rated,
+            gf.min_players,
+            gf.max_players,
+            gf.min_playtime,
+            gf.max_playtime,
+            gf.categories,
+            gf.mechanics,
+            gf.families,
+            gf.designers,
+            gf.publishers,
+            DATE_DIFF(CURRENT_DATE(), DATE(fp.first_prediction_ts), DAY) <= 7 AS is_new_7d
+        FROM `${{project_id}}.predictions.user_collection_predictions` p
+        INNER JOIN `${{project_id}}.${{dataset}}.games_features` gf
+            ON p.game_id = gf.game_id
+        LEFT JOIN `${{project_id}}.predictions.game_first_prediction` fp
+            ON p.game_id = fp.game_id
+        WHERE p.username = @username{extra_filters}
+        ORDER BY p.predicted_prob DESC
+        LIMIT {limit}
+        """
+        return self.execute_query(query, params={"username": username})
+
     def get_game_coordinates(self, min_ratings: int = 25) -> pd.DataFrame:
         """Get game coordinates for embedding visualization."""
         query = f"""
