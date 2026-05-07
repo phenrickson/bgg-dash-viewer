@@ -81,6 +81,11 @@ def _render_cards(records: list[dict[str, Any]], page: int) -> html.Div:
     start = (page - 1) * page_size
     page_records = records[start:start + page_size]
 
+    # Header text for the prob badge (e.g. "Pr(own)") — outcome is the same
+    # across all rows in the loaded user set, so resolve it once.
+    outcome = records[0].get("outcome") if records else None
+    prob_label = f"Pr({outcome})" if outcome else "Predicted Prob"
+
     title_clamp_style = {
         "display": "-webkit-box",
         "WebkitLineClamp": "2",
@@ -163,7 +168,7 @@ def _render_cards(records: list[dict[str, Any]], page: int) -> html.Div:
                             html.Div(
                                 [
                                     html.Small(
-                                        "Predicted Prob",
+                                        prob_label,
                                         className="text-muted d-block",
                                         style={"fontSize": "0.7rem", "lineHeight": "1"},
                                     ),
@@ -183,7 +188,7 @@ def _render_cards(records: list[dict[str, Any]], page: int) -> html.Div:
                             html.Div(
                                 [
                                     html.Small(
-                                        "Label",
+                                        "Prediction",
                                         className="text-muted d-block",
                                         style={"fontSize": "0.7rem", "lineHeight": "1"},
                                     ),
