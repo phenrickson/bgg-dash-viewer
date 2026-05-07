@@ -235,15 +235,30 @@ def _render_cards(records: list[dict[str, Any]], page: int) -> html.Div:
 
 def _render_table(df: pd.DataFrame) -> html.Div:
     """AG Grid table view for the same data."""
+    df = df.copy()
+    # Combine model_name + model_version into a single display column so
+    # the table doesn't carry two columns for what's effectively one piece
+    # of metadata (model identity).
+    if {"model_name", "model_version"}.issubset(df.columns):
+        df["model"] = df.apply(
+            lambda r: f"{r['model_name']} v{int(r['model_version'])}"
+            if pd.notna(r.get("model_name")) and pd.notna(r.get("model_version"))
+            else (r.get("model_name") or ""),
+            axis=1,
+        )
+
+    # Header for the probability column reflects the actual outcome
+    # (e.g. Pr(own)) so it reads correctly per the model being viewed.
+    outcome = df["outcome"].iloc[0] if "outcome" in df.columns and len(df) else None
+    prob_header = f"Pr({outcome})" if outcome else "Predicted Prob"
+
     display_columns = [
         "game_id",
         "name",
         "year_published",
         "predicted_prob",
         "predicted_label",
-        "threshold",
-        "model_name",
-        "model_version",
+        "model",
         "score_ts",
     ]
     display_columns = [c for c in display_columns if c in df.columns]
@@ -254,21 +269,19 @@ def _render_table(df: pd.DataFrame) -> html.Div:
         {"field": "year_published", "headerName": "Year", "width": 90, "filter": "agNumberColumnFilter"},
         {
             "field": "predicted_prob",
-            "headerName": "Predicted Prob",
-            "width": 140,
+            "headerName": prob_header,
+            "width": 120,
             "filter": "agNumberColumnFilter",
             "valueFormatter": {"function": "params.value == null ? '' : (params.value * 100).toFixed(1) + '%'"},
         },
-        {"field": "predicted_label", "headerName": "Label", "width": 100, "filter": "agSetColumnFilter"},
         {
-            "field": "threshold",
-            "headerName": "Threshold",
-            "width": 110,
-            "filter": "agNumberColumnFilter",
-            "valueFormatter": {"function": "params.value == null ? '' : params.value.toFixed(2)"},
+            "field": "predicted_label",
+            "headerName": "Prediction",
+            "width": 120,
+            "filter": "agSetColumnFilter",
+            "valueFormatter": {"function": "params.value == null ? '' : (params.value ? 'Yes' : 'No')"},
         },
-        {"field": "model_name", "headerName": "Model", "flex": 1, "filter": "agTextColumnFilter"},
-        {"field": "model_version", "headerName": "v", "width": 70, "filter": "agNumberColumnFilter"},
+        {"field": "model", "headerName": "Model", "flex": 1, "filter": "agTextColumnFilter"},
         {"field": "score_ts", "headerName": "Scored At", "width": 170},
     ]
 
