@@ -336,19 +336,9 @@ def register_collection_models_callbacks(app, cache):
         if pathname != "/app/collection-models":
             raise PreventUpdate
 
-        users = _load_users_cached()
-        if not users:
-            return (
-                html.Div(
-                    "No collection models are deployed yet.",
-                    className="text-muted text-center py-4",
-                ),
-                "",
-            )
-
-        default_user = "phenrickson" if "phenrickson" in users else users[0]
-        user_options = [{"label": u, "value": u} for u in users]
-
+        # Render the filter bar shell synchronously — no BQ call. The user
+        # dropdown gets its options populated by a separate callback so the
+        # page paints immediately while users + predictions load in parallel.
         page_content = html.Div(
             [
                 dbc.Card(
@@ -361,9 +351,10 @@ def register_collection_models_callbacks(app, cache):
                                             html.Label("User", className="mb-2"),
                                             dcc.Dropdown(
                                                 id="collection-models-user-dropdown",
-                                                options=user_options,
-                                                value=default_user,
+                                                options=[],
+                                                value=None,
                                                 clearable=False,
+                                                placeholder="Loading users...",
                                             ),
                                         ],
                                         width=3,
@@ -464,6 +455,30 @@ def register_collection_models_callbacks(app, cache):
         )
 
         return page_content, ""
+
+    @app.callback(
+        [
+            Output("collection-models-user-dropdown", "options"),
+            Output("collection-models-user-dropdown", "value"),
+            Output("collection-models-user-dropdown", "placeholder"),
+        ],
+        Input("collection-models-user-dropdown", "id"),
+    )
+    def populate_users(_id):
+        """Populate the user dropdown asynchronously after the chrome paints.
+
+        Triggered once when the dropdown mounts. Cached so subsequent loads
+        are immediate.
+        """
+        users = _load_users_cached()
+        if not users:
+            return [], None, "No deployed users"
+        default_user = "phenrickson" if "phenrickson" in users else users[0]
+        return (
+            [{"label": u, "value": u} for u in users],
+            default_user,
+            "Select a user...",
+        )
 
     @app.callback(
         [
