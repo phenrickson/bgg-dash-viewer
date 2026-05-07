@@ -252,6 +252,8 @@ def _render_table(df: pd.DataFrame) -> html.Div:
     outcome = df["outcome"].iloc[0] if "outcome" in df.columns and len(df) else None
     prob_header = f"Pr({outcome})" if outcome else "Predicted Prob"
 
+    # Carry game_id + year_published alongside name so the GameInfo cell
+    # renderer can populate the bold name + "year · id" subline.
     display_columns = [
         "game_id",
         "name",
@@ -264,9 +266,16 @@ def _render_table(df: pd.DataFrame) -> html.Div:
     display_columns = [c for c in display_columns if c in df.columns]
 
     column_defs = [
-        {"field": "game_id", "headerName": "ID", "width": 90, "filter": "agNumberColumnFilter"},
-        {"field": "name", "headerName": "Name", "flex": 2, "filter": "agTextColumnFilter"},
-        {"field": "year_published", "headerName": "Year", "width": 90, "filter": "agNumberColumnFilter"},
+        {
+            "field": "name",
+            "headerName": "Game",
+            "cellRenderer": "GameInfo",
+            "flex": 2,
+            "minWidth": 200,
+            "filter": "agTextColumnFilter",
+            "autoHeight": True,
+            "wrapText": True,
+        },
         {
             "field": "predicted_prob",
             "headerName": prob_header,
