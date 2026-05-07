@@ -264,6 +264,9 @@ def _render_cards(records: list[dict[str, Any]], page: int) -> html.Div:
 def _render_table(df: pd.DataFrame) -> html.Div:
     """AG Grid table view for the same data."""
     df = df.copy()
+    # Rank in current sort order (dataframe is sorted by predicted_prob DESC
+    # by the caller, matching the card grid).
+    df.insert(0, "rank", range(1, len(df) + 1))
     # Combine model_name + model_version into a single display column so
     # the table doesn't carry two columns for what's effectively one piece
     # of metadata (model identity).
@@ -283,6 +286,7 @@ def _render_table(df: pd.DataFrame) -> html.Div:
     # Carry game_id + year_published alongside name so the GameInfo cell
     # renderer can populate the bold name + "year · id" subline.
     display_columns = [
+        "rank",
         "game_id",
         "name",
         "year_published",
@@ -303,6 +307,13 @@ def _render_table(df: pd.DataFrame) -> html.Div:
     )
 
     column_defs = [
+        {
+            "field": "rank",
+            "headerName": "#",
+            "width": 70,
+            "filter": "agNumberColumnFilter",
+            "pinned": "left",
+        },
         {
             "field": "name",
             "headerName": "Game",
