@@ -242,6 +242,47 @@ class TestBigQueryClient(unittest.TestCase):
 
         self.assertEqual(result, [])
 
+    def test_get_user_collection_predictions_filters_and_joins(self):
+        """Returns user-filtered predictions joined to games_features."""
+        mock_query_job = MagicMock()
+        mock_df = pd.DataFrame({
+            "game_id": [1, 2],
+            "name": ["A", "B"],
+            "year_published": [2025, 2026],
+            "predicted_prob": [0.9, 0.7],
+            "predicted_label": [True, False],
+            "threshold": [0.5, 0.5],
+            "model_name": ["m", "m"],
+            "model_version": [1, 1],
+            "score_ts": pd.to_datetime(["2026-05-01", "2026-05-01"]),
+            "thumbnail": ["t1", "t2"],
+            "image": ["i1", "i2"],
+            "categories": [[], []],
+            "mechanics": [[], []],
+            "families": [[], []],
+            "designers": [[], []],
+            "publishers": [[], []],
+        })
+        mock_query_job.to_dataframe.return_value = mock_df
+        self.mock_client_instance.query.return_value = mock_query_job
+
+        result = self.bq_client.get_user_collection_predictions(
+            username="phenrickson", min_year=2025, limit=20000
+        )
+
+        self.assertEqual(len(result), 2)
+        call_args = self.mock_client_instance.query.call_args
+        query_text = call_args[0][0]
+        self.assertIn("predictions.user_collection_predictions", query_text)
+        self.assertIn("games_features", query_text)
+        self.assertIn("@username", query_text)
+        self.assertIn("gf.year_published >= 2025", query_text)
+        self.assertIn("LIMIT 20000", query_text)
+        # Ensure the username goes through as a query parameter.
+        job_config = call_args.kwargs.get("job_config") or call_args[1]["job_config"]
+        params = {p.name: p.value for p in job_config.query_parameters}
+        self.assertEqual(params.get("username"), "phenrickson")
+
 
 if __name__ == "__main__":
     unittest.main()

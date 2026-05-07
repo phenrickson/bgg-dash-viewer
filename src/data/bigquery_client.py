@@ -1066,6 +1066,75 @@ class BigQueryClient:
             return []
         return df["username"].tolist()
 
+    def get_user_collection_predictions(
+        self,
+        username: str,
+        min_year: Optional[int] = None,
+        max_year: Optional[int] = None,
+        limit: int = 20000,
+    ) -> pd.DataFrame:
+        """Per-user collection predictions joined to games_features.
+
+        Inner-join on game_id (we only want games we have features for). The
+        returned columns include the prediction fields plus the same
+        games_features payload returned by get_latest_predictions_with_features
+        so the existing card renderer can be reused with minimal swaps.
+
+        Args:
+            username: BGG username — the row filter for predictions.
+            min_year: Optional inclusive lower bound on year_published.
+            max_year: Optional inclusive upper bound on year_published.
+            limit: Maximum rows to return (defaults to 20_000).
+        """
+        year_filters = []
+        if min_year is not None:
+            year_filters.append(f"gf.year_published >= {min_year}")
+        if max_year is not None:
+            year_filters.append(f"gf.year_published <= {max_year}")
+
+        extra_filters = ""
+        if year_filters:
+            extra_filters = " AND " + " AND ".join(year_filters)
+
+        query = f"""
+        SELECT
+            p.game_id,
+            p.username,
+            p.outcome,
+            p.predicted_prob,
+            p.predicted_label,
+            p.threshold,
+            p.model_name,
+            p.model_version,
+            p.score_ts,
+            p.finalize_through_year,
+            gf.name,
+            gf.year_published,
+            gf.thumbnail,
+            gf.image,
+            gf.description,
+            gf.bayes_average,
+            gf.average_rating,
+            gf.average_weight,
+            gf.users_rated,
+            gf.min_players,
+            gf.max_players,
+            gf.min_playtime,
+            gf.max_playtime,
+            gf.categories,
+            gf.mechanics,
+            gf.families,
+            gf.designers,
+            gf.publishers
+        FROM `${{project_id}}.predictions.user_collection_predictions` p
+        INNER JOIN `${{project_id}}.${{dataset}}.games_features` gf
+            ON p.game_id = gf.game_id
+        WHERE p.username = @username{extra_filters}
+        ORDER BY p.predicted_prob DESC
+        LIMIT {limit}
+        """
+        return self.execute_query(query, params={"username": username})
+
     def get_game_coordinates(self, min_ratings: int = 25) -> pd.DataFrame:
         """Get game coordinates for embedding visualization."""
         query = f"""
