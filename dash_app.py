@@ -181,6 +181,7 @@ def display_page(pathname: str) -> Any:
     from src.layouts.upcoming_predictions import create_upcoming_predictions_layout
     from src.layouts.experiments import create_experiments_layout
     from src.layouts.game_similarity import create_game_similarity_layout
+    from src.layouts.collection_models import create_collection_models_layout
     from src.layouts.monitoring import create_monitoring_layout
 
     logger.info(f"Routing to: {pathname}")
@@ -198,6 +199,8 @@ def display_page(pathname: str) -> Any:
         return create_experiments_layout()
     elif pathname == "/app/game-similarity":
         return create_game_similarity_layout()
+    elif pathname == "/app/collection-models":
+        return create_collection_models_layout()
     elif pathname == "/app/monitoring":
         return create_monitoring_layout()
     elif pathname and pathname.startswith("/app/game/"):
