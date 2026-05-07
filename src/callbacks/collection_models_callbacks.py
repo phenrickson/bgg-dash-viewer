@@ -377,15 +377,15 @@ def register_collection_models_callbacks(app, cache):
                                     ),
                                     dbc.Col(
                                         [
-                                            html.Label("Min Predicted Prob", className="mb-2"),
-                                            dcc.Slider(
-                                                id="collection-models-prob-slider",
-                                                min=0.0,
-                                                max=1.0,
-                                                step=0.05,
-                                                value=0.25,
-                                                marks={0: "0", 0.5: "0.5", 1: "1"},
-                                                tooltip={"placement": "bottom", "always_visible": False},
+                                            html.Label("Top N (per year)", className="mb-2"),
+                                            dcc.Dropdown(
+                                                id="collection-models-top-n",
+                                                options=[
+                                                    {"label": str(n), "value": n}
+                                                    for n in (100, 200, 300, 400, 500)
+                                                ],
+                                                value=100,
+                                                clearable=False,
                                             ),
                                         ],
                                         width=3,
@@ -432,11 +432,14 @@ def register_collection_models_callbacks(app, cache):
                                 ],
                                 className="mb-3",
                             ),
-                            html.Div(id="collection-models-summary", className="mb-3"),
                             dbc.Spinner(
-                                html.Div(id="collection-models-content"),
+                                [
+                                    html.Div(id="collection-models-summary", className="mb-3"),
+                                    html.Div(id="collection-models-content"),
+                                ],
                                 color="primary",
                                 type="border",
+                                delay_show=200,
                             ),
                             dcc.Store(id="collection-models-cards-page", data=1),
                         ]
@@ -517,7 +520,7 @@ def register_collection_models_callbacks(app, cache):
             Input("collection-models-year-dropdown", "value"),
             Input("collection-models-view-toggle", "data"),
             Input("collection-models-cards-page", "data"),
-            Input("collection-models-prob-slider", "value"),
+            Input("collection-models-top-n", "value"),
             Input("collection-models-show-no-cover", "value"),
         ],
         State("collection-models-data-store", "data"),
@@ -526,7 +529,7 @@ def register_collection_models_callbacks(app, cache):
         selected_year: str | None,
         view_mode: str,
         page: int | None,
-        min_prob: float | None,
+        top_n: int | None,
         show_no_cover: bool | None,
         records: list[dict] | None,
     ):
@@ -535,9 +538,6 @@ def register_collection_models_callbacks(app, cache):
 
         df = pd.DataFrame(records)
         filtered = df[df["year_bucket"] == selected_year].copy()
-
-        if min_prob is not None and min_prob > 0:
-            filtered = filtered[filtered["predicted_prob"].fillna(0) >= min_prob]
 
         if not show_no_cover and "thumbnail" in filtered.columns:
             filtered = filtered[
@@ -551,6 +551,9 @@ def register_collection_models_callbacks(app, cache):
             )
 
         filtered = filtered.sort_values("predicted_prob", ascending=False).reset_index(drop=True)
+
+        if top_n is not None and top_n > 0:
+            filtered = filtered.head(top_n)
 
         if view_mode == "table":
             return _render_table(filtered)
