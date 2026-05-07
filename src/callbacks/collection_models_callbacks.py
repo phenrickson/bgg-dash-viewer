@@ -1,5 +1,6 @@
 """Callbacks for the Collection Models page."""
 
+import html as html_module
 from datetime import datetime
 from typing import Any
 
@@ -84,7 +85,7 @@ def _render_cards(records: list[dict[str, Any]], page: int) -> html.Div:
     # Header text for the prob badge (e.g. "Pr(own)") — outcome is the same
     # across all rows in the loaded user set, so resolve it once.
     outcome = records[0].get("outcome") if records else None
-    prob_label = f"Pr({outcome})" if outcome else "Predicted Prob"
+    prob_label = f"Pr({outcome.title()})" if outcome else "Predicted Prob"
 
     title_clamp_style = {
         "display": "-webkit-box",
@@ -267,50 +268,35 @@ def _render_table(df: pd.DataFrame) -> html.Div:
     # Rank in current sort order (dataframe is sorted by predicted_prob DESC
     # by the caller, matching the card grid).
     df.insert(0, "rank", range(1, len(df) + 1))
-    # Combine model_name + model_version into a single display column so
-    # the table doesn't carry two columns for what's effectively one piece
-    # of metadata (model identity).
-    if {"model_name", "model_version"}.issubset(df.columns):
-        df["model"] = df.apply(
-            lambda r: f"{r['model_name']} v{int(r['model_version'])}"
-            if pd.notna(r.get("model_name")) and pd.notna(r.get("model_version"))
-            else (r.get("model_name") or ""),
-            axis=1,
+    # Coerce predicted_label boolean → "Yes"/"No" string. AG Grid
+    # auto-renders boolean columns as checkboxes; converting upstream avoids
+    # that.
+    if "predicted_label" in df.columns:
+        df["predicted_label"] = df["predicted_label"].apply(
+            lambda v: "Yes" if v is True else ("No" if v is False else "")
         )
 
     # Header for the probability column reflects the actual outcome
-    # (e.g. Pr(own)) so it reads correctly per the model being viewed.
+    # (e.g. Pr(Own)) so it reads correctly per the model being viewed.
     outcome = df["outcome"].iloc[0] if "outcome" in df.columns and len(df) else None
-    prob_header = f"Pr({outcome})" if outcome else "Predicted Prob"
+    prob_header = f"Pr({outcome.title()})" if outcome else "Predicted Prob"
 
-    # Carry game_id + year_published alongside name so the GameInfo cell
-    # renderer can populate the bold name + "year · id" subline.
     display_columns = [
         "rank",
         "game_id",
         "name",
         "year_published",
+        "description",
         "predicted_prob",
         "predicted_label",
-        "designers",
-        "publishers",
-        "model",
-        "score_ts",
     ]
     display_columns = [c for c in display_columns if c in df.columns]
-
-    # The BadgeList renderer expects a CSV string, not an array. Mirror the
-    # canonical array_to_csv valueGetter from ag_grid_config.
-    array_to_csv = (
-        "(params.data.{field} && params.data.{field}.length) "
-        "? params.data.{field}.join(', ') : ''"
-    )
 
     column_defs = [
         {
             "field": "rank",
-            "headerName": "#",
-            "width": 70,
+            "headerName": "Rank",
+            "width": 90,
             "filter": "agNumberColumnFilter",
             "pinned": "left",
         },
@@ -318,50 +304,34 @@ def _render_table(df: pd.DataFrame) -> html.Div:
             "field": "name",
             "headerName": "Game",
             "cellRenderer": "GameInfo",
+            "flex": 1,
+            "minWidth": 220,
+            "filter": "agTextColumnFilter",
+            "wrapText": True,
+        },
+        {
+            "field": "description",
+            "headerName": "Description",
             "flex": 2,
-            "minWidth": 200,
+            "minWidth": 280,
             "filter": "agTextColumnFilter",
             "autoHeight": True,
             "wrapText": True,
+            "cellStyle": {"lineHeight": "1.4", "paddingTop": "8px", "paddingBottom": "8px"},
         },
         {
             "field": "predicted_prob",
             "headerName": prob_header,
             "width": 120,
             "filter": "agNumberColumnFilter",
-            "valueFormatter": {"function": "params.value == null ? '' : (params.value * 100).toFixed(1) + '%'"},
+            "valueFormatter": {"function": "params.value == null ? '' : params.value.toFixed(3)"},
         },
         {
             "field": "predicted_label",
             "headerName": "Prediction",
             "width": 120,
             "filter": "agSetColumnFilter",
-            "valueFormatter": {"function": "params.value == null ? '' : (params.value ? 'Yes' : 'No')"},
         },
-        {
-            "field": "designers",
-            "headerName": "Designers",
-            "flex": 1,
-            "minWidth": 150,
-            "valueGetter": {"function": array_to_csv.format(field="designers")},
-            "cellRenderer": "BadgeList",
-            "cellRendererParams": {"badgeColor": "#6366f1", "maxVisible": 2},
-            "filter": "agTextColumnFilter",
-            "autoHeight": True,
-        },
-        {
-            "field": "publishers",
-            "headerName": "Publishers",
-            "flex": 1,
-            "minWidth": 150,
-            "valueGetter": {"function": array_to_csv.format(field="publishers")},
-            "cellRenderer": "BadgeList",
-            "cellRendererParams": {"badgeColor": "#4b5563", "maxVisible": 2},
-            "filter": "agTextColumnFilter",
-            "autoHeight": True,
-        },
-        {"field": "model", "headerName": "Model", "flex": 1, "filter": "agTextColumnFilter"},
-        {"field": "score_ts", "headerName": "Scored At", "width": 170},
     ]
 
     grid_options = get_default_grid_options()
@@ -410,9 +380,20 @@ def register_collection_models_callbacks(app, cache):
             # Coloring on the card uses this rather than absolute prob, since
             # the prob distribution is user-specific (a 0.04 may be elite).
             df["prob_quantile"] = df["predicted_prob"].rank(pct=True, method="average")
-            for col in ("description", "image"):
-                if col in df.columns:
-                    df = df.drop(columns=[col])
+            # Decode HTML entities (BGG returns &mdash; / &eacute; / etc.)
+            # and truncate so the dcc.Store payload stays small. The table
+            # clamps to ~2 lines so 200 chars is plenty.
+            if "description" in df.columns:
+                def _clean_description(s: Any) -> str:
+                    if not isinstance(s, str):
+                        return ""
+                    decoded = html_module.unescape(s)
+                    if len(decoded) > 200:
+                        return decoded[:200].rstrip() + "…"
+                    return decoded
+                df["description"] = df["description"].apply(_clean_description)
+            if "image" in df.columns:
+                df = df.drop(columns=["image"])
             return df.to_dict("records")
         except Exception as exc:  # noqa: BLE001
             print(f"Error loading predictions for '{username}': {exc}")
@@ -467,7 +448,7 @@ def register_collection_models_callbacks(app, cache):
                                     ),
                                     dbc.Col(
                                         [
-                                            html.Label("Top N (per year)", className="mb-2"),
+                                            html.Label("Top N", className="mb-2"),
                                             dcc.Dropdown(
                                                 id="collection-models-top-n",
                                                 options=[
@@ -596,13 +577,15 @@ def register_collection_models_callbacks(app, cache):
             key=lambda x: (x == "Other", x),
             reverse=True,
         )
-        year_options = [{"label": y, "value": y} for y in years]
+        # Year dropdown gets two synthetic options on top: "current year +"
+        # (default) and "All years", followed by each individual year.
         current_year = str(datetime.now().year)
-        if current_year in years:
-            default_year = current_year
-        else:
-            numeric = [int(y) for y in years if y != "Other"]
-            default_year = str(max(numeric)) if numeric else (years[0] if years else None)
+        year_options = [
+            {"label": f"{current_year}+", "value": "current_plus"},
+            {"label": "All years", "value": "all"},
+            *({"label": y, "value": y} for y in years),
+        ]
+        default_year = "current_plus"
 
         latest_ts = df["score_ts"].max() if "score_ts" in df.columns else None
         latest_str = pd.to_datetime(latest_ts).strftime("%Y-%m-%d") if latest_ts is not None else "—"
@@ -616,7 +599,13 @@ def register_collection_models_callbacks(app, cache):
                 html.Span(f"{len(df):,} games", className="me-3"),
                 html.Span(f"Model: {model_name} v{model_version}", className="me-3"),
                 html.Span(f"Threshold: {threshold_str}", className="me-3"),
-                html.Span(f"Last scored: {latest_str}"),
+                html.Span(f"Last scored: {latest_str}", className="me-3"),
+                html.A(
+                    "Model Details →",
+                    href=f"https://phenrickson.github.io/bgg-predictive-models/{username}.html",
+                    target="_blank",
+                    rel="noopener noreferrer",
+                ),
             ],
             className="text-muted small",
         )
@@ -646,7 +635,16 @@ def register_collection_models_callbacks(app, cache):
             raise PreventUpdate
 
         df = pd.DataFrame(records)
-        filtered = df[df["year_bucket"] == selected_year].copy()
+        # Year filter: "all" → no filter; "current_plus" → current year and
+        # later; otherwise an exact year_bucket match.
+        if selected_year == "all":
+            filtered = df.copy()
+        elif selected_year == "current_plus":
+            current_year = datetime.now().year
+            numeric_years = pd.to_numeric(df["year_bucket"], errors="coerce")
+            filtered = df[numeric_years >= current_year].copy()
+        else:
+            filtered = df[df["year_bucket"] == selected_year].copy()
 
         if not show_no_cover and "thumbnail" in filtered.columns:
             filtered = filtered[
