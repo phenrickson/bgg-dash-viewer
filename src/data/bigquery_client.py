@@ -1050,6 +1050,22 @@ class BigQueryClient:
             return result.iloc[0].to_dict()
         return {}
 
+    def get_users_with_collection_models(self) -> List[str]:
+        """List usernames with at least one row in user_collection_predictions.
+
+        Powers the username dropdown on the Collection Models page. Sorted
+        alphabetically for stable UI.
+        """
+        query = """
+        SELECT DISTINCT username
+        FROM `${project_id}.predictions.user_collection_predictions`
+        ORDER BY username
+        """
+        df = self.execute_query(query)
+        if df.empty:
+            return []
+        return df["username"].tolist()
+
     def get_game_coordinates(self, min_ratings: int = 25) -> pd.DataFrame:
         """Get game coordinates for embedding visualization."""
         query = f"""

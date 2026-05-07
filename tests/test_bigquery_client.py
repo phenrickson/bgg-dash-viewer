@@ -25,6 +25,7 @@ class TestBigQueryClient(unittest.TestCase):
             },
             "datasets": {
                 "raw": "test_raw_dataset",
+                "core": "test_core_dataset",
             },
             "tables": {},
             "raw_tables": {},
@@ -213,6 +214,33 @@ class TestBigQueryClient(unittest.TestCase):
         self.assertEqual(result["publishers"][0]["name"], "Publisher 1")
         self.assertEqual(len(result["player_counts"]), 3)
         self.assertEqual(result["player_counts"][0]["player_count"], 2)
+
+    def test_get_users_with_collection_models_returns_sorted_usernames(self):
+        """Returns DISTINCT usernames from user_collection_predictions, alphabetically."""
+        mock_query_job = MagicMock()
+        mock_dataframe = pd.DataFrame({"username": ["GOBBluth89", "TomBrewstErr", "phenrickson"]})
+        mock_query_job.to_dataframe.return_value = mock_dataframe
+        self.mock_client_instance.query.return_value = mock_query_job
+
+        result = self.bq_client.get_users_with_collection_models()
+
+        self.assertEqual(result, ["GOBBluth89", "TomBrewstErr", "phenrickson"])
+        # Verify the query targets the right table.
+        call_args = self.mock_client_instance.query.call_args
+        query_text = call_args[0][0]
+        self.assertIn("predictions.user_collection_predictions", query_text)
+        self.assertIn("DISTINCT", query_text.upper())
+        self.assertIn("ORDER BY", query_text.upper())
+
+    def test_get_users_with_collection_models_empty(self):
+        """Returns empty list when there are no rows."""
+        mock_query_job = MagicMock()
+        mock_query_job.to_dataframe.return_value = pd.DataFrame({"username": []})
+        self.mock_client_instance.query.return_value = mock_query_job
+
+        result = self.bq_client.get_users_with_collection_models()
+
+        self.assertEqual(result, [])
 
 
 if __name__ == "__main__":
