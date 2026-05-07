@@ -288,10 +288,19 @@ def _render_table(df: pd.DataFrame) -> html.Div:
         "year_published",
         "predicted_prob",
         "predicted_label",
+        "designers",
+        "publishers",
         "model",
         "score_ts",
     ]
     display_columns = [c for c in display_columns if c in df.columns]
+
+    # The BadgeList renderer expects a CSV string, not an array. Mirror the
+    # New Games table's array_to_csv conversion via valueGetter.
+    array_to_csv = (
+        "params.data.{field} == null ? '' : "
+        "(Array.isArray(params.data.{field}) ? params.data.{field}.join(', ') : params.data.{field})"
+    )
 
     column_defs = [
         {
@@ -317,6 +326,28 @@ def _render_table(df: pd.DataFrame) -> html.Div:
             "width": 120,
             "filter": "agSetColumnFilter",
             "valueFormatter": {"function": "params.value == null ? '' : (params.value ? 'Yes' : 'No')"},
+        },
+        {
+            "field": "designers",
+            "headerName": "Designers",
+            "flex": 1,
+            "minWidth": 150,
+            "valueGetter": {"function": array_to_csv.format(field="designers")},
+            "cellRenderer": "BadgeList",
+            "cellRendererParams": {"badgeColor": "#6366f1", "maxVisible": 2},
+            "filter": "agTextColumnFilter",
+            "autoHeight": True,
+        },
+        {
+            "field": "publishers",
+            "headerName": "Publishers",
+            "flex": 1,
+            "minWidth": 150,
+            "valueGetter": {"function": array_to_csv.format(field="publishers")},
+            "cellRenderer": "BadgeList",
+            "cellRendererParams": {"badgeColor": "#4b5563", "maxVisible": 2},
+            "filter": "agTextColumnFilter",
+            "autoHeight": True,
         },
         {"field": "model", "headerName": "Model", "flex": 1, "filter": "agTextColumnFilter"},
         {"field": "score_ts", "headerName": "Scored At", "width": 170},
