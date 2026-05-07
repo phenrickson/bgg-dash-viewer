@@ -1130,10 +1130,13 @@ class BigQueryClient:
             gf.mechanics,
             gf.families,
             gf.designers,
-            gf.publishers
+            gf.publishers,
+            DATE_DIFF(CURRENT_DATE(), DATE(fp.first_prediction_ts), DAY) <= 7 AS is_new_7d
         FROM `${{project_id}}.predictions.user_collection_predictions` p
         INNER JOIN `${{project_id}}.${{dataset}}.games_features` gf
             ON p.game_id = gf.game_id
+        LEFT JOIN `${{project_id}}.predictions.game_first_prediction` fp
+            ON p.game_id = fp.game_id
         WHERE p.username = @username{extra_filters}
         ORDER BY p.predicted_prob DESC
         LIMIT {limit}

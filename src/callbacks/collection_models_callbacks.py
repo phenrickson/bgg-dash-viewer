@@ -134,28 +134,51 @@ def _render_cards(records: list[dict[str, Any]], page: int) -> html.Div:
             },
         )
 
-        image_block = html.Div(
-            [
-                html.Img(
-                    src=thumbnail,
-                    style={
-                        "width": "100%",
-                        "aspectRatio": "1 / 1",
-                        "objectFit": "cover",
-                        "borderRadius": "6px 6px 0 0",
-                    },
-                ) if thumbnail else html.Div(
-                    style={
-                        "width": "100%",
-                        "aspectRatio": "1 / 1",
-                        "background": "rgba(255,255,255,0.05)",
-                        "borderRadius": "6px 6px 0 0",
-                    },
-                ),
-                rank_badge,
-            ],
-            className="position-relative",
+        # NEW pill for games newly arrived in the predictions catalog
+        # (first_prediction_ts within last 7 days). Mirrors the Predictions
+        # module's badge.
+        is_new = bool(row.get("is_new_7d"))
+        new_badge = (
+            dbc.Badge(
+                "NEW",
+                color="danger",
+                className="position-absolute",
+                style={
+                    "top": "8px",
+                    "right": "8px",
+                    "fontSize": "0.7rem",
+                    "padding": "0.35em 0.55em",
+                    "letterSpacing": "0.05em",
+                    "fontWeight": "bold",
+                },
+            )
+            if is_new
+            else None
         )
+
+        image_children = [
+            html.Img(
+                src=thumbnail,
+                style={
+                    "width": "100%",
+                    "aspectRatio": "1 / 1",
+                    "objectFit": "cover",
+                    "borderRadius": "6px 6px 0 0",
+                },
+            ) if thumbnail else html.Div(
+                style={
+                    "width": "100%",
+                    "aspectRatio": "1 / 1",
+                    "background": "rgba(255,255,255,0.05)",
+                    "borderRadius": "6px 6px 0 0",
+                },
+            ),
+            rank_badge,
+        ]
+        if new_badge is not None:
+            image_children.append(new_badge)
+
+        image_block = html.Div(image_children, className="position-relative")
 
         body = html.Div(
             [
